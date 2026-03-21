@@ -1,0 +1,19 @@
+<idea-plugin>
+    <id>com.github.artem.pageobjectplugin</id>
+    <name>Page Object Plugin</name>
+    <vendor>Artem</vendor>
+
+    <description><![CDATA[
+        Plugin to ease usage of page objects in automated tests.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Add extensions here -->
+    </extensions>
+
+    <actions>
+        <!-- Add actions here -->
+    </actions>
+</idea-plugin>
