@@ -27,5 +27,11 @@
                 description="Load a Page Mirror snapshot directory">
             <add-to-group group-id="ToolsMenu" anchor="last"/>
         </action>
+        <action id="PageMirror.ToggleInspect"
+                class="com.github.artem.pageobjectplugin.actions.ToggleInspectAction"
+                text="Toggle Inspect Mode"
+                description="Toggle element inspection in Page Mirror">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
     </actions>
 </idea-plugin>
