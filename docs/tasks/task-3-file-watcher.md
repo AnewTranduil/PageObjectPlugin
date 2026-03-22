@@ -41,9 +41,11 @@ Add automatic snapshot discovery:
 
 ## Acceptance Criteria
 
-- [ ] Open a `.spec.ts` file next to a `.snapshots/` folder → Tool Window auto-populates the dropdown
-- [ ] Selecting a snapshot from the dropdown loads it in the JCEF view
-- [ ] Re-running the Playwright test triggers auto-reload in the Tool Window
-- [ ] Opening a `.py` file does not clear the current snapshot
-- [ ] Refresh button re-scans and updates the dropdown
-- [ ] "No snapshots found" message shows when there's no `.snapshots/` directory
+- [x] Open a `.spec.ts` file next to a `.snapshots/` folder → Tool Window auto-populates the dropdown
+- [x] Selecting a snapshot from the dropdown loads it in the JCEF view
+- [x] Re-running the Playwright test triggers auto-reload in the Tool Window
+- [x] Opening a `.py` file does not clear the current snapshot
+- [x] Refresh button re-scans and updates the dropdown
+- [x] "No snapshots found" message shows when there's no `.snapshots/` directory
+
+**Status: COMPLETE** (merged to main via PR #3)

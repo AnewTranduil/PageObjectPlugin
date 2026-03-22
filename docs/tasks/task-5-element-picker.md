@@ -58,10 +58,12 @@ Add the Element Picker:
 
 ## Acceptance Criteria
 
-- [ ] Click Inspect → hover shows green highlight → click an input → popup appears near caret
-- [ ] Popup shows Property / Variable / Copy options with the generated locator
-- [ ] Choosing "Property" inserts `readonly usernameInput = this.page.locator('#username');` at caret
-- [ ] Generated field names are sensible camelCase (not "element1")
-- [ ] Undo (`Ctrl+Z`) removes the inserted code in one step
-- [ ] Picker correctly sends data from JS to Kotlin without errors
-- [ ] Inspect mode deactivates after clicking an element
+- [x] Click Inspect → hover shows green highlight → click an input → popup appears near caret
+- [x] Popup shows Property / Variable / Copy options with the generated locator
+- [x] Choosing "Property" inserts `readonly usernameInput = this.page.locator('#username');` at caret
+- [x] Generated field names are sensible camelCase (not "element1")
+- [x] Undo (`Ctrl+Z`) removes the inserted code in one step
+- [x] Picker correctly sends data from JS to Kotlin without errors
+- [x] Inspect mode deactivates after clicking an element
+
+**Status: COMPLETE** (merged to main via PR #3)

@@ -44,11 +44,13 @@ Extend the Page Mirror IntelliJ plugin (Kotlin, 2024.3+). All core features are 
 
 ## Acceptance Criteria
 
-- [ ] Settings page appears under Tools > Page Mirror with all options functional
-- [ ] Changing highlight color in settings updates the highlight box color immediately
-- [ ] Status bar shows current snapshot name; clicking opens Tool Window
-- [ ] `Alt+Shift+I` toggles inspect mode (visible in Keymap settings)
-- [ ] `Alt+Shift+H` highlights current selector (works even if Tool Window was closed)
-- [ ] Balloon notification appears after auto-reload
-- [ ] Switching IDE to Light theme updates the Page Mirror background
-- [ ] All settings persist across IDE restarts
+- [x] Settings page appears under Tools > Page Mirror with all options functional
+- [x] Changing highlight color in settings updates the highlight box color immediately
+- [x] Status bar shows current snapshot name; clicking opens Tool Window
+- [x] `Alt+Shift+I` toggles inspect mode (visible in Keymap settings)
+- [x] `Alt+Shift+H` highlights current selector (works even if Tool Window was closed)
+- [x] Balloon notification appears after auto-reload
+- [x] Switching IDE to Light theme updates the Page Mirror background
+- [x] All settings persist across IDE restarts
+
+**Status: COMPLETE** (merged to main via PR #3)

@@ -42,10 +42,12 @@ Add live selector validation in the editor gutter:
 
 ## Acceptance Criteria
 
-- [ ] Line with `page.locator('#username')` shows green "1" badge in gutter
-- [ ] Line with `page.locator('.nonexistent')` shows red "0" badge
-- [ ] Line with `page.locator('input')` shows yellow badge with actual count
-- [ ] Badges update within ~500ms of editing the selector string
-- [ ] No UI freezes when annotating a 500-line file
-- [ ] Clicking a badge highlights matching elements in Page Mirror
-- [ ] Reloading a snapshot updates the badges automatically
+- [x] Line with `page.locator('#username')` shows green "1" badge in gutter
+- [x] Line with `page.locator('.nonexistent')` shows red "0" badge
+- [x] Line with `page.locator('input')` shows yellow badge with actual count
+- [x] Badges update within ~500ms of editing the selector string
+- [x] No UI freezes when annotating a 500-line file
+- [x] Clicking a badge highlights matching elements in Page Mirror
+- [x] Reloading a snapshot updates the badges automatically
+
+**Status: COMPLETE** (merged to main via PR #3)

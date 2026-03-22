@@ -53,10 +53,12 @@ Add code-to-UI highlighting:
 
 ## Acceptance Criteria
 
-- [ ] Cursor on `this.page.locator('#username')` → highlights the username input in Page Mirror
-- [ ] Cursor on `page.getByRole('button', { name: 'Login' })` → highlights the login button
-- [ ] Moving cursor to a comment line → clears the highlight
-- [ ] Highlight box shows a tooltip with tag name, role, and visible text
-- [ ] No visible delay when moving the cursor (debounce feels instant)
-- [ ] Works in both `.ts` and `.spec.ts` files
-- [ ] No memory leaks (listener is properly disposed)
+- [x] Cursor on `this.page.locator('#username')` → highlights the username input in Page Mirror
+- [x] Cursor on `page.getByRole('button', { name: 'Login' })` → highlights the login button
+- [x] Moving cursor to a comment line → clears the highlight
+- [x] Highlight box shows a tooltip with tag name, role, and visible text
+- [x] No visible delay when moving the cursor (debounce feels instant)
+- [x] Works in both `.ts` and `.spec.ts` files
+- [x] No memory leaks (listener is properly disposed)
+
+**Status: COMPLETE** (merged to main via PR #3)

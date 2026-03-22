@@ -51,8 +51,10 @@ Test with the snapshot files from `./test-project/.snapshots/login/initial/`.
 
 ## Acceptance Criteria
 
-- [ ] Tools > Load Snapshot Directory > select a snapshot folder > the page renders in the Tool Window inside an iframe
-- [ ] Status bar shows element count matching `layout.json`
-- [ ] Calling `highlightElement` from the Kotlin side draws a visible blue box at correct coordinates
-- [ ] No CSS bleed between the snapshot HTML and the plugin chrome
-- [ ] Highlight box disappears when `clearHighlight` is called
+- [x] Tools > Load Snapshot Directory > select a snapshot folder > the page renders in the Tool Window inside an iframe
+- [x] Status bar shows element count matching `layout.json`
+- [x] Calling `highlightElement` from the Kotlin side draws a visible blue box at correct coordinates
+- [x] No CSS bleed between the snapshot HTML and the plugin chrome
+- [x] Highlight box disappears when `clearHighlight` is called
+
+**Status: COMPLETE** (merged to main via PR #3)
