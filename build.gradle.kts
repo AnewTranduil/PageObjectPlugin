@@ -14,6 +14,8 @@ repositories {
 }
 
 dependencies {
+    implementation("org.jsoup:jsoup:1.17.2")
+
     intellijPlatform {
         intellijIdeaCommunity(providers.gradleProperty("platformVersion").get())
         instrumentationTools()
