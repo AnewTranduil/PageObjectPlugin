@@ -14,4 +14,13 @@
                     anchor="right"
                     factoryClass="com.github.artem.pageobjectplugin.PageMirrorToolWindowFactory"/>
     </extensions>
+
+    <actions>
+        <action id="PageMirror.LoadSnapshot"
+                class="com.github.artem.pageobjectplugin.actions.LoadSnapshotAction"
+                text="Load Snapshot Directory..."
+                description="Load a Page Mirror snapshot directory">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
+    </actions>
 </idea-plugin>
