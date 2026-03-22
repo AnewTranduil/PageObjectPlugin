@@ -2,6 +2,9 @@ package com.github.artem.pageobjectplugin.listeners
 
 import com.github.artem.pageobjectplugin.model.SnapshotBundle
 import com.github.artem.pageobjectplugin.services.SnapshotService
+import com.github.artem.pageobjectplugin.settings.PageMirrorSettings
+import com.intellij.notification.NotificationGroupManager
+import com.intellij.notification.NotificationType
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
@@ -25,7 +28,8 @@ class SnapshotWatcher(private val project: Project) : Disposable {
                         val path = event.path
                         path.contains(".snapshots")
                     }
-                    if (hasSnapshotChange) {
+                    val settings = PageMirrorSettings.getInstance(project)
+                    if (hasSnapshotChange && settings.state.autoReloadOnChange) {
                         scheduleReload()
                     }
                 }
@@ -47,6 +51,13 @@ class SnapshotWatcher(private val project: Project) : Disposable {
                             val refreshed = SnapshotBundle.fromDirectory(currentBundle.htmlPath.parent)
                             if (refreshed != null) {
                                 service.loadSnapshot(refreshed)
+                                NotificationGroupManager.getInstance()
+                                    .getNotificationGroup("Page Mirror")
+                                    .createNotification(
+                                        "Snapshot updated: ${refreshed.name}",
+                                        NotificationType.INFORMATION
+                                    )
+                                    .notify(project)
                             }
                         }
                     }

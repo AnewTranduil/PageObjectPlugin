@@ -2,9 +2,16 @@ package com.github.artem.pageobjectplugin.services
 
 import com.github.artem.pageobjectplugin.locators.PickerResultHandler
 import com.github.artem.pageobjectplugin.model.SnapshotBundle
+import com.github.artem.pageobjectplugin.settings.PageMirrorSettings
+import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
+import com.intellij.ide.ui.LafManager
+import com.intellij.ide.ui.LafManagerListener
+import com.intellij.notification.NotificationGroupManager
+import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
+import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
 import com.intellij.ui.jcef.JBCefBrowser
 import com.intellij.ui.jcef.JBCefJSQuery
@@ -23,6 +30,7 @@ class SnapshotService(private val project: Project) {
             field = value
             if (value != null) {
                 setupJsQuery(value)
+                setupThemeListener()
             }
         }
 
@@ -55,22 +63,50 @@ class SnapshotService(private val project: Project) {
         val browser = this.browser ?: return
         currentBundle = bundle
 
-        val html = bundle.htmlPath.readText()
-        val layout = bundle.layoutPath.readText()
+        try {
+            val html = bundle.htmlPath.readText()
+            val layout = bundle.layoutPath.readText()
 
-        // Parse HTML with Jsoup for gutter validation
-        snapshotDocument = Jsoup.parse(html)
+            // Parse HTML with Jsoup for gutter validation
+            snapshotDocument = Jsoup.parse(html)
 
-        val escapedHtml = escapeForJs(html)
-        val escapedLayout = escapeForJs(layout)
+            val escapedHtml = escapeForJs(html)
+            val escapedLayout = escapeForJs(layout)
 
-        browser.cefBrowser.executeJavaScript(
-            "window.loadSnapshot($escapedHtml, $escapedLayout);",
-            browser.cefBrowser.url,
-            0
-        )
+            browser.cefBrowser.executeJavaScript(
+                "window.loadSnapshot($escapedHtml, $escapedLayout);",
+                browser.cefBrowser.url,
+                0
+            )
+
+            // Apply theme and highlight color to the loaded page
+            applyTheme()
+            applyHighlightColor()
+        } catch (e: Exception) {
+            NotificationGroupManager.getInstance()
+                .getNotificationGroup("Page Mirror")
+                .createNotification(
+                    "Failed to load snapshot: ${e.message}",
+                    NotificationType.ERROR
+                )
+                .notify(project)
+        }
 
         snapshotListeners.forEach { it() }
+
+        // Restart annotations so gutter badges update with new snapshot data
+        restartAnnotations()
+    }
+
+    private fun restartAnnotations() {
+        ApplicationManager.getApplication().invokeLater {
+            val analyzer = DaemonCodeAnalyzer.getInstance(project)
+            val editorManager = FileEditorManager.getInstance(project)
+            for (file in editorManager.openFiles) {
+                val psiFile = com.intellij.psi.PsiManager.getInstance(project).findFile(file) ?: continue
+                analyzer.restart(psiFile)
+            }
+        }
     }
 
     fun highlightElement(selector: String) {
@@ -89,6 +125,33 @@ class SnapshotService(private val project: Project) {
             "window.clearHighlight();",
             browser.cefBrowser.url,
             0
+        )
+    }
+
+    fun applyTheme() {
+        val browser = this.browser ?: return
+        val theme = if (LafManager.getInstance().currentUIThemeLookAndFeel.isDark) "dark" else "light"
+        browser.cefBrowser.executeJavaScript(
+            "window.setTheme && window.setTheme('$theme');",
+            browser.cefBrowser.url,
+            0
+        )
+    }
+
+    fun applyHighlightColor() {
+        val browser = this.browser ?: return
+        val color = PageMirrorSettings.getInstance(project).state.highlightColor
+        browser.cefBrowser.executeJavaScript(
+            "window.setHighlightColor && window.setHighlightColor('$color');",
+            browser.cefBrowser.url,
+            0
+        )
+    }
+
+    private fun setupThemeListener() {
+        ApplicationManager.getApplication().messageBus.connect().subscribe(
+            LafManagerListener.TOPIC,
+            LafManagerListener { applyTheme() }
         )
     }
 
