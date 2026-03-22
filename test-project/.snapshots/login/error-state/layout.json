@@ -1,0 +1,164 @@
+{
+  "version": 1,
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "elements": [
+    {
+      "selector": "#content",
+      "role": null,
+      "text": "Login Page\n    This is where you can log into the secure area. Enter tomsmith as",
+      "tag": "div",
+      "bounds": {
+        "x": 320,
+        "y": 0,
+        "w": 640,
+        "h": 457
+      },
+      "interactive": false,
+      "attributes": {
+        "id": "content"
+      }
+    },
+    {
+      "selector": "#flash",
+      "role": "alert",
+      "text": "Your username is invalid! ×",
+      "tag": "div",
+      "bounds": {
+        "x": 340,
+        "y": 179,
+        "w": 600,
+        "h": 38
+      },
+      "interactive": false,
+      "attributes": {
+        "id": "flash",
+        "role": "alert"
+      }
+    },
+    {
+      "selector": "#login",
+      "role": null,
+      "text": "Username\n          \n        \n        \n          Password\n          \n        \n   ",
+      "tag": "div",
+      "bounds": {
+        "x": 490,
+        "y": 237,
+        "w": 300,
+        "h": 180
+      },
+      "interactive": false,
+      "attributes": {
+        "id": "login"
+      }
+    },
+    {
+      "selector": "[data-testid=\"login-form\"]",
+      "role": null,
+      "text": "Username\n          \n        \n        \n          Password\n          \n        \n   ",
+      "tag": "form",
+      "bounds": {
+        "x": 490,
+        "y": 237,
+        "w": 300,
+        "h": 180
+      },
+      "interactive": false,
+      "attributes": {
+        "data-testid": "login-form",
+        "id": "login-form"
+      }
+    },
+    {
+      "selector": "[data-testid=\"login-username\"]",
+      "role": "textbox",
+      "text": "Username",
+      "tag": "input",
+      "bounds": {
+        "x": 490,
+        "y": 260,
+        "w": 300,
+        "h": 34
+      },
+      "interactive": true,
+      "attributes": {
+        "type": "text",
+        "name": "username",
+        "placeholder": "Username",
+        "data-testid": "login-username",
+        "id": "username"
+      }
+    },
+    {
+      "selector": "[data-testid=\"login-password\"]",
+      "role": "textbox",
+      "text": "Password",
+      "tag": "input",
+      "bounds": {
+        "x": 490,
+        "y": 332,
+        "w": 300,
+        "h": 34
+      },
+      "interactive": true,
+      "attributes": {
+        "type": "password",
+        "name": "password",
+        "placeholder": "Password",
+        "data-testid": "login-password",
+        "id": "password"
+      }
+    },
+    {
+      "selector": "[data-testid=\"login-button\"]",
+      "role": "button",
+      "text": "Login",
+      "tag": "button",
+      "bounds": {
+        "x": 490,
+        "y": 381,
+        "w": 74,
+        "h": 36
+      },
+      "interactive": true,
+      "attributes": {
+        "type": "submit",
+        "data-testid": "login-button"
+      }
+    },
+    {
+      "selector": "#page-footer",
+      "role": null,
+      "text": "Powered by Elemental Selenium",
+      "tag": "div",
+      "bounds": {
+        "x": 0,
+        "y": 497,
+        "w": 1280,
+        "h": 79
+      },
+      "interactive": false,
+      "attributes": {
+        "id": "page-footer"
+      }
+    },
+    {
+      "selector": "#page-footer > p > a",
+      "role": "link",
+      "text": "Elemental Selenium",
+      "tag": "a",
+      "bounds": {
+        "x": 620,
+        "y": 530,
+        "w": 107,
+        "h": 14
+      },
+      "interactive": true,
+      "attributes": {
+        "href": "http://elementalselenium.com/"
+      }
+    }
+  ]
+}
