@@ -42,7 +42,8 @@ intellijPlatform {
 
     pluginVerification {
         ides {
-            recommended()
+            ide("IC", providers.gradleProperty("platformVersion").get())
+            ide("WS", providers.gradleProperty("platformVersion").get())
         }
     }
 }
