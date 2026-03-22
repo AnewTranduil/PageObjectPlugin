@@ -61,7 +61,29 @@ Do NOT use any external snapshot libraries. Keep it minimal and explicit.
 
 ## Acceptance Criteria
 
-- [ ] Running the test creates `.snapshots/login/initial/` and `.snapshots/login/error-state/` each with all 4 files
-- [ ] `layout.json` contains at least 4 elements with correct bounds (non-zero width/height)
-- [ ] `index.html` renders in a browser and looks like the original page
-- [ ] `manifest.json` contains a valid URL and viewport dimensions
+- [x] Running the test creates `.snapshots/login/initial/` and `.snapshots/login/error-state/` each with all 4 files
+- [x] `layout.json` contains at least 4 elements with correct bounds (non-zero width/height)
+- [x] `index.html` renders in a browser and looks like the original page
+- [x] `manifest.json` contains a valid URL and viewport dimensions
+
+## Implementation Notes
+
+**Status: COMPLETE** (merged to main via PR #1)
+
+### Adaptations from original spec
+- **Local fixture instead of external site:** Used a local `fixtures/login.html` served via `serve` on port 8089, since `the-internet.herokuapp.com` is not reachable from all environments. The fixture faithfully replicates the login page structure including `#username`, `#password`, `button[type="submit"]`, `#flash` error div, and `data-testid` attributes.
+- **PNG screenshots instead of WebP:** Playwright 1.49.1 (pinned for browser compatibility) does not support `type: 'webp'`. Screenshots are saved as `screenshot.png`.
+- **Playwright 1.49.1 pinned:** The environment had chromium build v1194 pre-installed; 1.49.1 was the compatible version.
+
+### Files created
+- `test-project/package.json` — deps: `@playwright/test@1.49.1`, `serve@^14.2.0`
+- `test-project/tsconfig.json` — ES2020, commonjs, strict
+- `test-project/playwright.config.ts` — chromium, 1280x720 viewport, local webServer on port 8089
+- `test-project/fixtures/login.html` — local mock of the login page
+- `test-project/page-objects/login.page.ts` — `LoginPage` with 4 locators, 3 methods
+- `test-project/tests/login.spec.ts` — captures initial + error-state snapshots
+- `test-project/utils/save-state.ts` — generates index.html (CSS inlined), layout.json, manifest.json, screenshot.png
+
+### Verified output
+- `.snapshots/login/initial/` — 4 files, 8 elements in layout.json with non-zero bounds
+- `.snapshots/login/error-state/` — 4 files, includes `#flash.error` element
