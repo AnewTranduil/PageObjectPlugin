@@ -1,0 +1,13 @@
+{
+  "name": "page-mirror-test-project",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "postinstall": "npx playwright install chromium || true"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.49.1",
+    "serve": "^14.2.0"
+  }
+}
