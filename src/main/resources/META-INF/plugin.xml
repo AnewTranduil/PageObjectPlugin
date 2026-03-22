@@ -9,6 +9,11 @@
 
     <depends>com.intellij.modules.platform</depends>
 
+    <projectListeners>
+        <listener class="com.github.artem.pageobjectplugin.listeners.SnapshotDiscoveryListener"
+                  topic="com.intellij.openapi.fileEditor.FileEditorManagerListener"/>
+    </projectListeners>
+
     <extensions defaultExtensionNs="com.intellij">
         <toolWindow id="Page Mirror"
                     anchor="right"

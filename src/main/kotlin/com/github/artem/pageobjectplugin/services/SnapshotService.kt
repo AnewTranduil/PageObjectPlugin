@@ -11,9 +11,31 @@ import kotlin.io.path.readText
 class SnapshotService(private val project: Project) {
 
     var browser: JBCefBrowser? = null
+    var currentBundle: SnapshotBundle? = null
+        private set
+
+    var availableSnapshots: List<SnapshotBundle> = emptyList()
+        private set
+
+    private val snapshotListeners = mutableListOf<() -> Unit>()
+
+    fun addSnapshotListener(listener: () -> Unit) {
+        snapshotListeners.add(listener)
+    }
+
+    fun updateAvailableSnapshots(bundles: List<SnapshotBundle>) {
+        availableSnapshots = bundles
+        snapshotListeners.forEach { it() }
+
+        // Auto-load the first snapshot if none is currently loaded
+        if (currentBundle == null && bundles.isNotEmpty()) {
+            loadSnapshot(bundles.first())
+        }
+    }
 
     fun loadSnapshot(bundle: SnapshotBundle) {
         val browser = this.browser ?: return
+        currentBundle = bundle
 
         val html = bundle.htmlPath.readText()
         val layout = bundle.layoutPath.readText()
@@ -26,6 +48,8 @@ class SnapshotService(private val project: Project) {
             browser.cefBrowser.url,
             0
         )
+
+        snapshotListeners.forEach { it() }
     }
 
     fun highlightElement(selector: String) {
