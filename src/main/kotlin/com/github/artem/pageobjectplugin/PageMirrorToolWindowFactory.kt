@@ -1,5 +1,6 @@
 package com.github.artem.pageobjectplugin
 
+import com.github.artem.pageobjectplugin.listeners.CaretHighlightListener
 import com.github.artem.pageobjectplugin.listeners.SnapshotDiscoveryListener
 import com.github.artem.pageobjectplugin.listeners.SnapshotWatcher
 import com.github.artem.pageobjectplugin.model.SnapshotBundle
@@ -80,11 +81,14 @@ class PageMirrorToolWindowFactory : ToolWindowFactory {
             }
         }
 
-        // Start file watcher
+        // Start file watcher and caret listener
         val watcher = SnapshotWatcher(project)
         watcher.start()
+        val caretListener = CaretHighlightListener(project)
+        caretListener.register()
         val disposable = Disposer.newDisposable("PageMirrorToolWindow")
         Disposer.register(disposable, watcher)
+        Disposer.register(disposable, caretListener)
 
         val content = ContentFactory.getInstance().createContent(mainPanel, "", false).apply {
             setDisposer(disposable)

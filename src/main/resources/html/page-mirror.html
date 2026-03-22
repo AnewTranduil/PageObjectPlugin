@@ -60,6 +60,19 @@
             border-color: #ef4444;
             background: rgba(239, 68, 68, 0.2);
         }
+        .highlight-tooltip {
+            position: absolute;
+            background: #1e1e1e;
+            color: #ccc;
+            border: 1px solid #3b82f6;
+            border-radius: 3px;
+            padding: 3px 6px;
+            font-size: 11px;
+            font-family: monospace;
+            white-space: nowrap;
+            pointer-events: none;
+            z-index: 1001;
+        }
         #empty-state {
             flex: 1;
             display: flex;
@@ -120,21 +133,50 @@
             window.clearHighlight();
         };
 
+        function findElement(selector) {
+            // 1. Exact CSS selector match
+            if (_layoutMap[selector]) return _layoutMap[selector];
+
+            // 2. Match by attribute patterns like [data-testid="x"], #id, etc.
+            for (var i = 0; i < _layoutElements.length; i++) {
+                var el = _layoutElements[i];
+                if (el.selector === selector) return el;
+                // Match data-testid attribute
+                if (el.attributes && el.attributes['data-testid'] &&
+                    selector === '[data-testid="' + el.attributes['data-testid'] + '"]') return el;
+                // Match by id
+                if (el.attributes && el.attributes.id &&
+                    selector === '#' + el.attributes.id) return el;
+                // Match by role attribute
+                if (el.attributes && el.attributes.role &&
+                    selector === '[role="' + el.attributes.role + '"]') return el;
+                // Match by placeholder
+                if (el.attributes && el.attributes.placeholder &&
+                    selector === '[placeholder="' + el.attributes.placeholder + '"]') return el;
+            }
+
+            // 3. Fuzzy match by text content
+            var selectorLower = selector.toLowerCase();
+            for (var j = 0; j < _layoutElements.length; j++) {
+                var el2 = _layoutElements[j];
+                if (el2.text && el2.text.toLowerCase().indexOf(selectorLower) !== -1) return el2;
+            }
+
+            // 4. Match by role
+            for (var k = 0; k < _layoutElements.length; k++) {
+                var el3 = _layoutElements[k];
+                if (el3.role && el3.role === selector) return el3;
+            }
+
+            return null;
+        }
+
         window.highlightElement = function(selector) {
             window.clearHighlight();
 
             var overlay = document.getElementById('overlay');
-            var el = _layoutMap[selector];
-
-            // Also try partial matching if exact match fails
-            if (!el) {
-                for (var key in _layoutMap) {
-                    if (key === selector || selector === key) {
-                        el = _layoutMap[key];
-                        break;
-                    }
-                }
-            }
+            var container = document.getElementById('viewport-container');
+            var el = findElement(selector);
 
             var box = document.createElement('div');
 
@@ -144,21 +186,39 @@
                 box.style.top = el.bounds.y + 'px';
                 box.style.width = el.bounds.w + 'px';
                 box.style.height = el.bounds.h + 'px';
+                overlay.appendChild(box);
+
+                // Add tooltip with element info
+                var tooltip = document.createElement('div');
+                tooltip.className = 'highlight-tooltip';
+                var info = '<' + el.tag + '>';
+                if (el.role) info += ' role=' + el.role;
+                if (el.text) info += ' "' + el.text.substring(0, 40) + '"';
+                tooltip.textContent = info;
+                tooltip.style.left = el.bounds.x + 'px';
+                tooltip.style.top = Math.max(0, el.bounds.y - 22) + 'px';
+                overlay.appendChild(tooltip);
+
+                // Scroll into view if needed
+                var scrollTop = container.scrollTop;
+                var containerHeight = container.clientHeight;
+                if (el.bounds.y < scrollTop || el.bounds.y + el.bounds.h > scrollTop + containerHeight) {
+                    container.scrollTop = Math.max(0, el.bounds.y - 50);
+                }
             } else {
                 // Not found indicator
                 box.className = 'highlight-box not-found';
                 box.style.left = '10px';
                 box.style.top = '10px';
-                box.style.width = '120px';
+                box.style.width = 'auto';
                 box.style.height = '24px';
                 box.textContent = 'Not found: ' + selector;
                 box.style.color = '#ef4444';
                 box.style.fontSize = '11px';
-                box.style.padding = '4px';
+                box.style.padding = '4px 8px';
                 box.style.fontFamily = 'monospace';
+                overlay.appendChild(box);
             }
-
-            overlay.appendChild(box);
         };
 
         window.clearHighlight = function() {
