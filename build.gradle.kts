@@ -1,6 +1,8 @@
+import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
+
 plugins {
-    id("org.jetbrains.kotlin.jvm") version providers.gradleProperty("kotlinVersion").get()
-    id("org.jetbrains.intellij.platform") version "2.13.1"
+    id("org.jetbrains.kotlin.jvm") version "2.1.0"
+    id("org.jetbrains.intellij.platform")
 }
 
 group = providers.gradleProperty("pluginGroup").get()
@@ -18,7 +20,6 @@ dependencies {
 
     intellijPlatform {
         intellijIdeaCommunity(providers.gradleProperty("platformVersion").get())
-        instrumentationTools()
         pluginVerifier()
     }
 }
@@ -30,7 +31,6 @@ kotlin {
 intellijPlatform {
     pluginConfiguration {
         name = providers.gradleProperty("pluginName")
-        group = providers.gradleProperty("pluginGroup")
         version = providers.gradleProperty("pluginVersion")
 
         ideaVersion {
@@ -44,8 +44,8 @@ intellijPlatform {
 
     pluginVerification {
         ides {
-            ide("IC", providers.gradleProperty("platformVersion").get())
-            ide("WS", providers.gradleProperty("platformVersion").get())
+            create(IntelliJPlatformType.IntellijIdeaCommunity, providers.gradleProperty("platformVersion").get())
+            create(IntelliJPlatformType.WebStorm, providers.gradleProperty("platformVersion").get())
         }
     }
 }
