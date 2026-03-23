@@ -46,8 +46,24 @@ class SnapshotService(private val project: Project) {
     private var jsQuery: JBCefJSQuery? = null
     private val snapshotListeners = mutableListOf<() -> Unit>()
 
+    /** Seam for testing: replace with a capturing lambda to verify JS calls without JCEF. */
+    internal var jsExecutor: (code: String) -> Unit = { code ->
+        browser?.cefBrowser?.executeJavaScript(code, browser?.cefBrowser?.url ?: "", 0)
+    }
+
     fun addSnapshotListener(listener: () -> Unit) {
         snapshotListeners.add(listener)
+    }
+
+    internal fun clearSnapshotListeners() {
+        snapshotListeners.clear()
+    }
+
+    internal fun resetStateForTesting() {
+        currentBundle = null
+        snapshotDocument = null
+        availableSnapshots = emptyList()
+        snapshotListeners.clear()
     }
 
     fun updateAvailableSnapshots(bundles: List<SnapshotBundle>) {
@@ -60,7 +76,6 @@ class SnapshotService(private val project: Project) {
     }
 
     fun loadSnapshot(bundle: SnapshotBundle) {
-        val browser = this.browser ?: return
         currentBundle = bundle
 
         try {
@@ -73,23 +88,21 @@ class SnapshotService(private val project: Project) {
             val escapedHtml = escapeForJs(html)
             val escapedLayout = escapeForJs(layout)
 
-            browser.cefBrowser.executeJavaScript(
-                "window.loadSnapshot($escapedHtml, $escapedLayout);",
-                browser.cefBrowser.url,
-                0
-            )
+            jsExecutor("window.loadSnapshot($escapedHtml, $escapedLayout);")
 
             // Apply theme and highlight color to the loaded page
             applyTheme()
             applyHighlightColor()
         } catch (e: Exception) {
-            NotificationGroupManager.getInstance()
-                .getNotificationGroup("Page Mirror")
-                .createNotification(
-                    "Failed to load snapshot: ${e.message}",
-                    NotificationType.ERROR
-                )
-                .notify(project)
+            try {
+                NotificationGroupManager.getInstance()
+                    .getNotificationGroup("Page Mirror")
+                    .createNotification(
+                        "Failed to load snapshot: ${e.message}",
+                        NotificationType.ERROR
+                    )
+                    .notify(project)
+            } catch (_: Exception) { }
         }
 
         snapshotListeners.forEach { it() }
@@ -110,42 +123,23 @@ class SnapshotService(private val project: Project) {
     }
 
     fun highlightElement(selector: String) {
-        val browser = this.browser ?: return
         val escapedSelector = escapeForJs(selector)
-        browser.cefBrowser.executeJavaScript(
-            "window.highlightElement($escapedSelector);",
-            browser.cefBrowser.url,
-            0
-        )
+        jsExecutor("window.highlightElement($escapedSelector);")
     }
 
     fun clearHighlight() {
-        val browser = this.browser ?: return
-        browser.cefBrowser.executeJavaScript(
-            "window.clearHighlight();",
-            browser.cefBrowser.url,
-            0
-        )
+        jsExecutor("window.clearHighlight();")
     }
 
     fun applyTheme() {
-        val browser = this.browser ?: return
-        val theme = if (LafManager.getInstance().currentUIThemeLookAndFeel.isDark) "dark" else "light"
-        browser.cefBrowser.executeJavaScript(
-            "window.setTheme && window.setTheme('$theme');",
-            browser.cefBrowser.url,
-            0
-        )
+        val isDark = LafManager.getInstance().currentUIThemeLookAndFeel?.isDark ?: false
+        val theme = if (isDark) "dark" else "light"
+        jsExecutor("window.setTheme && window.setTheme('$theme');")
     }
 
     fun applyHighlightColor() {
-        val browser = this.browser ?: return
         val color = PageMirrorSettings.getInstance(project).state.highlightColor
-        browser.cefBrowser.executeJavaScript(
-            "window.setHighlightColor && window.setHighlightColor('$color');",
-            browser.cefBrowser.url,
-            0
-        )
+        jsExecutor("window.setHighlightColor && window.setHighlightColor('$color');")
     }
 
     private fun setupThemeListener() {

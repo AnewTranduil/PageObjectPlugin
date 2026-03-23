@@ -9,7 +9,7 @@ data class ExtractedLocator(
 object LocatorExtractor {
 
     private val LOCATOR_PATTERN = Regex(
-        """(?:this\.)?page\.locator\(\s*['"` ]([^'"` ]+)['"` ]\s*\)"""
+        """\.locator\(\s*['"`]([^'"`]+)['"`]\s*\)"""
     )
 
     private val GET_BY_ROLE_PATTERN = Regex(

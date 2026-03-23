@@ -157,7 +157,8 @@ class PickerResultHandler(private val project: Project) {
             }
 
             val cleaned = baseName
-                .replace(Regex("[^a-zA-Z0-9\\s]"), "")
+                .replace(Regex("[^a-zA-Z0-9\\s-]"), "")
+                .replace("-", " ")
                 .trim()
                 .split(Regex("\\s+"))
                 .filter { it.isNotEmpty() }
