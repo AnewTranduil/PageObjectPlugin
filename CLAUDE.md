@@ -136,6 +136,16 @@ Tasks MUST be completed in order. Each task is in `docs/tasks/`.
 | 6  | Live selector validation (gutter) | Match count badges in editor      | 4          |
 | 7  | Refinements and polish            | Settings, shortcuts, themes       | 5, 6       |
 
+## Current State
+
+**All core tasks (0–7) are complete.** Plugin features are implemented and unit/integration tests pass.
+
+**UI tests (30 scenarios) are BLOCKED** — see `docs/UI_tests/diagnostic-report.md` for full details. Summary:
+- `./gradlew runIdeForUiTests` fails due to missing `splitMode` property (IPG 2.13.1 requirement) and configuration cache incompatibility
+- The custom `RunIdeTask` registration at `build.gradle.kts:108` needs `splitMode.set(false)` and `splitModeTarget` configured
+- `BaseUiTest` needs a fast-fail health check instead of a 2-minute blind timeout
+- CI/CD pipeline is not yet configured
+
 ## Common Pitfalls
 
 - **JCEF not rendering:** Confirm `JBCefApp.isSupported()` returns true. Test with `about:blank` first.
