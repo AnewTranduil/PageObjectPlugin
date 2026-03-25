@@ -1,7 +1,5 @@
 import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
-import org.jetbrains.intellij.platform.gradle.tasks.RunIdeTask
-import org.jetbrains.intellij.platform.gradle.tasks.aware.SplitModeAware.SplitModeTarget
 
 plugins {
     id("org.jetbrains.kotlin.jvm") version "2.1.0"
@@ -16,8 +14,6 @@ val uiTest by sourceSets.creating {
     compileClasspath += sourceSets.main.get().output
     runtimeClasspath += sourceSets.main.get().output
 }
-
-val robotServerPlugin: Configuration by configurations.creating { isTransitive = false }
 
 configurations {
     named("uiTestImplementation") { extendsFrom(configurations.implementation.get()) }
@@ -44,9 +40,6 @@ dependencies {
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.assertj:assertj-core:3.25.3")
-
-    // Robot server plugin zip — extracted and loaded into IDE sandbox at test time
-    robotServerPlugin("com.intellij.remoterobot:robot-server-plugin:0.11.22@zip")
 
     // UI test client
     "uiTestImplementation"("com.intellij.remoterobot:remote-robot:0.11.22")
@@ -85,55 +78,43 @@ intellijPlatform {
 
 // ── Remote Robot tasks ───────────────────────────────────────────────────────
 
-/** Extracts robot-server-plugin zip so it can be passed via -Dplugin.path. */
-val extractRobotPlugin by tasks.registering(Sync::class) {
-    group = "intellij platform"
-    description = "Extracts the Remote Robot server plugin for IDE sandbox installation"
-    from(provider { zipTree(robotServerPlugin.singleFile) })
-    into(layout.buildDirectory.dir("robot-server-plugin"))
+/**
+ * Launches a sandboxed IDE instance with the robot-server-plugin loaded.
+ * Keep this running while executing the `uiTest` task in a second terminal.
+ *
+ * Usage:
+ *   Terminal 1: ./gradlew runIdeForUiTests
+ *   Terminal 2: ./gradlew uiTest
+ */
+intellijPlatformTesting {
+    runIde {
+        register("runIdeForUiTests") {
+            task {
+                jvmArgumentProviders += CommandLineArgumentProvider {
+                    listOf(
+                        "-Drobot-server.port=8082",
+                        "-Dide.mac.message.dialogs.as.sheets=false",
+                        "-Djb.privacy.policy.text=<!--999.999-->",
+                        "-Djb.consents.confirmation.enabled=false",
+                        "-Didea.trust.all.projects=true",
+                        "-Deap.require.license=false",
+                        "-Xmx2g",
+                    )
+                }
+                // Open the test-project on IDE startup so tests don't need to navigate
+                // the Welcome screen — IntelliJ accepts a project path as a program argument.
+                args(rootDir.resolve("test-project").absolutePath)
+            }
+            plugins {
+                robotServerPlugin()
+            }
+        }
+    }
 }
 
 tasks {
     wrapper {
         gradleVersion = "9.0"
-    }
-
-    /**
-     * Launches a sandboxed IDE instance with the robot-server-plugin loaded.
-     * Keep this running while executing the `uiTest` task in a second terminal.
-     *
-     * Usage:
-     *   Terminal 1: ./gradlew runIdeForUiTests
-     *   Terminal 2: ./gradlew uiTest
-     */
-    register<RunIdeTask>("runIdeForUiTests") {
-        dependsOn(extractRobotPlugin)
-        notCompatibleWithConfigurationCache("dynamic plugin path resolution in doFirst")
-
-        splitMode.set(false)
-        splitModeTarget.set(SplitModeTarget.BACKEND)
-
-        systemProperty("robot-server.port", "8082")
-        systemProperty("ide.mac.message.dialogs.as.sheets", "false")
-        systemProperty("jb.privacy.policy.text", "<!--999.999-->")
-        systemProperty("jb.consents.confirmation.enabled", "false")
-        systemProperty("idea.trust.all.projects", "true")
-        systemProperty("eap.require.license", "false")
-        jvmArgs("-Xmx2g")
-
-        // Open the test-project on IDE startup so tests don't need to navigate
-        // the Welcome screen — IntelliJ accepts a project path as a program argument.
-        args(rootDir.resolve("test-project").absolutePath)
-
-        // Resolve at configuration time to avoid capturing Gradle objects in doFirst
-        val robotPluginDir = layout.buildDirectory.dir("robot-server-plugin").map { dir ->
-            val base = dir.asFile
-            base.listFiles()?.firstOrNull { it.isDirectory } ?: base
-        }
-
-        doFirst {
-            jvmArgs("-Dplugin.path=${robotPluginDir.get().absolutePath}")
-        }
     }
 
     /** Runs UI tests — requires `runIdeForUiTests` already listening on port 8082. */
