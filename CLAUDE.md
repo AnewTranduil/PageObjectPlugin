@@ -146,6 +146,10 @@ Tasks MUST be completed in order. Each task is in `docs/tasks/`.
 - `BaseUiTest` needs a fast-fail health check instead of a 2-minute blind timeout
 - CI/CD pipeline is not yet configured
 
+## Working with the Build
+
+When investigating Gradle plugin APIs or build tooling, prefer reading project docs and running `./gradlew` commands (`help --task`, `dependencies`, `buildEnvironment`, etc.) over exploring files outside the project directory (e.g., `.gradle/caches/`, `.intellijPlatform/`). Stay within the project boundary.
+
 ## Common Pitfalls
 
 - **JCEF not rendering:** Confirm `JBCefApp.isSupported()` returns true. Test with `about:blank` first.

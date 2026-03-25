@@ -1,6 +1,7 @@
 import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 import org.jetbrains.intellij.platform.gradle.tasks.RunIdeTask
+import org.jetbrains.intellij.platform.gradle.tasks.aware.SplitModeAware.SplitModeTarget
 
 plugins {
     id("org.jetbrains.kotlin.jvm") version "2.1.0"
@@ -107,6 +108,10 @@ tasks {
      */
     register<RunIdeTask>("runIdeForUiTests") {
         dependsOn(extractRobotPlugin)
+        notCompatibleWithConfigurationCache("dynamic plugin path resolution in doFirst")
+
+        splitMode.set(false)
+        splitModeTarget.set(SplitModeTarget.BACKEND)
 
         systemProperty("robot-server.port", "8082")
         systemProperty("ide.mac.message.dialogs.as.sheets", "false")
@@ -120,13 +125,14 @@ tasks {
         // the Welcome screen — IntelliJ accepts a project path as a program argument.
         args(rootDir.resolve("test-project").absolutePath)
 
+        // Resolve at configuration time to avoid capturing Gradle objects in doFirst
+        val robotPluginDir = layout.buildDirectory.dir("robot-server-plugin").map { dir ->
+            val base = dir.asFile
+            base.listFiles()?.firstOrNull { it.isDirectory } ?: base
+        }
+
         doFirst {
-            // Locate the extracted plugin directory (one subdir inside the zip root)
-            // and add it via -Dplugin.path so IntelliJ loads it alongside sandbox plugins.
-            val pluginBase = layout.buildDirectory.dir("robot-server-plugin").get().asFile
-            val pluginDir = pluginBase.listFiles()?.firstOrNull { it.isDirectory }
-                ?: pluginBase  // fallback: point to the base if structure is flat
-            jvmArgs("-Dplugin.path=${pluginDir.absolutePath}")
+            jvmArgs("-Dplugin.path=${robotPluginDir.get().absolutePath}")
         }
     }
 
