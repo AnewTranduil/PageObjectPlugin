@@ -5,9 +5,12 @@ import com.intellij.remoterobot.fixtures.CommonContainerFixture
 import com.intellij.remoterobot.search.locators.byXpath
 import com.intellij.remoterobot.utils.keyboard
 import com.intellij.remoterobot.utils.waitFor
+import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.TestInstance
 import java.awt.event.KeyEvent
+import java.net.HttpURLConnection
+import java.net.URI
 import java.nio.file.Path
 import java.time.Duration
 
@@ -22,14 +25,19 @@ import java.time.Duration
 abstract class BaseUiTest {
 
     protected val robot: RemoteRobot by lazy {
-        RemoteRobot(System.getProperty("robot-server.url", "http://localhost:8082"))
+        RemoteRobot(robotUrl)
     }
 
     protected val testProjectDir: Path =
         Path.of(System.getProperty("ui.test.project.dir", "test-project")).toAbsolutePath()
 
+    private val robotUrl: String =
+        System.getProperty("robot-server.url", "http://localhost:8082")
+
     @BeforeAll
     fun waitForIde() {
+        ensureRobotServerReachable()
+
         // Wait until the main IDE frame is visible (project was passed on startup)
         waitFor(Duration.ofMinutes(2)) {
             try {
@@ -40,6 +48,31 @@ abstract class BaseUiTest {
         }
         // Give the IDE a moment to finish indexing
         Thread.sleep(3_000)
+    }
+
+    private fun ensureRobotServerReachable() {
+        val maxAttempts = 5
+        val delayMs = 2_000L
+        for (attempt in 1..maxAttempts) {
+            try {
+                val connection = URI(robotUrl).toURL()
+                    .openConnection() as HttpURLConnection
+                connection.connectTimeout = 2_000
+                connection.readTimeout = 2_000
+                connection.requestMethod = "GET"
+                connection.responseCode
+                connection.disconnect()
+                return
+            } catch (_: Exception) {
+                if (attempt == maxAttempts) {
+                    Assumptions.abort<Unit>(
+                        "Robot server not reachable at $robotUrl after $maxAttempts attempts. " +
+                            "Is ./gradlew runIdeForUiTests running?"
+                    )
+                }
+                Thread.sleep(delayMs)
+            }
+        }
     }
 
     // ── Component helpers ─────────────────────────────────────────────────────
