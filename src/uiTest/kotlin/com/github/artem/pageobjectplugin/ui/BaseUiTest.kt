@@ -42,7 +42,8 @@ abstract class BaseUiTest {
         waitFor(Duration.ofSeconds(20)) {
             try {
                 ideFrame() != null
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                System.err.println("[waitForIde] ideFrame() failed: ${e.javaClass.simpleName}: ${e.message}")
                 false
             }
         }

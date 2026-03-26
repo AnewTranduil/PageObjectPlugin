@@ -9,6 +9,8 @@ plugins {
 group = providers.gradleProperty("pluginGroup").get()
 version = providers.gradleProperty("pluginVersion").get()
 
+val remoteRobotVersion = "0.11.23"
+
 // ── UI Test source set ────────────────────────────────────────────────────────
 val uiTest by sourceSets.creating {
     compileClasspath += sourceSets.main.get().output
@@ -41,9 +43,9 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.assertj:assertj-core:3.25.3")
 
-    // UI test client
-    "uiTestImplementation"("com.intellij.remoterobot:remote-robot:0.11.22")
-    "uiTestImplementation"("com.intellij.remoterobot:remote-fixtures:0.11.22")
+    // UI test client — version must match robotServerPlugin() resolved version
+    "uiTestImplementation"("com.intellij.remoterobot:remote-robot:$remoteRobotVersion")
+    "uiTestImplementation"("com.intellij.remoterobot:remote-fixtures:$remoteRobotVersion")
     "uiTestImplementation"("org.junit.jupiter:junit-jupiter:5.10.1")
     "uiTestImplementation"("com.squareup.okhttp3:okhttp:4.12.0")
     "uiTestImplementation"("com.squareup.okhttp3:logging-interceptor:4.12.0")
@@ -107,7 +109,7 @@ intellijPlatformTesting {
                 args(rootDir.resolve("test-project").absolutePath)
             }
             plugins {
-                robotServerPlugin()
+                robotServerPlugin(remoteRobotVersion)
             }
         }
     }
@@ -125,6 +127,8 @@ tasks {
         testClassesDirs = sourceSets["uiTest"].output.classesDirs
         classpath = sourceSets["uiTest"].runtimeClasspath
         useJUnitPlatform()
+        // Required for Retrofit/GSON reflection on JDK 17+
+        jvmArgs("--add-opens", "java.base/java.lang=ALL-UNNAMED")
         systemProperty("robot-server.url", System.getProperty("robot-server.url", "http://localhost:8082"))
         systemProperty("ui.test.project.dir", rootDir.resolve("test-project").absolutePath)
     }
