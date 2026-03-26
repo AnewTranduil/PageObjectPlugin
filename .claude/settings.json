@@ -5,6 +5,14 @@
       "Bash(./gradlew *)"
     ]
   },
+  "worktree": {
+    "symlinkDirectories": [
+      ".gradle",
+      "build",
+      ".intellijPlatform",
+      "test-project/node_modules"
+    ]
+  },
   "hooks": {
     "PreToolUse": [
       {
