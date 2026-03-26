@@ -98,6 +98,7 @@ intellijPlatformTesting {
                         "-Djb.consents.confirmation.enabled=false",
                         "-Didea.trust.all.projects=true",
                         "-Deap.require.license=false",
+                        "-Dide.show.tips.on.startup.default.value=false",
                         "-Xmx2g",
                     )
                 }

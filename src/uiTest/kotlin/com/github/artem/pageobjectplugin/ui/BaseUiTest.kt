@@ -39,7 +39,7 @@ abstract class BaseUiTest {
         ensureRobotServerReachable()
 
         // Wait until the main IDE frame is visible (project was passed on startup)
-        waitFor(Duration.ofMinutes(2)) {
+        waitFor(Duration.ofSeconds(20)) {
             try {
                 ideFrame() != null
             } catch (_: Exception) {
