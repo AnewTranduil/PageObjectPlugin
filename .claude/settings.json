@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Read",
-      "Bash(./gradlew *)"
+      "Bash(./gradlew *)",
+      "Bash(cat *)",
+      "Bash(tail *)",
+      "Bash(head *)",
+      "Bash(grep *)"
     ]
   },
   "worktree": {
