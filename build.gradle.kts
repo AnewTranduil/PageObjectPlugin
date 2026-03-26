@@ -117,7 +117,7 @@ intellijPlatformTesting {
 
 tasks {
     wrapper {
-        gradleVersion = "9.0"
+        gradleVersion = "9.4"
     }
 
     /** Runs UI tests — requires `runIdeForUiTests` already listening on port 8082. */
