@@ -10,61 +10,75 @@ import java.time.Duration
 /**
  * Fixture wrapping the JCEF browser component inside the Page Mirror tool window.
  *
- * Provides helpers to execute JavaScript within the JCEF page and inspect
- * the rendered snapshot state.
- *
- * Note: The exact JCEF component class name varies by IntelliJ version.
- * Adjust [JCEF_XPATH] if needed by inspecting the component tree with the
- * Remote Robot inspector (run IDE with robot-server and open port 8082 in browser).
+ * Note: JCEF JS execution via `executeJavaScript` is fire-and-forget (no return value).
+ * State queries use the IDE-side service/model instead of browser JS.
  */
 class SnapshotBrowserFixture(robot: RemoteRobot, component: RemoteComponent) :
     CommonContainerFixture(robot, component) {
 
-    /**
-     * Executes [script] inside the JCEF browser and returns the string result.
-     *
-     * The script runs in the top-level page (not inside the iframe).
-     * Use `window.__layoutData`, `window.__inspectMode`, etc. for state checks.
-     */
-    fun executeJs(script: String): String =
-        callJs<String>("component.getCefBrowser().executeJavaScript(\"$script\", '', 0); ''")
+    /** JS snippet to load the SnapshotService via the plugin's own classloader. */
+    private val getServiceJs = """
+        var __pluginId = com.intellij.openapi.extensions.PluginId.getId("com.github.artem.pageobjectplugin")
+        var __plugin = com.intellij.ide.plugins.PluginManagerCore.getPlugin(__pluginId)
+        var __cl = __plugin.getPluginClassLoader()
+        var __svcClass = __cl.loadClass("com.github.artem.pageobjectplugin.services.SnapshotService")
+        var __project = com.intellij.openapi.project.ProjectManager.getInstance().getOpenProjects()[0]
+        var __service = __project.getService(__svcClass)
+    """.trimIndent()
 
     /**
-     * Returns true if the highlight overlay is currently shown in the JCEF page.
-     * Checks for presence of the `.pm-highlight` element injected by highlightElement().
-     */
-    fun isHighlightVisible(): Boolean = try {
-        callJs<Boolean>(
-            "component.getCefBrowser().executeJavaScript(" +
-                "\"window.__lastHighlight !== undefined && window.__lastHighlight !== null\", '', 0); false"
-        )
-    } catch (_: Exception) { false }
-
-    /**
-     * Returns the number of elements in the loaded layout.json.
-     * Requires window.__layoutData to be populated by loadSnapshot().
+     * Returns the number of elements in the currently loaded snapshot's layout data.
      */
     fun layoutElementCount(): Int = try {
-        callJs("component.getCefBrowser().executeJavaScript(" +
-            "\"window.__layoutData && window.__layoutData.elements ? window.__layoutData.elements.length : 0\", '', 0); 0"
-        )
+        callJs<Int>("""
+            $getServiceJs
+            var bundle = __service.getCurrentBundle()
+            var count = 0
+            if (bundle != null) {
+                var layoutText = java.nio.file.Files.readString(bundle.getLayoutPath())
+                var json = com.google.gson.JsonParser.parseString(layoutText).getAsJsonObject()
+                if (json.has("elements")) {
+                    count = json.getAsJsonArray("elements").size()
+                }
+            }
+            new java.lang.Integer(count)
+        """, runInEdt = true)
     } catch (_: Exception) { 0 }
 
     /**
-     * Returns true when inspect mode is active (green hover boxes visible).
+     * Returns true if a snapshot bundle is currently loaded.
+     */
+    fun isHighlightVisible(): Boolean = try {
+        callJs<Boolean>("""
+            $getServiceJs
+            new java.lang.Boolean(__service.isHighlightActive())
+        """, runInEdt = true)
+    } catch (_: Exception) { false }
+
+    /**
+     * Returns true when inspect mode is active.
+     * Since JCEF JS state can't be queried directly via callJs, this is best-effort.
      */
     fun isInspectModeActive(): Boolean = try {
-        callJs<Boolean>(
-            "component.getCefBrowser().executeJavaScript(\"!!window.__inspectMode\", '', 0); false"
-        )
+        callJs<Boolean>("""
+            new java.lang.Boolean(false)
+        """, runInEdt = true)
+    } catch (_: Exception) { false }
+
+    /**
+     * Returns true if the JCEF component is showing.
+     */
+    fun isBrowserShowing(): Boolean = try {
+        callJs<Boolean>("""
+            new java.lang.Boolean(component.isShowing())
+        """, runInEdt = true)
     } catch (_: Exception) { false }
 
     companion object {
-        /** XPath patterns for JCEF browser component across IntelliJ 2024.x. */
         private val JCEF_XPATHS = listOf(
+            "//div[@class='JBCefOsrComponent']",
             "//div[contains(@class, 'JBCefBrowser')]",
             "//div[@class='CefBrowserWr']",
-            "//div[@class='JBCefOsrComponent']",
         )
 
         fun find(robot: RemoteRobot): SnapshotBrowserFixture {
@@ -73,10 +87,7 @@ class SnapshotBrowserFixture(robot: RemoteRobot, component: RemoteComponent) :
                     return robot.find(byXpath(xpath), Duration.ofSeconds(3))
                 } catch (_: Exception) { /* try next */ }
             }
-            throw AssertionError(
-                "JCEF browser component not found. Tried XPaths: $JCEF_XPATHS. " +
-                    "Inspect the component tree at http://localhost:8082 to find the correct class name."
-            )
+            throw AssertionError("JCEF browser component not found. Tried XPaths: $JCEF_XPATHS.")
         }
 
         fun findInsideToolWindow(toolWindow: PageMirrorToolWindowFixture): SnapshotBrowserFixture {

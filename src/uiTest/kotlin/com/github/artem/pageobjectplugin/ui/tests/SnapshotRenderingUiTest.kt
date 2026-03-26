@@ -20,6 +20,10 @@ class SnapshotRenderingUiTest : BaseUiTest() {
     @BeforeEach
     fun loadSnapshot() {
         openFileInEditor("login.page.ts")
+        Thread.sleep(1_000)
+        if (!PageMirrorToolWindowFixture.isVisible(robot)) {
+            openToolWindow()
+        }
         // Wait for auto-discovery and snapshot load
         waitFor(Duration.ofSeconds(15)) {
             try {
@@ -56,6 +60,7 @@ class SnapshotRenderingUiTest : BaseUiTest() {
         val toolWindow = PageMirrorToolWindowFixture.find(robot)
         assertTrue(toolWindow.isBrowserVisible(), "JCEF component must be visible")
 
+        // Query layout element count from the browser fixture
         val browser = SnapshotBrowserFixture.findInsideToolWindow(toolWindow)
         val count = browser.layoutElementCount()
         assertTrue(

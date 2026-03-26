@@ -16,22 +16,22 @@ import java.time.Duration
  * The tool window content is a JPanel containing:
  *   - A JComboBox (snapshot selector)
  *   - A JButton("Refresh")
- *   - The JCEF browser component
+ *   - The JCEF browser component (JBCefOsrComponent)
  */
 class PageMirrorToolWindowFixture(robot: RemoteRobot, component: RemoteComponent) :
     CommonContainerFixture(robot, component) {
 
     /** The snapshot selector combo box. */
     val comboBox: ComponentFixture
-        get() = find(byXpath(".//div[@class='ComboBox']"), Duration.ofSeconds(5))
+        get() = find(byXpath(".//div[@class='JComboBox']"), Duration.ofSeconds(5))
 
     /** The Refresh button. */
     val refreshButton: ComponentFixture
-        get() = find(byXpath(".//div[@class='JButton' and @text='Refresh']"), Duration.ofSeconds(5))
+        get() = find(byXpath(".//div[@class='JButton']"), Duration.ofSeconds(5))
 
     /** Returns the currently displayed text in the combo box. */
     fun selectedSnapshotName(): String =
-        comboBox.callJs("component.getSelectedItem()?.toString() ?: ''")
+        comboBox.callJs("component.getSelectedItem() != null ? '' + component.getSelectedItem() : ''")
 
     /**
      * Opens the combo box dropdown and selects the entry whose display text
@@ -39,43 +39,41 @@ class PageMirrorToolWindowFixture(robot: RemoteRobot, component: RemoteComponent
      */
     fun selectSnapshot(partialName: String) {
         comboBox.click()
-        waitFor(Duration.ofSeconds(5)) {
-            remoteRobot.findAll<CommonContainerFixture>(
-                byXpath("//div[@class='JList']")
-            ).isNotEmpty()
-        }
-        val list = remoteRobot.find<CommonContainerFixture>(
-            byXpath("//div[@class='JList']"),
-            Duration.ofSeconds(5)
-        )
-        list.findAll<ComponentFixture>(
-            byXpath(".//div[contains(@text, '$partialName')]")
-        ).firstOrNull()?.click()
-            ?: throw AssertionError("Snapshot entry containing '$partialName' not found in combo list")
+        Thread.sleep(500)
+        // Use callJs to iterate items and select the matching one
+        comboBox.callJs<Boolean>("""
+            var model = component.getModel()
+            for (var i = 0; i < model.getSize(); i++) {
+                var item = '' + model.getElementAt(i)
+                if (item.indexOf("$partialName") >= 0) {
+                    component.setSelectedIndex(i)
+                    break
+                }
+            }
+            true
+        """, runInEdt = true)
         Thread.sleep(500)
     }
 
-    /** Returns all snapshot names visible in the combo box dropdown. */
+    /** Returns all snapshot names from the combo box model. */
     fun allSnapshotNames(): List<String> {
-        comboBox.click()
-        waitFor(Duration.ofSeconds(5)) {
-            remoteRobot.findAll<CommonContainerFixture>(byXpath("//div[@class='JList']")).isNotEmpty()
-        }
-        val items = remoteRobot.find<CommonContainerFixture>(
-            byXpath("//div[@class='JList']"),
-            Duration.ofSeconds(5)
-        ).findAll<ComponentFixture>(byXpath(".//div[@class='SimpleColoredComponent']"))
-            .map { it.callJs<String>("component.toString()") }
-        // Dismiss the dropdown
-        keyboard { key(KeyEvent.VK_ESCAPE) }
-        return items
+        val joined = comboBox.callJs<String>("""
+            var model = component.getModel()
+            var s = ""
+            for (var i = 0; i < model.getSize(); i++) {
+                if (i > 0) s += "|||"
+                s += model.getElementAt(i)
+            }
+            s
+        """, runInEdt = true)
+        return if (joined.isBlank()) emptyList() else joined.split("|||")
     }
 
     /** True if the JCEF browser component is present and visible. */
     fun isBrowserVisible(): Boolean = try {
         find<ComponentFixture>(
             byXpath(
-                ".//div[@class='JBCefBrowser\$CefBrowserOsrWithHandler' " +
+                ".//div[@class='JBCefOsrComponent' " +
                     "or @class='CefBrowserWr' or contains(@class, 'JBCefBrowser')]"
             ),
             Duration.ofSeconds(3)
@@ -84,7 +82,7 @@ class PageMirrorToolWindowFixture(robot: RemoteRobot, component: RemoteComponent
 
     companion object {
         private const val TOOL_WINDOW_XPATH =
-            "//div[@class='InternalDecorator' and @accessiblename='Page Mirror']"
+            "//div[@class='InternalDecoratorImpl' and contains(@accessiblename, 'Page Mirror')]"
 
         fun find(robot: RemoteRobot): PageMirrorToolWindowFixture =
             robot.find(byXpath(TOOL_WINDOW_XPATH), Duration.ofSeconds(10))

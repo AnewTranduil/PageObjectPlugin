@@ -25,6 +25,11 @@ class ToolWindowUiTest : BaseUiTest() {
         // Open a .ts file so snapshot discovery triggers automatically
         openFileInEditor("login.page.ts")
         Thread.sleep(2_000)
+        // The tool window must be explicitly opened
+        if (!PageMirrorToolWindowFixture.isVisible(robot)) {
+            openToolWindow()
+            Thread.sleep(1_000)
+        }
     }
 
     /**

@@ -36,6 +36,10 @@ class HighlightBridgeUiTest : BaseUiTest() {
     @BeforeEach
     fun setup() {
         openFileInEditor("login.page.ts")
+        Thread.sleep(1_000)
+        if (!PageMirrorToolWindowFixture.isVisible(robot)) {
+            openToolWindow()
+        }
         waitFor(Duration.ofSeconds(15)) {
             try {
                 val name = PageMirrorToolWindowFixture.find(robot).selectedSnapshotName()

@@ -43,6 +43,9 @@ class SnapshotService(private val project: Project) {
     var snapshotDocument: Document? = null
         private set
 
+    var isHighlightActive: Boolean = false
+        private set
+
     private var jsQuery: JBCefJSQuery? = null
     private val snapshotListeners = mutableListOf<() -> Unit>()
 
@@ -125,10 +128,12 @@ class SnapshotService(private val project: Project) {
     fun highlightElement(selector: String) {
         val escapedSelector = escapeForJs(selector)
         jsExecutor("window.highlightElement($escapedSelector);")
+        isHighlightActive = true
     }
 
     fun clearHighlight() {
         jsExecutor("window.clearHighlight();")
+        isHighlightActive = false
     }
 
     fun applyTheme() {

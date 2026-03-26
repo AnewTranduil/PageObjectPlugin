@@ -26,6 +26,10 @@ class GutterAnnotationUiTest : BaseUiTest() {
     @BeforeEach
     fun loadSnapshotAndOpenFile() {
         openFileInEditor("login.page.ts")
+        Thread.sleep(1_000)
+        if (!PageMirrorToolWindowFixture.isVisible(robot)) {
+            openToolWindow()
+        }
         // Wait for snapshot auto-discovery
         waitFor(Duration.ofSeconds(15)) {
             try {

@@ -3,12 +3,10 @@ package com.github.artem.pageobjectplugin.ui
 import com.intellij.remoterobot.RemoteRobot
 import com.intellij.remoterobot.fixtures.CommonContainerFixture
 import com.intellij.remoterobot.search.locators.byXpath
-import com.intellij.remoterobot.utils.keyboard
 import com.intellij.remoterobot.utils.waitFor
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.TestInstance
-import java.awt.event.KeyEvent
 import java.net.HttpURLConnection
 import java.net.URI
 import java.nio.file.Path
@@ -47,6 +45,10 @@ abstract class BaseUiTest {
                 false
             }
         }
+
+        // Bring IDE to front — the window may be minimized/iconified
+        bringIdeToFront()
+
         // Give the IDE a moment to finish indexing
         Thread.sleep(3_000)
     }
@@ -87,69 +89,94 @@ abstract class BaseUiTest {
     ) = com.intellij.remoterobot.utils.waitFor(timeout, condition = condition)
 
     /**
-     * Opens a file in the editor by navigating via Go To File (Ctrl+Shift+N).
+     * Helper: JS snippet to get the open project (used in all callJs helpers).
+     */
+    private val getProjectJs = """
+        var project = com.intellij.openapi.project.ProjectManager.getInstance().getOpenProjects()[0]
+    """.trimIndent()
+
+    /**
+     * Brings the IDE window to front and deiconifies it if minimized.
+     */
+    private fun bringIdeToFront() {
+        try {
+            ideFrame().callJs<Boolean>("""
+                var frame = component
+                var state = frame.getExtendedState()
+                if ((state & java.awt.Frame.ICONIFIED) != 0) {
+                    frame.setExtendedState(state & ~java.awt.Frame.ICONIFIED)
+                }
+                frame.toFront()
+                frame.requestFocus()
+                true
+            """, runInEdt = true)
+            Thread.sleep(500)
+        } catch (e: Exception) {
+            System.err.println("[bringIdeToFront] failed: ${e.message}")
+        }
+    }
+
+    /**
+     * Opens a file in the editor programmatically using the IDE API.
      */
     protected fun openFileInEditor(fileName: String) {
-        ideFrame().keyboard {
-            hotKey(KeyEvent.VK_CONTROL, KeyEvent.VK_SHIFT, KeyEvent.VK_N)
-        }
-        waitFor(Duration.ofSeconds(5)) {
-            robot.findAll<CommonContainerFixture>(
-                byXpath("//div[@class='SearchEverywhereUI']")
-            ).isNotEmpty()
-        }
-        robot.find<CommonContainerFixture>(
-            byXpath("//div[@class='SearchEverywhereUI']"),
-            Duration.ofSeconds(5)
-        ).keyboard {
-            hotKey(KeyEvent.VK_CONTROL, KeyEvent.VK_A)
-            enterText(fileName)
-        }
-        Thread.sleep(1_000)
-        ideFrame().keyboard { key(KeyEvent.VK_ENTER) }
-        Thread.sleep(1_500)
+        ideFrame().callJs<Boolean>("""
+            $getProjectJs
+
+            var baseDir = project.getBaseDir()
+            function findFile(dir, name) {
+                var children = dir.getChildren()
+                for (var i = 0; i < children.length; i++) {
+                    if (children[i].getName() == name) return children[i]
+                    if (children[i].isDirectory()) {
+                        var result = findFile(children[i], name)
+                        if (result != null) return result
+                    }
+                }
+                return null
+            }
+
+            var file = findFile(baseDir, "$fileName")
+            if (file != null) {
+                com.intellij.openapi.fileEditor.FileEditorManager.getInstance(project).openFile(file, true)
+            }
+            true
+        """, runInEdt = true)
+        Thread.sleep(2_000)
     }
 
     /**
      * Moves the caret to a specific line number in the currently active editor.
-     * Uses Go To Line (Ctrl+G).
      */
     protected fun goToLine(line: Int) {
-        ideFrame().keyboard {
-            hotKey(KeyEvent.VK_CONTROL, KeyEvent.VK_G)
-        }
-        waitFor(Duration.ofSeconds(5)) {
-            robot.findAll<CommonContainerFixture>(
-                byXpath("//div[@class='JBTextField']")
-            ).isNotEmpty()
-        }
-        robot.findAll<CommonContainerFixture>(
-            byXpath("//div[@class='JBTextField']")
-        ).firstOrNull()?.keyboard {
-            hotKey(KeyEvent.VK_CONTROL, KeyEvent.VK_A)
-            enterText(line.toString())
-            key(KeyEvent.VK_ENTER)
-        }
+        ideFrame().callJs<Boolean>("""
+            $getProjectJs
+
+            var editor = com.intellij.openapi.fileEditor.FileEditorManager.getInstance(project).getSelectedTextEditor()
+            if (editor != null) {
+                var lineIndex = $line - 1
+                var offset = editor.getDocument().getLineStartOffset(lineIndex)
+                editor.getCaretModel().moveToOffset(offset)
+                editor.getScrollingModel().scrollToCaret(com.intellij.openapi.editor.ScrollType.CENTER)
+            }
+            true
+        """, runInEdt = true)
         Thread.sleep(500)
     }
 
     /**
-     * Opens the Page Mirror tool window via the Actions search (Ctrl+Shift+A).
+     * Opens the Page Mirror tool window programmatically.
      */
     protected fun openToolWindow() {
-        ideFrame().keyboard {
-            hotKey(KeyEvent.VK_CONTROL, KeyEvent.VK_SHIFT, KeyEvent.VK_A)
-        }
-        Thread.sleep(500)
-        robot.findAll<CommonContainerFixture>(
-            byXpath("//div[@class='SearchEverywhereUI']")
-        ).firstOrNull()?.keyboard {
-            enterText("Page Mirror")
-        }
-        Thread.sleep(500)
-        robot.findAll<CommonContainerFixture>(
-            byXpath("//div[contains(@text, 'Page Mirror')]")
-        ).firstOrNull()?.click()
+        ideFrame().callJs<Boolean>("""
+            $getProjectJs
+
+            var tw = com.intellij.openapi.wm.ToolWindowManager.getInstance(project).getToolWindow("Page Mirror")
+            if (tw != null) {
+                tw.show()
+            }
+            true
+        """, runInEdt = true)
         Thread.sleep(1_000)
     }
 }
