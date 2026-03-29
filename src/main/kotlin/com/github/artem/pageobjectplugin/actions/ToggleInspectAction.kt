@@ -11,6 +11,7 @@ class ToggleInspectAction : AnAction("Toggle Inspect Mode") {
         val service = SnapshotService.getInstance(project)
         val browser = service.browser ?: return
 
+        service.isInspectModeActive = !service.isInspectModeActive
         browser.cefBrowser.executeJavaScript(
             "window.toggleInspectMode();",
             browser.cefBrowser.url,

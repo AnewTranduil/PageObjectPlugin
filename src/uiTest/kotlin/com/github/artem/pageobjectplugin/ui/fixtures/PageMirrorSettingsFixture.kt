@@ -32,10 +32,10 @@ class PageMirrorSettingsFixture(robot: RemoteRobot, component: RemoteComponent) 
 
     /** The "Code generation style" JComboBox. */
     val codeGenStyleCombo: ComponentFixture
-        get() = find(byXpath(".//div[@class='ComboBox']"), Duration.ofSeconds(5))
+        get() = find(byXpath(".//div[@class='JComboBox']"), Duration.ofSeconds(5))
 
     /** Returns the current value shown in the search depth spinner. */
-    fun searchDepth(): Int = searchDepthSpinner.callJs("component.getValue().toString().toInt()")
+    fun searchDepth(): Int = searchDepthSpinner.callJs("java.lang.Integer.parseInt(component.getValue().toString())")
 
     /** Returns the current highlight color text. */
     fun highlightColor(): String = highlightColorField.callJs("component.getText()")
@@ -76,61 +76,55 @@ class PageMirrorSettingsFixture(robot: RemoteRobot, component: RemoteComponent) 
 
     /** Selects [style] ("Property" or "Variable") in the code-gen style combo. */
     fun setCodeGenStyle(style: String) {
-        codeGenStyleCombo.click()
-        waitFor(Duration.ofSeconds(5)) {
-            remoteRobot.findAll<CommonContainerFixture>(byXpath("//div[@class='JList']")).isNotEmpty()
-        }
-        remoteRobot.find<CommonContainerFixture>(byXpath("//div[@class='JList']"))
-            .findAll<ComponentFixture>(byXpath(".//div[@text='$style']"))
-            .firstOrNull()?.click()
+        codeGenStyleCombo.callJs<Boolean>("""
+            component.setSelectedItem("$style")
+            true
+        """, runInEdt = true)
     }
 
     companion object {
         private const val SETTINGS_DIALOG_XPATH = "//div[@class='DialogRootPane']"
-        private const val PAGE_MIRROR_PANEL_XPATH =
-            "//div[@class='DialogRootPane']//div[@accessiblename='Page Mirror']"
 
         /**
          * Opens the IDE Settings dialog, navigates to Tools > Page Mirror,
          * and returns the settings fixture.
+         *
+         * Uses the IDE's ShowSettingsUtil API to navigate directly to the
+         * Page Mirror configurable, avoiding fragile tree-search navigation.
          */
         fun open(robot: RemoteRobot): PageMirrorSettingsFixture {
-            // Open Settings dialog (Ctrl+Alt+S)
-            robot.find<CommonContainerFixture>(
+            val frame = robot.find<CommonContainerFixture>(
                 byXpath("//div[@class='IdeFrameImpl']"),
                 Duration.ofSeconds(5)
-            ).keyboard {
-                hotKey(KeyEvent.VK_CONTROL, KeyEvent.VK_ALT, KeyEvent.VK_S)
-            }
+            )
+
+            // Open Settings dialog programmatically via ShowSettingsUtil
+            // Must use invokeLater because showSettingsDialog is modal and blocks EDT
+            frame.callJs<Boolean>("""
+                com.intellij.openapi.application.ApplicationManager.getApplication().invokeLater(new java.lang.Runnable() {
+                    run: function() {
+                        var project = com.intellij.openapi.project.ProjectManager.getInstance().getOpenProjects()[0]
+                        com.intellij.openapi.options.ShowSettingsUtil.getInstance().showSettingsDialog(project, "Page Mirror")
+                    }
+                })
+                true
+            """, runInEdt = true)
 
             // Wait for settings dialog
             waitFor(Duration.ofSeconds(15)) {
                 robot.findAll<CommonContainerFixture>(byXpath(SETTINGS_DIALOG_XPATH)).isNotEmpty()
             }
-
-            val dialog = robot.find<CommonContainerFixture>(
-                byXpath(SETTINGS_DIALOG_XPATH),
-                Duration.ofSeconds(10)
-            )
-
-            // Search for "Page Mirror" in the settings search box
-            dialog.findAll<CommonContainerFixture>(
-                byXpath(".//div[@class='SearchTextField']")
-            ).firstOrNull()?.keyboard {
-                hotKey(KeyEvent.VK_CONTROL, KeyEvent.VK_A)
-                enterText("Page Mirror")
-            }
-
             Thread.sleep(1_000)
 
-            // Click the "Page Mirror" entry in the left tree
-            dialog.findAll<ComponentFixture>(
-                byXpath(".//div[contains(@text, 'Page Mirror')]")
-            ).firstOrNull()?.click()
-
-            Thread.sleep(500)
-
-            return robot.find(byXpath(PAGE_MIRROR_PANEL_XPATH), Duration.ofSeconds(5))
+            // Find the settings panel
+            return try {
+                robot.find(
+                    byXpath("$SETTINGS_DIALOG_XPATH//div[@accessiblename='Page Mirror']"),
+                    Duration.ofSeconds(5)
+                )
+            } catch (_: Exception) {
+                robot.find(byXpath(SETTINGS_DIALOG_XPATH), Duration.ofSeconds(5))
+            }
         }
 
         /** Clicks the OK button to apply and close the settings dialog. */

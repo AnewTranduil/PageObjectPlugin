@@ -12,36 +12,52 @@ import java.time.Duration
  *
  * Provides helpers to check Page Mirror gutter annotations (match-count badges)
  * produced by [SelectorValidationAnnotator].
+ *
+ * Gutter icons are NOT separate Swing components — they're painted on a single
+ * EditorGutterComponentImpl canvas. We query them programmatically via the
+ * editor's markup model using callJs.
  */
 class GutterFixture(robot: RemoteRobot, component: RemoteComponent) :
     CommonContainerFixture(robot, component) {
 
     /**
-     * Returns all gutter icon tooltip texts currently visible in this gutter.
+     * Returns all gutter icon renderer tooltip texts from the active editor's markup model.
      *
-     * Page Mirror badges use tooltips like "1 match", "0 matches", "2 matches".
+     * Page Mirror badges use tooltips like "1 match for ...", "No matches for ...".
      */
-    fun allIconTooltips(): List<String> =
-        findAll<ComponentFixture>(byXpath(".//div[@tooltiptext]"))
-            .mapNotNull { icon ->
-                try { icon.callJs<String>("component.getToolTipText()") } catch (_: Exception) { null }
-            }
-
-    /**
-     * Returns gutter icon tooltips for icons whose Y-coordinate falls within the
-     * approximate line [lineNumber] (1-based). The mapping is approximate because
-     * gutter icons don't expose line numbers directly; each line is ~[lineHeightPx] pixels.
-     */
-    fun tooltipsOnLine(lineNumber: Int, lineHeightPx: Int = 20): List<String> {
-        val expectedY = (lineNumber - 1) * lineHeightPx
-        return findAll<ComponentFixture>(byXpath(".//div[@tooltiptext]"))
-            .filter { icon ->
-                val y = try { icon.callJs<Int>("component.getY()") } catch (_: Exception) { -1 }
-                y in (expectedY - lineHeightPx)..(expectedY + lineHeightPx)
-            }
-            .mapNotNull { icon ->
-                try { icon.callJs<String>("component.getToolTipText()") } catch (_: Exception) { null }
-            }
+    fun allIconTooltips(): List<String> {
+        val joined = try {
+            callJs<String>("""
+                var project = com.intellij.openapi.project.ProjectManager.getInstance().getOpenProjects()[0]
+                var editor = com.intellij.openapi.fileEditor.FileEditorManager.getInstance(project).getSelectedTextEditor()
+                var result = ""
+                if (editor != null) {
+                    // Helper to scan highlighters in a markup model
+                    function scanModel(model) {
+                        if (model == null) return
+                        var highlighters = model.getAllHighlighters()
+                        for (var i = 0; i < highlighters.length; i++) {
+                            var renderer = highlighters[i].getGutterIconRenderer()
+                            if (renderer != null) {
+                                var tooltip = renderer.getTooltipText()
+                                if (tooltip != null && tooltip.length() > 0) {
+                                    if (result.length() > 0) result += "|||"
+                                    result += tooltip
+                                }
+                            }
+                        }
+                    }
+                    // Editor markup model (editor-level highlights)
+                    scanModel(editor.getMarkupModel())
+                    // Document markup model (annotation/daemon highlights)
+                    var docModel = com.intellij.openapi.editor.impl.DocumentMarkupModel.forDocument(
+                        editor.getDocument(), project, false)
+                    scanModel(docModel)
+                }
+                result
+            """, runInEdt = true)
+        } catch (_: Exception) { "" }
+        return if (joined.isBlank()) emptyList() else joined.split("|||")
     }
 
     /**

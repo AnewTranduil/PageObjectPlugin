@@ -15,6 +15,9 @@ import com.intellij.ui.jcef.JBCefApp
 import com.intellij.ui.jcef.JBCefBrowser
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.content.ContentFactory
+import org.cef.browser.CefBrowser
+import org.cef.browser.CefFrame
+import org.cef.handler.CefLoadHandlerAdapter
 import java.awt.BorderLayout
 import java.awt.FlowLayout
 import javax.swing.DefaultComboBoxModel
@@ -34,9 +37,9 @@ class PageMirrorToolWindowFactory : ToolWindowFactory {
         }
 
         val browser = JBCefBrowser()
-        val htmlUrl = javaClass.getResource("/html/page-mirror.html")
-        if (htmlUrl != null) {
-            browser.loadURL(htmlUrl.toExternalForm())
+        val htmlContent = javaClass.getResourceAsStream("/html/page-mirror.html")?.bufferedReader()?.readText()
+        if (htmlContent != null) {
+            browser.loadHTML(htmlContent)
         }
 
         val service = SnapshotService.getInstance(project)
@@ -95,8 +98,15 @@ class PageMirrorToolWindowFactory : ToolWindowFactory {
         }
         toolWindow.contentManager.addContent(content)
 
-        // Trigger initial discovery from currently open files
-        refreshSnapshots(project, service)
+        // Trigger initial discovery only after JCEF finishes loading page-mirror.html
+        browser.jbCefClient.addLoadHandler(object : CefLoadHandlerAdapter() {
+            override fun onLoadEnd(cefBrowser: CefBrowser?, frame: CefFrame?, httpStatusCode: Int) {
+                if (frame?.isMain == true) {
+                    browser.jbCefClient.removeLoadHandler(this, cefBrowser ?: return)
+                    refreshSnapshots(project, service)
+                }
+            }
+        }, browser.cefBrowser)
     }
 
     private fun refreshSnapshots(project: Project, service: SnapshotService) {

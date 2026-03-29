@@ -34,6 +34,7 @@ class PageMirrorConfigurable(private val project: Project) : Configurable {
 
         val panel = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            accessibleContext.accessibleName = "Page Mirror"
 
             add(row("Snapshot search depth:", searchDepthSpinner!!))
             add(autoReloadCheckbox!!)

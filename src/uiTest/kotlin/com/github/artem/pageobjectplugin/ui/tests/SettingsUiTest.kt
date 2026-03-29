@@ -27,16 +27,25 @@ class SettingsUiTest : BaseUiTest() {
 
     @AfterEach
     fun resetSettings() {
-        // Restore default settings after each test to avoid test pollution
+        // Close any open dialog first (settings or other)
+        try { PageMirrorSettingsFixture.clickCancel(robot) } catch (_: Exception) {}
+        Thread.sleep(300)
+        // Restore default settings programmatically via IDE API
         try {
-            val settings = PageMirrorSettingsFixture.open(robot)
-            settings.setSearchDepth(3)
-            settings.setHighlightColor("#3B82F6")
-            settings.setCodeGenStyle("Property")
-            PageMirrorSettingsFixture.clickOk(robot)
+            ideFrame().callJs<Boolean>("""
+                var project = com.intellij.openapi.project.ProjectManager.getInstance().getOpenProjects()[0]
+                var __pluginId = com.intellij.openapi.extensions.PluginId.getId("com.github.artem.pageobjectplugin")
+                var __plugin = com.intellij.ide.plugins.PluginManagerCore.getPlugin(__pluginId)
+                var __cl = __plugin.getPluginClassLoader()
+                var __svcClass = __cl.loadClass("com.github.artem.pageobjectplugin.settings.PageMirrorSettings")
+                var settings = project.getService(__svcClass)
+                var __stateClass = __cl.loadClass("com.github.artem.pageobjectplugin.settings.PageMirrorSettings" + "\u0024" + "State")
+                var defaultState = __stateClass.getDeclaredConstructor().newInstance()
+                settings.loadState(defaultState)
+                true
+            """, runInEdt = true)
         } catch (_: Exception) {
-            // Best-effort cleanup; don't fail the test here
-            try { PageMirrorSettingsFixture.clickCancel(robot) } catch (_: Exception) {}
+            // Best-effort cleanup
         }
     }
 
@@ -46,6 +55,7 @@ class SettingsUiTest : BaseUiTest() {
     @Test
     fun `settings dialog shows all page mirror fields`() {
         val settings = PageMirrorSettingsFixture.open(robot)
+        takeScreenshot("settings-dialog-open")
 
         // Verify all fields are accessible (no exception = field is present)
         val depth = settings.searchDepth()
@@ -70,6 +80,7 @@ class SettingsUiTest : BaseUiTest() {
     fun `search depth change persists after ok`() {
         val settings = PageMirrorSettingsFixture.open(robot)
         settings.setSearchDepth(5)
+        takeScreenshot("settings-depth-changed")
         PageMirrorSettingsFixture.clickOk(robot)
 
         // Reopen and verify

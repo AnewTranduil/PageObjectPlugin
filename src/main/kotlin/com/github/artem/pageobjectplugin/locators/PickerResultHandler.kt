@@ -1,5 +1,6 @@
 package com.github.artem.pageobjectplugin.locators
 
+import com.github.artem.pageobjectplugin.services.SnapshotService
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.fileEditor.FileEditorManager
@@ -14,6 +15,9 @@ import java.awt.datatransfer.StringSelection
 class PickerResultHandler(private val project: Project) {
 
     fun handlePickerResult(jsonString: String) {
+        // Inspect mode auto-exits after click (JS side toggles off); sync Kotlin state
+        SnapshotService.getInstance(project).isInspectModeActive = false
+
         val element = parseElementJson(jsonString) ?: return
         val locatorCode = generateLocator(element)
         val fieldName = generateFieldName(element)

@@ -46,6 +46,8 @@ class SnapshotService(private val project: Project) {
     var isHighlightActive: Boolean = false
         private set
 
+    var isInspectModeActive: Boolean = false
+
     private var jsQuery: JBCefJSQuery? = null
     private val snapshotListeners = mutableListOf<() -> Unit>()
 

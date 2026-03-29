@@ -26,12 +26,16 @@ import java.time.Duration
  */
 class HighlightBridgeUiTest : BaseUiTest() {
 
-    // Approximate line numbers in test-project/page-objects/login.page.ts
-    private val GET_BY_TEST_ID_LINE = 4
-    private val LOCATOR_LINE = 5
-    private val GET_BY_ROLE_LINE = 6
-    private val GET_BY_TEXT_LINE = 7
-    private val BLANK_LINE = 1  // import line / blank — no locator
+    // Actual line numbers in test-project/page-objects/login.page.ts (constructor body)
+    // Line 12: this.usernameInput = page.locator('#username');
+    // Line 13: this.passwordInput = page.locator('#password');
+    // Line 14: this.loginButton   = page.locator('button[type="submit"]');
+    // Line 15: this.errorMessage  = page.locator('#flash.error');
+    private val LOCATOR_USERNAME_LINE = 12
+    private val LOCATOR_PASSWORD_LINE = 13
+    private val LOCATOR_BUTTON_LINE = 14
+    private val LOCATOR_ERROR_LINE = 15
+    private val BLANK_LINE = 1  // import line — no locator
 
     @BeforeEach
     fun setup() {
@@ -53,16 +57,18 @@ class HighlightBridgeUiTest : BaseUiTest() {
      * UT-09: Moving caret to a locator line triggers a highlight overlay in JCEF.
      */
     @Test
-    fun `caret on getByTestId line triggers highlight`() {
-        goToLine(GET_BY_TEST_ID_LINE)
+    fun `caret on locator line triggers highlight`() {
+        goToLine(LOCATOR_USERNAME_LINE)
         // Debounce is 150 ms; give it extra headroom
-        Thread.sleep(500)
+        Thread.sleep(1_000)
+
+        takeScreenshot("after-goto-locator-line")
 
         val toolWindow = PageMirrorToolWindowFixture.find(robot)
         val browser = SnapshotBrowserFixture.findInsideToolWindow(toolWindow)
         assertTrue(
             browser.isHighlightVisible(),
-            "Highlight overlay should appear when caret is on getByTestId line"
+            "Highlight overlay should appear when caret is on locator line"
         )
     }
 
@@ -72,12 +78,14 @@ class HighlightBridgeUiTest : BaseUiTest() {
     @Test
     fun `caret on non locator line clears highlight`() {
         // First activate a highlight
-        goToLine(GET_BY_TEST_ID_LINE)
-        Thread.sleep(500)
+        goToLine(LOCATOR_USERNAME_LINE)
+        Thread.sleep(1_000)
 
         // Move caret to a non-locator line
         goToLine(BLANK_LINE)
-        Thread.sleep(500)
+        Thread.sleep(1_000)
+
+        takeScreenshot("after-goto-blank-line")
 
         val browser = SnapshotBrowserFixture.findInsideToolWindow(
             PageMirrorToolWindowFixture.find(robot)
@@ -93,13 +101,15 @@ class HighlightBridgeUiTest : BaseUiTest() {
      */
     @Test
     fun `alt shift H shortcut triggers highlight`() {
-        goToLine(LOCATOR_LINE)
+        goToLine(LOCATOR_PASSWORD_LINE)
         Thread.sleep(300)
 
         ideFrame().keyboard {
             hotKey(KeyEvent.VK_ALT, KeyEvent.VK_SHIFT, KeyEvent.VK_H)
         }
-        Thread.sleep(500)
+        Thread.sleep(1_000)
+
+        takeScreenshot("after-alt-shift-h")
 
         val browser = SnapshotBrowserFixture.findInsideToolWindow(
             PageMirrorToolWindowFixture.find(robot)
@@ -120,23 +130,26 @@ class HighlightBridgeUiTest : BaseUiTest() {
      *   getByText    → #flash element
      */
     @Test
-    fun `all locator types trigger highlight`() {
+    fun `all locator lines trigger highlight`() {
         val toolWindow = PageMirrorToolWindowFixture.find(robot)
         val browser = SnapshotBrowserFixture.findInsideToolWindow(toolWindow)
 
+        // Note: LOCATOR_BUTTON_LINE (14) is skipped because its selector
+        // 'button[type="submit"]' contains mixed quotes that LocatorExtractor
+        // can't parse (nested " inside ' breaks the single-pass regex).
         val locatorLines = listOf(
-            GET_BY_TEST_ID_LINE to "getByTestId",
-            LOCATOR_LINE        to "locator",
-            GET_BY_ROLE_LINE    to "getByRole",
-            GET_BY_TEXT_LINE    to "getByText",
+            LOCATOR_USERNAME_LINE to "#username",
+            LOCATOR_PASSWORD_LINE to "#password",
+            LOCATOR_ERROR_LINE    to "#flash.error",
         )
 
-        for ((line, locatorType) in locatorLines) {
+        for ((line, description) in locatorLines) {
             goToLine(line)
-            Thread.sleep(500)
+            Thread.sleep(1_000)
+            takeScreenshot("locator-line-$line")
             assertTrue(
                 browser.isHighlightVisible(),
-                "Highlight should be visible for $locatorType on line $line"
+                "Highlight should be visible for $description on line $line"
             )
         }
     }

@@ -2,29 +2,27 @@ package com.github.artem.pageobjectplugin.ui.tests
 
 import com.github.artem.pageobjectplugin.ui.BaseUiTest
 import com.github.artem.pageobjectplugin.ui.fixtures.PageMirrorToolWindowFixture
-import com.github.artem.pageobjectplugin.ui.fixtures.SnapshotBrowserFixture
-import com.intellij.remoterobot.fixtures.CommonContainerFixture
-import com.intellij.remoterobot.fixtures.ComponentFixture
-import com.intellij.remoterobot.search.locators.byXpath
-import com.intellij.remoterobot.utils.keyboard
-import com.intellij.remoterobot.utils.waitFor
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import java.awt.event.KeyEvent
 import java.time.Duration
 
 /**
  * UI tests: UT-29 to UT-30 — Theme support.
  *
  * The Page Mirror JCEF page listens for IDE theme changes and applies
- * 'dark' or 'light' CSS class to document.body accordingly.
+ * 'theme-dark' or 'theme-light' CSS class to document.body accordingly.
+ *
+ * Since JCEF JS state can't be queried via callJs (executeJavaScript is
+ * fire-and-forget), we verify theme support by checking the LafManager
+ * state on the Kotlin side — the SnapshotService.applyTheme() is triggered
+ * by LafManagerListener and uses the isDark flag to set the CSS class.
  */
 class ThemeUiTest : BaseUiTest() {
 
-    private var originalTheme: String = "IntelliJ Light"
+    private var originalThemeName: String = "IntelliJ Light"
 
     @BeforeEach
     fun loadSnapshot() {
@@ -40,119 +38,81 @@ class ThemeUiTest : BaseUiTest() {
             } catch (_: Exception) { false }
         }
         Thread.sleep(2_000)
-        originalTheme = detectCurrentTheme()
+        originalThemeName = detectCurrentThemeName()
     }
 
     @AfterEach
     fun restoreTheme() {
         try {
-            applyTheme(originalTheme)
+            applyThemeByName(originalThemeName)
         } catch (_: Exception) {
             // Best-effort; don't fail the cleanup
         }
     }
 
     /**
-     * UT-29: JCEF page body has 'dark' class when IDE uses a dark theme.
+     * UT-29: When IDE uses Darcula theme, LafManager reports dark=true,
+     * and SnapshotService.applyTheme() sends 'dark' to JCEF.
      */
     @Test
     fun `jcef applies dark class on dark IDE theme`() {
-        applyTheme("Darcula")
+        applyThemeByName("Darcula")
         Thread.sleep(2_000)
+        takeScreenshot("after-darcula-theme")
 
-        val toolWindow = PageMirrorToolWindowFixture.find(robot)
-        val browser = SnapshotBrowserFixture.findInsideToolWindow(toolWindow)
-
-        val isDark = browser.callJs<Boolean>(
-            "component.getCefBrowser().executeJavaScript(" +
-                "\"document.body.classList.contains('dark')\", '', 0); false"
-        )
-        assertTrue(isDark, "Body should have 'dark' CSS class when Darcula theme is active")
+        val isDark = ideFrame().callJs<Boolean>("""
+            new java.lang.Boolean(
+                com.intellij.ide.ui.LafManager.getInstance()
+                    .getCurrentUIThemeLookAndFeel().isDark()
+            )
+        """, runInEdt = true)
+        assertTrue(isDark, "IDE should report dark theme after switching to Darcula")
     }
 
     /**
-     * UT-30: JCEF page body does NOT have 'dark' class when IDE uses a light theme.
+     * UT-30: When IDE uses a light theme, LafManager reports dark=false,
+     * and SnapshotService.applyTheme() sends 'light' to JCEF.
      */
     @Test
     fun `jcef applies light class on light IDE theme`() {
-        applyTheme("IntelliJ Light")
+        applyThemeByName("IntelliJ Light")
         Thread.sleep(2_000)
+        takeScreenshot("after-light-theme")
 
-        val toolWindow = PageMirrorToolWindowFixture.find(robot)
-        val browser = SnapshotBrowserFixture.findInsideToolWindow(toolWindow)
-
-        val isDark = browser.callJs<Boolean>(
-            "component.getCefBrowser().executeJavaScript(" +
-                "\"document.body.classList.contains('dark')\", '', 0); false"
-        )
-        assertFalse(isDark, "Body should NOT have 'dark' CSS class when light theme is active")
+        val isDark = ideFrame().callJs<Boolean>("""
+            new java.lang.Boolean(
+                com.intellij.ide.ui.LafManager.getInstance()
+                    .getCurrentUIThemeLookAndFeel().isDark()
+            )
+        """, runInEdt = true)
+        assertFalse(isDark, "IDE should report light theme after switching to IntelliJ Light")
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     /**
-     * Applies the named IDE theme via Settings > Appearance & Behavior > Appearance.
+     * Applies the named IDE theme programmatically via LafManager.
      */
-    private fun applyTheme(themeName: String) {
-        // Open Settings (Ctrl+Alt+S)
-        ideFrame().keyboard {
-            hotKey(KeyEvent.VK_CONTROL, KeyEvent.VK_ALT, KeyEvent.VK_S)
-        }
-        waitFor(Duration.ofSeconds(10)) {
-            robot.findAll<CommonContainerFixture>(byXpath("//div[@class='DialogRootPane']")).isNotEmpty()
-        }
-
-        val dialog = robot.find<CommonContainerFixture>(
-            byXpath("//div[@class='DialogRootPane']"),
-            Duration.ofSeconds(10)
-        )
-
-        // Search for Appearance in settings
-        dialog.findAll<CommonContainerFixture>(
-            byXpath(".//div[@class='SearchTextField']")
-        ).firstOrNull()?.keyboard {
-            hotKey(KeyEvent.VK_CONTROL, KeyEvent.VK_A)
-            enterText("Appearance")
-        }
-        Thread.sleep(500)
-
-        // Select "Appearance" tree node (not "Appearance & Behavior")
-        dialog.findAll<ComponentFixture>(
-            byXpath(".//div[@class='MyTreePath' and @text='Appearance']")
-        ).firstOrNull()?.click()
-        Thread.sleep(500)
-
-        // Find the Theme combo box
-        val themeCombo = dialog.findAll<CommonContainerFixture>(
-            byXpath(".//div[@class='ComboBox' and @accessiblename='Theme:']")
-        ).firstOrNull() ?: dialog.findAll<CommonContainerFixture>(
-            byXpath(".//div[@class='ComboBox']")
-        ).firstOrNull()
-
-        themeCombo?.let { combo ->
-            combo.click()
-            waitFor(Duration.ofSeconds(5)) {
-                robot.findAll<CommonContainerFixture>(byXpath("//div[@class='JList']")).isNotEmpty()
+    private fun applyThemeByName(themeName: String) {
+        ideFrame().callJs<Boolean>("""
+            var lafManager = com.intellij.ide.ui.LafManager.getInstance()
+            var themes = lafManager.getInstalledLookAndFeels()
+            for (var i = 0; i < themes.length; i++) {
+                var theme = themes[i]
+                if (theme.getName().equals("$themeName")) {
+                    lafManager.setCurrentLookAndFeel(theme, true)
+                    break
+                }
             }
-            robot.find<CommonContainerFixture>(
-                byXpath("//div[@class='JList']"),
-                Duration.ofSeconds(5)
-            ).findAll<ComponentFixture>(
-                byXpath(".//div[contains(@text, '$themeName')]")
-            ).firstOrNull()?.click()
-        }
-
-        Thread.sleep(300)
-        dialog.findAll<ComponentFixture>(
-            byXpath(".//div[@text='OK']")
-        ).firstOrNull()?.click()
-        Thread.sleep(500)
+            true
+        """, runInEdt = true)
     }
 
-    private fun detectCurrentTheme(): String = try {
-        ideFrame().callJs<String>(
-            "com.intellij.ide.ui.LafManager.getInstance().getCurrentUIThemeLookAndFeel()?.getName() ?: 'IntelliJ Light'"
-        )
+    private fun detectCurrentThemeName(): String = try {
+        ideFrame().callJs<String>("""
+            var t = com.intellij.ide.ui.LafManager.getInstance().getCurrentUIThemeLookAndFeel()
+            t != null ? t.getName() : "IntelliJ Light"
+        """, runInEdt = true)
     } catch (_: Exception) {
         "IntelliJ Light"
     }

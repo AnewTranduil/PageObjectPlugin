@@ -4,11 +4,14 @@ import com.intellij.remoterobot.RemoteRobot
 import com.intellij.remoterobot.fixtures.CommonContainerFixture
 import com.intellij.remoterobot.search.locators.byXpath
 import com.intellij.remoterobot.utils.waitFor
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.TestInstance
 import java.net.HttpURLConnection
 import java.net.URI
+import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Duration
 
@@ -75,6 +78,40 @@ abstract class BaseUiTest {
                 }
                 Thread.sleep(delayMs)
             }
+        }
+    }
+
+    // ── Screenshot helper ─────────────────────────────────────────────────────
+
+    private val screenshotDir: Path = Path.of("build/reports/tests/uiTest/screenshots")
+
+    /**
+     * Captures a screenshot of the IDE window and saves it as a PNG.
+     * Uses the Remote Robot server's /screenshot HTTP endpoint.
+     * [label] is a short descriptive tag (e.g. "after-snapshot-load").
+     */
+    protected fun takeScreenshot(label: String) {
+        try {
+            Files.createDirectories(screenshotDir)
+            val className = this::class.simpleName ?: "Unknown"
+            val timestamp = System.currentTimeMillis()
+            val fileName = "${className}_${label}_$timestamp.png"
+            val filePath = screenshotDir.resolve(fileName)
+
+            val client = OkHttpClient()
+            val request = Request.Builder()
+                .url("$robotUrl/screenshot")
+                .build()
+            client.newCall(request).execute().use { response ->
+                if (response.isSuccessful && response.body != null) {
+                    Files.write(filePath, response.body!!.bytes())
+                    println("[screenshot] Saved: $filePath")
+                } else {
+                    System.err.println("[screenshot] Server returned ${response.code} for '$label'")
+                }
+            }
+        } catch (e: Exception) {
+            System.err.println("[screenshot] Failed to capture '$label': ${e.message}")
         }
     }
 

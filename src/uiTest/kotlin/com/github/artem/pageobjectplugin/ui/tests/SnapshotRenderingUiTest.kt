@@ -39,6 +39,7 @@ class SnapshotRenderingUiTest : BaseUiTest() {
      */
     @Test
     fun `jcef browser component is visible after snapshot load`() {
+        takeScreenshot("after-snapshot-load")
         val toolWindow = PageMirrorToolWindowFixture.find(robot)
         assertTrue(
             toolWindow.isBrowserVisible(),

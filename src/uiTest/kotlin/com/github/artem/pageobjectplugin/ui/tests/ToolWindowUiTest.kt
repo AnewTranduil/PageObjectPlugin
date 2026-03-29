@@ -37,6 +37,7 @@ class ToolWindowUiTest : BaseUiTest() {
      */
     @Test
     fun `tool window is visible`() {
+        takeScreenshot("tool-window-visible")
         val visible = PageMirrorToolWindowFixture.isVisible(robot)
         assertTrue(visible, "Page Mirror tool window should be visible")
     }
