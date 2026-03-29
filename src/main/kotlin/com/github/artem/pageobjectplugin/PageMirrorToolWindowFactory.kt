@@ -5,13 +5,13 @@ import com.github.artem.pageobjectplugin.listeners.SnapshotDiscoveryListener
 import com.github.artem.pageobjectplugin.listeners.SnapshotWatcher
 import com.github.artem.pageobjectplugin.model.SnapshotBundle
 import com.github.artem.pageobjectplugin.services.SnapshotService
-import com.intellij.openapi.Disposable
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
+import com.intellij.openapi.ui.ComboBox
 import com.intellij.ui.jcef.JBCefApp
 import com.intellij.ui.jcef.JBCefBrowser
 import com.intellij.ui.components.JBLabel
@@ -20,7 +20,6 @@ import java.awt.BorderLayout
 import java.awt.FlowLayout
 import javax.swing.DefaultComboBoxModel
 import javax.swing.JButton
-import javax.swing.JComboBox
 import javax.swing.JPanel
 import javax.swing.SwingConstants
 
@@ -42,7 +41,7 @@ class PageMirrorToolWindowFactory : ToolWindowFactory {
 
         // Build toolbar
         val comboModel = DefaultComboBoxModel<SnapshotBundle>()
-        val comboBox = JComboBox(comboModel).apply {
+        val comboBox = ComboBox(comboModel).apply {
             renderer = SnapshotComboRenderer()
             addActionListener {
                 val selected = selectedItem as? SnapshotBundle ?: return@addActionListener

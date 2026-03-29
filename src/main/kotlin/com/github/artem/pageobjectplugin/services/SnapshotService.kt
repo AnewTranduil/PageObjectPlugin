@@ -15,6 +15,7 @@ import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
 import com.intellij.ui.jcef.JBCefBrowser
+import com.intellij.ui.jcef.JBCefBrowserBase
 import com.intellij.ui.jcef.JBCefJSQuery
 import org.cef.browser.CefBrowser
 import org.cef.browser.CefFrame
@@ -175,7 +176,7 @@ class SnapshotService(private val project: Project) {
 
     private fun setupJsQuery(browser: JBCefBrowser) {
         LOG.info("setupJsQuery: registering JBCefJSQuery and load handler")
-        val query = JBCefJSQuery.create(browser)
+        val query = JBCefJSQuery.create(browser as JBCefBrowserBase)
         query.addHandler { jsonString ->
             ApplicationManager.getApplication().invokeLater {
                 PickerResultHandler(project).handlePickerResult(jsonString)
