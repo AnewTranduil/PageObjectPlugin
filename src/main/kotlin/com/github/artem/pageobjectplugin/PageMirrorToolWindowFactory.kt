@@ -6,6 +6,7 @@ import com.github.artem.pageobjectplugin.listeners.SnapshotWatcher
 import com.github.artem.pageobjectplugin.model.SnapshotBundle
 import com.github.artem.pageobjectplugin.services.SnapshotService
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
@@ -15,9 +16,6 @@ import com.intellij.ui.jcef.JBCefApp
 import com.intellij.ui.jcef.JBCefBrowser
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.content.ContentFactory
-import org.cef.browser.CefBrowser
-import org.cef.browser.CefFrame
-import org.cef.handler.CefLoadHandlerAdapter
 import java.awt.BorderLayout
 import java.awt.FlowLayout
 import javax.swing.DefaultComboBoxModel
@@ -37,12 +35,9 @@ class PageMirrorToolWindowFactory : ToolWindowFactory {
         }
 
         val browser = JBCefBrowser()
-        val htmlContent = javaClass.getResourceAsStream("/html/page-mirror.html")?.bufferedReader()?.readText()
-        if (htmlContent != null) {
-            browser.loadHTML(htmlContent)
-        }
 
         val service = SnapshotService.getInstance(project)
+        service.onPageReady { refreshSnapshots(project, service) }
         service.browser = browser
 
         // Build toolbar
@@ -61,9 +56,20 @@ class PageMirrorToolWindowFactory : ToolWindowFactory {
             }
         }
 
+        val inspectButton = JButton("Pick").apply {
+            toolTipText = "Toggle element picker mode"
+            addActionListener {
+                val cefBrowser = browser.cefBrowser
+                service.isInspectModeActive = !service.isInspectModeActive
+                cefBrowser.executeJavaScript("window.toggleInspectMode();", cefBrowser.url, 0)
+                text = if (service.isInspectModeActive) "Pick *" else "Pick"
+            }
+        }
+
         val toolbar = JPanel(FlowLayout(FlowLayout.LEFT, 4, 2)).apply {
             add(comboBox)
             add(refreshButton)
+            add(inspectButton)
         }
 
         val mainPanel = JPanel(BorderLayout()).apply {
@@ -98,24 +104,26 @@ class PageMirrorToolWindowFactory : ToolWindowFactory {
         }
         toolWindow.contentManager.addContent(content)
 
-        // Trigger initial discovery only after JCEF finishes loading page-mirror.html
-        browser.jbCefClient.addLoadHandler(object : CefLoadHandlerAdapter() {
-            override fun onLoadEnd(cefBrowser: CefBrowser?, frame: CefFrame?, httpStatusCode: Int) {
-                if (frame?.isMain == true) {
-                    browser.jbCefClient.removeLoadHandler(this, cefBrowser ?: return)
-                    refreshSnapshots(project, service)
-                }
-            }
-        }, browser.cefBrowser)
+        // Load the shell page AFTER all handlers are registered so onLoadEnd is caught
+        val htmlContent = javaClass.getResourceAsStream("/html/page-mirror.html")?.bufferedReader()?.readText()
+        if (htmlContent != null) {
+            browser.loadHTML(htmlContent)
+        }
     }
 
     private fun refreshSnapshots(project: Project, service: SnapshotService) {
+        val log = logger<PageMirrorToolWindowFactory>()
         val openFiles = FileEditorManager.getInstance(project).openFiles
+        log.info("refreshSnapshots: ${openFiles.size} open file(s): ${openFiles.map { it.name }}")
         val tsFile = openFiles.firstOrNull { it.name.endsWith(".ts") || it.name.endsWith(".tsx") }
 
         if (tsFile != null) {
+            log.info("refreshSnapshots: discovering from ${tsFile.path}")
             val bundles = SnapshotDiscoveryListener.discoverSnapshots(tsFile.toNioPath())
+            log.info("refreshSnapshots: discovered ${bundles.size} bundle(s)")
             service.updateAvailableSnapshots(bundles)
+        } else {
+            log.info("refreshSnapshots: no .ts/.tsx file open, skipping discovery")
         }
     }
 

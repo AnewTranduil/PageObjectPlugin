@@ -54,9 +54,9 @@ class SnapshotServiceTest : BasePlatformTestCase() {
     }
 
     fun `test highlightElement emits correct JS`() {
-        service.highlightElement("#username")
+        service.highlightElement("locator", "#username")
 
-        assertTrue(capturedJs.any { it.startsWith("window.highlightElement(") && it.contains("#username") })
+        assertTrue(capturedJs.any { it.startsWith("window.highlightElement(") && it.contains("locator") && it.contains("#username") })
     }
 
     fun `test clearHighlight emits correct JS`() {

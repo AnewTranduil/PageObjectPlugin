@@ -46,8 +46,7 @@ class CaretHighlightListener(private val project: Project) : CaretListener, Disp
                     val locator = LocatorExtractor.extract(lineText)
 
                     if (locator != null) {
-                        val selector = locator.cssSelector ?: locator.value
-                        service.highlightElement(selector)
+                        service.highlightElement(locator.type, locator.value)
                     } else {
                         service.clearHighlight()
                     }

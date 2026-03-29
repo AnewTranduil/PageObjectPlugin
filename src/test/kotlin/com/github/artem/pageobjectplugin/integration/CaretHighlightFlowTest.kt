@@ -25,18 +25,17 @@ class CaretHighlightFlowTest : BasePlatformTestCase() {
         super.tearDown()
     }
 
-    fun `test getByTestId line extracts css selector and triggers highlight`() {
+    fun `test getByTestId line extracts and triggers highlight with type and value`() {
         val line = "  usernameInput = this.page.getByTestId('login-username');"
         val locator = LocatorExtractor.extract(line)!!
 
         assertEquals("getByTestId", locator.type)
-        assertEquals("[data-testid=\"login-username\"]", locator.cssSelector)
 
-        service.highlightElement(locator.cssSelector!!)
+        service.highlightElement(locator.type, locator.value)
 
         val js = capturedJs.last()
         assertTrue(js.startsWith("window.highlightElement("))
-        assertTrue(js.contains("data-testid"))
+        assertTrue(js.contains("getByTestId"))
         assertTrue(js.contains("login-username"))
     }
 
@@ -47,9 +46,11 @@ class CaretHighlightFlowTest : BasePlatformTestCase() {
         assertEquals("locator", locator.type)
         assertEquals("#password", locator.cssSelector)
 
-        service.highlightElement(locator.cssSelector!!)
+        service.highlightElement(locator.type, locator.value)
 
-        assertTrue(capturedJs.last().contains("#password"))
+        val js = capturedJs.last()
+        assertTrue(js.contains("locator"))
+        assertTrue(js.contains("#password"))
     }
 
     fun `test getByRole line extracts role and triggers highlight`() {
@@ -59,21 +60,26 @@ class CaretHighlightFlowTest : BasePlatformTestCase() {
         assertEquals("getByRole", locator.type)
         assertEquals("button:Login", locator.value)
 
-        service.highlightElement(locator.cssSelector ?: locator.value)
+        service.highlightElement(locator.type, locator.value)
 
-        assertTrue(capturedJs.last().startsWith("window.highlightElement("))
+        val js = capturedJs.last()
+        assertTrue(js.startsWith("window.highlightElement("))
+        assertTrue(js.contains("getByRole"))
+        assertTrue(js.contains("button:Login"))
     }
 
-    fun `test getByText line has null cssSelector so value is used`() {
+    fun `test getByText line sends type and text value`() {
         val line = "  errorMessage = this.page.getByText('Bad credentials');"
         val locator = LocatorExtractor.extract(line)!!
 
         assertEquals("getByText", locator.type)
         assertNull(locator.cssSelector)
 
-        service.highlightElement(locator.value)
+        service.highlightElement(locator.type, locator.value)
 
-        assertTrue(capturedJs.last().contains("Bad credentials"))
+        val js = capturedJs.last()
+        assertTrue(js.contains("getByText"))
+        assertTrue(js.contains("Bad credentials"))
     }
 
     fun `test line with no locator results in clearHighlight`() {
@@ -103,9 +109,10 @@ class CaretHighlightFlowTest : BasePlatformTestCase() {
         assertEquals("getByPlaceholder", locator.type)
         assertEquals("[placeholder=\"Username\"]", locator.cssSelector)
 
-        service.highlightElement(locator.cssSelector!!)
+        service.highlightElement(locator.type, locator.value)
 
-        assertTrue(capturedJs.last().contains("placeholder"))
-        assertTrue(capturedJs.last().contains("Username"))
+        val js = capturedJs.last()
+        assertTrue(js.contains("getByPlaceholder"))
+        assertTrue(js.contains("Username"))
     }
 }

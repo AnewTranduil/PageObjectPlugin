@@ -11,6 +11,7 @@ import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
+import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
 import com.intellij.ui.jcef.JBCefBrowser
@@ -21,6 +22,8 @@ import org.cef.handler.CefLoadHandlerAdapter
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import kotlin.io.path.readText
+
+private val LOG = logger<SnapshotService>()
 
 @Service(Service.Level.PROJECT)
 class SnapshotService(private val project: Project) {
@@ -50,6 +53,7 @@ class SnapshotService(private val project: Project) {
 
     private var jsQuery: JBCefJSQuery? = null
     private val snapshotListeners = mutableListOf<() -> Unit>()
+    private var onPageReadyCallback: (() -> Unit)? = null
 
     /** Seam for testing: replace with a capturing lambda to verify JS calls without JCEF. */
     internal var jsExecutor: (code: String) -> Unit = { code ->
@@ -58,6 +62,10 @@ class SnapshotService(private val project: Project) {
 
     fun addSnapshotListener(listener: () -> Unit) {
         snapshotListeners.add(listener)
+    }
+
+    fun onPageReady(callback: () -> Unit) {
+        onPageReadyCallback = callback
     }
 
     internal fun clearSnapshotListeners() {
@@ -72,20 +80,25 @@ class SnapshotService(private val project: Project) {
     }
 
     fun updateAvailableSnapshots(bundles: List<SnapshotBundle>) {
+        LOG.info("updateAvailableSnapshots: ${bundles.size} bundle(s) found")
+        bundles.forEach { LOG.info("  bundle: ${it.htmlPath}") }
         availableSnapshots = bundles
         snapshotListeners.forEach { it() }
 
         if (currentBundle == null && bundles.isNotEmpty()) {
+            LOG.info("No current bundle, auto-loading first: ${bundles.first().htmlPath}")
             loadSnapshot(bundles.first())
         }
     }
 
     fun loadSnapshot(bundle: SnapshotBundle) {
+        LOG.info("loadSnapshot: ${bundle.htmlPath}")
         currentBundle = bundle
 
         try {
             val html = bundle.htmlPath.readText()
             val layout = bundle.layoutPath.readText()
+            LOG.info("Read HTML (${html.length} chars) and layout (${layout.length} chars)")
 
             // Parse HTML with Jsoup for gutter validation
             snapshotDocument = Jsoup.parse(html)
@@ -93,12 +106,15 @@ class SnapshotService(private val project: Project) {
             val escapedHtml = escapeForJs(html)
             val escapedLayout = escapeForJs(layout)
 
+            LOG.info("Executing window.loadSnapshot via jsExecutor, browser=${browser != null}, cefBrowser=${browser?.cefBrowser != null}")
             jsExecutor("window.loadSnapshot($escapedHtml, $escapedLayout);")
 
             // Apply theme and highlight color to the loaded page
             applyTheme()
             applyHighlightColor()
+            LOG.info("loadSnapshot complete")
         } catch (e: Exception) {
+            LOG.error("loadSnapshot failed", e)
             try {
                 NotificationGroupManager.getInstance()
                     .getNotificationGroup("Page Mirror")
@@ -127,9 +143,10 @@ class SnapshotService(private val project: Project) {
         }
     }
 
-    fun highlightElement(selector: String) {
-        val escapedSelector = escapeForJs(selector)
-        jsExecutor("window.highlightElement($escapedSelector);")
+    fun highlightElement(type: String, value: String) {
+        val escapedType = escapeForJs(type)
+        val escapedValue = escapeForJs(value)
+        jsExecutor("window.highlightElement($escapedType, $escapedValue);")
         isHighlightActive = true
     }
 
@@ -157,6 +174,7 @@ class SnapshotService(private val project: Project) {
     }
 
     private fun setupJsQuery(browser: JBCefBrowser) {
+        LOG.info("setupJsQuery: registering JBCefJSQuery and load handler")
         val query = JBCefJSQuery.create(browser)
         query.addHandler { jsonString ->
             ApplicationManager.getApplication().invokeLater {
@@ -166,9 +184,10 @@ class SnapshotService(private val project: Project) {
         }
         jsQuery = query
 
-        // Inject the query bridge after page loads
+        // Inject the query bridge after page loads, then notify that the page is ready
         browser.jbCefClient.addLoadHandler(object : CefLoadHandlerAdapter() {
             override fun onLoadEnd(cefBrowser: CefBrowser?, frame: CefFrame?, httpStatusCode: Int) {
+                LOG.info("onLoadEnd: url=${cefBrowser?.url}, isMain=${frame?.isMain}, status=$httpStatusCode")
                 if (frame?.isMain == true) {
                     val injection = query.inject("json")
                     cefBrowser?.executeJavaScript(
@@ -176,6 +195,8 @@ class SnapshotService(private val project: Project) {
                         cefBrowser.url,
                         0
                     )
+                    LOG.info("onLoadEnd: JS bridge injected, invoking onPageReadyCallback (registered=${onPageReadyCallback != null})")
+                    onPageReadyCallback?.invoke()
                 }
             }
         }, browser.cefBrowser)
