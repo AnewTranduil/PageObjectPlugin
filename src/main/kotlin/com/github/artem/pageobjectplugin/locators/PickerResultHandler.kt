@@ -25,7 +25,7 @@ class PickerResultHandler(private val project: Project) {
         val editor = FileEditorManager.getInstance(project).selectedTextEditor ?: return
 
         val options = listOf(
-            "Property: readonly $fieldName = this.page.${locatorCode};",
+            "Property: readonly $fieldName = page.${locatorCode};",
             "Variable: const $fieldName = page.${locatorCode};",
             "Copy selector"
         )
@@ -35,7 +35,7 @@ class PickerResultHandler(private val project: Project) {
                 if (selectedValue == null) return FINAL_CHOICE
                 when {
                     selectedValue.startsWith("Property:") -> {
-                        val code = "readonly $fieldName = this.page.${locatorCode};"
+                        val code = "readonly $fieldName = page.${locatorCode};"
                         insertAtCaret(editor, code)
                     }
                     selectedValue.startsWith("Variable:") -> {
@@ -43,9 +43,8 @@ class PickerResultHandler(private val project: Project) {
                         insertAtCaret(editor, code)
                     }
                     selectedValue.startsWith("Copy") -> {
-                        val selector = extractSelectorValue(locatorCode)
                         val clipboard = Toolkit.getDefaultToolkit().systemClipboard
-                        clipboard.setContents(StringSelection(selector), null)
+                        clipboard.setContents(StringSelection(locatorCode), null)
                     }
                 }
                 return FINAL_CHOICE
