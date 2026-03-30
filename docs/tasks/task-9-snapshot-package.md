@@ -93,7 +93,7 @@ interface SnapshotResult {
 
 ```typescript
 import { test } from '@playwright/test';
-import { saveSnapshot } from '@anthropic/playwright-snapshot-saver';
+import { saveSnapshot } from 'playwright-snapshot-saver';
 import path from 'path';
 
 test('login page', async ({ page }) => {
@@ -231,7 +231,7 @@ The Kotlin plugin discovers and consumes snapshots via `SnapshotBundle.fromDirec
 
 ```json
 {
-  "name": "@anthropic/playwright-snapshot-saver",
+  "name": "playwright-snapshot-saver",
   "version": "0.1.0",
   "description": "Capture Playwright page snapshots for Page Mirror IntelliJ plugin",
   "main": "dist/index.js",
@@ -291,7 +291,7 @@ await saveState(page, 'initial', snapshotsDir);
 
 ```typescript
 // test-project/tests/login.spec.ts
-import { saveSnapshot } from '@anthropic/playwright-snapshot-saver';
+import { saveSnapshot } from 'playwright-snapshot-saver';
 await saveSnapshot(page, {
   outputDir: snapshotsDir,
   group: 'login',
@@ -300,7 +300,7 @@ await saveSnapshot(page, {
 ```
 
 - `test-project/utils/save-state.ts` is deleted
-- `test-project/package.json` adds `@anthropic/playwright-snapshot-saver` as a dev dependency (local path: `"file:../packages/snapshot-saver"`)
+- `test-project/package.json` adds `playwright-snapshot-saver` as a dev dependency (local path: `"file:../packages/snapshot-saver"`)
 
 ---
 
@@ -339,15 +339,15 @@ No monorepo tooling (nx, turborepo) needed. The test-project references the pack
 
 ## Acceptance Criteria
 
-- [ ] `packages/snapshot-saver/` builds with `npm run build` and produces `dist/`
-- [ ] `saveSnapshot()` generates all 4 snapshot files (html, layout, screenshot, manifest)
-- [ ] Output satisfies `SnapshotBundle.fromDirectory()` contract (index.html + layout.json present)
-- [ ] Every `selector` in generated layout.json resolves in the generated index.html
-- [ ] `extraSelectors` option adds custom elements to layout.json
-- [ ] `excludeSelectors` option filters elements from layout.json
-- [ ] Screenshot format option works (png and webp)
-- [ ] `test-project/` uses the package via `file:` dependency and all tests pass
-- [ ] `test-project/utils/save-state.ts` is deleted
-- [ ] Kotlin plugin still discovers and loads snapshots from updated test-project
-- [ ] `./gradlew test` passes (plugin tests unaffected)
-- [ ] Package has its own integration tests with Playwright
+- [x] `packages/snapshot-saver/` builds with `npm run build` and produces `dist/`
+- [x] `saveSnapshot()` generates all 4 snapshot files (html, layout, screenshot, manifest)
+- [x] Output satisfies `SnapshotBundle.fromDirectory()` contract (index.html + layout.json present)
+- [x] Every `selector` in generated layout.json resolves in the generated index.html
+- [x] `extraSelectors` option adds custom elements to layout.json
+- [x] `excludeSelectors` option filters elements from layout.json
+- [x] Screenshot format option works (png and jpeg)
+- [x] `test-project/` uses the package via `file:` dependency and all tests pass
+- [x] `test-project/utils/save-state.ts` is deleted
+- [x] Kotlin plugin still discovers and loads snapshots from updated test-project
+- [x] `./gradlew test` passes (plugin tests unaffected)
+- [x] Package has its own integration tests with Playwright (10 tests)

@@ -1,0 +1,30 @@
+{
+  "name": "playwright-snapshot-saver",
+  "version": "0.1.0",
+  "description": "Capture Playwright page snapshots for Page Mirror IntelliJ plugin",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "playwright test"
+  },
+  "peerDependencies": {
+    "@playwright/test": ">=1.40.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "@types/node": "^25.5.0",
+    "serve": "^14.2.0",
+    "typescript": "^5.3.0"
+  },
+  "keywords": [
+    "playwright",
+    "snapshot",
+    "page-mirror",
+    "intellij"
+  ],
+  "license": "MIT"
+}

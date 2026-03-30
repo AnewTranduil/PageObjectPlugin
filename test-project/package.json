@@ -8,6 +8,7 @@
   },
   "devDependencies": {
     "@playwright/test": "1.49.1",
+    "playwright-snapshot-saver": "file:../packages/snapshot-saver",
     "serve": "^14.2.0"
   }
 }

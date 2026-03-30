@@ -20,3 +20,6 @@ Thumbs.db
 # Local config
 local.properties
 /.claude/worktrees/
+/packages/snapshot-saver/dist/
+/packages/snapshot-saver/node_modules/
+/.claude/settings.local.json
