@@ -52,6 +52,8 @@ class SnapshotService(private val project: Project) {
 
     var isInspectModeActive: Boolean = false
 
+    var isHighlightAllActive: Boolean = false
+
     private var jsQuery: JBCefJSQuery? = null
     private val snapshotListeners = mutableListOf<() -> Unit>()
     private var onPageReadyCallback: (() -> Unit)? = null
@@ -78,6 +80,7 @@ class SnapshotService(private val project: Project) {
         snapshotDocument = null
         availableSnapshots = emptyList()
         snapshotListeners.clear()
+        isHighlightAllActive = false
     }
 
     fun updateAvailableSnapshots(bundles: List<SnapshotBundle>) {
@@ -154,6 +157,16 @@ class SnapshotService(private val project: Project) {
     fun clearHighlight() {
         jsExecutor("window.clearHighlight();")
         isHighlightActive = false
+        isHighlightAllActive = false
+    }
+
+    fun highlightAllLocators(locators: List<com.github.artem.pageobjectplugin.locators.ExtractedLocator>) {
+        val json = locators.joinToString(",", "[", "]") { loc ->
+            """{"type":${escapeForJs(loc.type)},"value":${escapeForJs(loc.value)}}"""
+        }
+        jsExecutor("window.highlightAll($json);")
+        isHighlightAllActive = true
+        isHighlightActive = true
     }
 
     fun applyTheme() {

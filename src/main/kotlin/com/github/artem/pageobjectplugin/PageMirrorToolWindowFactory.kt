@@ -3,11 +3,13 @@ package com.github.artem.pageobjectplugin
 import com.github.artem.pageobjectplugin.listeners.CaretHighlightListener
 import com.github.artem.pageobjectplugin.listeners.SnapshotDiscoveryListener
 import com.github.artem.pageobjectplugin.listeners.SnapshotWatcher
+import com.github.artem.pageobjectplugin.locators.LocatorExtractor
 import com.github.artem.pageobjectplugin.model.SnapshotBundle
 import com.github.artem.pageobjectplugin.services.SnapshotService
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
@@ -65,10 +67,27 @@ class PageMirrorToolWindowFactory : ToolWindowFactory {
             }
         }
 
+        val showAllButton = JButton("Show All").apply {
+            toolTipText = "Highlight all locators in the current file"
+            addActionListener {
+                if (service.isHighlightAllActive) {
+                    service.clearHighlight()
+                    text = "Show All"
+                } else {
+                    val locators = collectLocatorsFromEditor(project)
+                    if (locators.isNotEmpty()) {
+                        service.highlightAllLocators(locators)
+                        text = "Show All *"
+                    }
+                }
+            }
+        }
+
         val toolbar = JPanel(FlowLayout(FlowLayout.LEFT, 4, 2)).apply {
             add(comboBox)
             add(refreshButton)
             add(inspectButton)
+            add(showAllButton)
         }
 
         val mainPanel = JPanel(BorderLayout()).apply {
@@ -104,10 +123,37 @@ class PageMirrorToolWindowFactory : ToolWindowFactory {
         toolWindow.contentManager.addContent(content)
 
         // Load the shell page AFTER all handlers are registered so onLoadEnd is caught
-        val htmlContent = javaClass.getResourceAsStream("/html/page-mirror.html")?.bufferedReader()?.readText()
+        val htmlContent = assemblePageMirrorHtml()
         if (htmlContent != null) {
             browser.loadHTML(htmlContent)
         }
+    }
+
+    private fun collectLocatorsFromEditor(project: Project): List<com.github.artem.pageobjectplugin.locators.ExtractedLocator> {
+        val editor = FileEditorManager.getInstance(project).selectedTextEditor ?: return emptyList()
+        val document = editor.document
+        val locators = mutableListOf<com.github.artem.pageobjectplugin.locators.ExtractedLocator>()
+        for (line in 0 until document.lineCount) {
+            val lineStart = document.getLineStartOffset(line)
+            val lineEnd = document.getLineEndOffset(line)
+            val lineText = document.getText(TextRange(lineStart, lineEnd))
+            val locator = LocatorExtractor.extract(lineText)
+            if (locator != null) {
+                locators.add(locator)
+            }
+        }
+        return locators
+    }
+
+    private fun assemblePageMirrorHtml(): String? {
+        val template = javaClass.getResourceAsStream("/html/page-mirror.html")
+            ?.bufferedReader()?.readText() ?: return null
+        val jsFiles = listOf("snapshot", "query", "highlight", "inspect", "theme")
+        val jsBundle = jsFiles.joinToString("\n\n") { name ->
+            javaClass.getResourceAsStream("/html/js/$name.js")
+                ?.bufferedReader()?.readText() ?: ""
+        }
+        return template.replace("/* __JS_BUNDLE__ */", jsBundle)
     }
 
     private fun refreshSnapshots(project: Project, service: SnapshotService) {

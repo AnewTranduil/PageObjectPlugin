@@ -65,6 +65,29 @@ class SnapshotServiceTest : BasePlatformTestCase() {
         assertEquals("window.clearHighlight();", capturedJs.last())
     }
 
+    fun `test highlightAllLocators emits highlightAll with JSON array`() {
+        val locators = listOf(
+            com.github.artem.pageobjectplugin.locators.ExtractedLocator("getByTestId", "login-username", "[data-testid=\"login-username\"]"),
+            com.github.artem.pageobjectplugin.locators.ExtractedLocator("getByRole", "button:Login", "[role=\"button\"]")
+        )
+        service.highlightAllLocators(locators)
+
+        val js = capturedJs.last()
+        assertTrue(js.startsWith("window.highlightAll("))
+        assertTrue(js.contains("getByTestId"))
+        assertTrue(js.contains("login-username"))
+        assertTrue(js.contains("getByRole"))
+        assertTrue(js.contains("button:Login"))
+        assertTrue(service.isHighlightAllActive)
+    }
+
+    fun `test clearHighlight resets highlightAll state`() {
+        service.isHighlightAllActive = true
+        service.clearHighlight()
+
+        assertFalse(service.isHighlightAllActive)
+    }
+
     fun `test updateAvailableSnapshots with no current auto loads first bundle`() {
         val bundleA = SnapshotFixtures.createMinimalSnapshotDir()
         val bundleB = SnapshotFixtures.createMinimalSnapshotDir()
