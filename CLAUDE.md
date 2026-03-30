@@ -135,6 +135,8 @@ Tasks MUST be completed in order. Each task is in `docs/tasks/`.
 | 5  | Element picker + code generation  | Click element → insert locator    | 4          |
 | 6  | Live selector validation (gutter) | Match count badges in editor      | 4          |
 | 7  | Refinements and polish            | Settings, shortcuts, themes       | 5, 6       |
+| 8  | Highlight all + duplicates        | Show All button, overlap detection| 4, 6       |
+| 9  | Snapshot saver npm package        | Standalone `@anthropic/playwright-snapshot-saver` | 0 |
 
 ## Current State
 
