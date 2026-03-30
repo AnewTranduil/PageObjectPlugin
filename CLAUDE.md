@@ -105,6 +105,12 @@ src/main/
     META-INF/plugin.xml
     html/
       page-mirror.html
+      js/
+        snapshot.js
+        query.js
+        highlight.js
+        inspect.js
+        theme.js
 ```
 
 ## Test Project Layout
@@ -140,7 +146,11 @@ Tasks MUST be completed in order. Each task is in `docs/tasks/`.
 
 ## Current State
 
-**All core tasks (0–7) are complete.** Plugin features are implemented and unit/integration tests pass.
+**Tasks 0–8 are complete.** All core plugin features plus highlight-all with duplicate/overlap detection are implemented. Unit/integration tests pass.
+
+- **Task 8a (JS refactor):** Complete. JS split into 5 modules under `resources/html/js/`, assembled at runtime by `PageMirrorToolWindowFactory.assemblePageMirrorHtml()`.
+- **Task 8b (Highlight All):** Complete. "Show All" toolbar button, color-coded multi-highlight, duplicate/overlap detection with visual badges, caret suppression, integration tests. One gap: JS-only overlap detection logic has no standalone unit test.
+- **Task 9 (Snapshot saver npm package):** Design doc complete, implementation not started.
 
 **UI tests (30 scenarios) are BLOCKED** — see `docs/UI_tests/diagnostic-report.md` for full details. Summary:
 - `./gradlew runIdeForUiTests` fails due to missing `splitMode` property (IPG 2.13.1 requirement) and configuration cache incompatibility

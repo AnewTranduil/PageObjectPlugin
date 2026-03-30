@@ -75,12 +75,12 @@ This avoids module bundler complexity while keeping the source organized.
 
 ### Acceptance criteria (8a)
 
-- [ ] JS is split into 5 files under `src/main/resources/html/js/`
-- [ ] `page-mirror.html` contains only HTML + CSS + assembled script
-- [ ] Build concatenates JS files into the HTML during `processResources`
-- [ ] All existing functionality works unchanged (highlight, inspect, theme, snapshot loading)
-- [ ] `./gradlew test` passes
-- [ ] `./gradlew buildPlugin` produces a working plugin
+- [x] JS is split into 5 files under `src/main/resources/html/js/`
+- [x] `page-mirror.html` contains only HTML + CSS + `/* __JS_BUNDLE__ */` placeholder
+- [x] JS files assembled into HTML at runtime via `PageMirrorToolWindowFactory.assemblePageMirrorHtml()`
+- [x] All existing functionality works unchanged (highlight, inspect, theme, snapshot loading)
+- [x] `./gradlew test` passes
+- [x] `./gradlew buildPlugin` produces a working plugin
 
 ---
 
@@ -202,12 +202,12 @@ Each locator gets `PALETTE[index % PALETTE.length]`. Duplicate/overlap borders o
 
 ### Acceptance criteria (8b)
 
-- [ ] "Show All" button appears in toolbar, toggles highlight-all mode
-- [ ] All locators from the current file highlighted simultaneously with distinct colors
-- [ ] Locators resolving to the same DOM element show red dashed border + "DUPLICATE" badge
-- [ ] Locators with intersecting bounds show yellow dashed border + "OVERLAP" badge
-- [ ] Status line: `Showing 8 locators | 1 duplicate | 2 overlaps`
-- [ ] Caret highlight suppressed while "Show All" active
-- [ ] Toggle off clears all, resumes normal caret behavior
-- [ ] Unit tests for overlap detection logic
-- [ ] Integration test: file with known duplicates produces correct JS call
+- [x] "Show All" button appears in toolbar, toggles highlight-all mode
+- [x] All locators from the current file highlighted simultaneously with distinct colors
+- [x] Locators resolving to the same DOM element show red dashed border + "DUPLICATE" badge
+- [x] Locators with intersecting bounds show yellow dashed border + "OVERLAP" badge
+- [x] Status line: `Showing 8 locators | 1 duplicate | 2 overlaps`
+- [x] Caret highlight suppressed while "Show All" active
+- [x] Toggle off clears all, resumes normal caret behavior
+- [ ] Unit tests for overlap detection logic (JS-only; not separately unit tested)
+- [x] Integration test: file with known duplicates produces correct JS call
