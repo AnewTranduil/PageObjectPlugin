@@ -65,17 +65,32 @@ export interface TraceSnapshotMarker {
   page: string;
   /** Parsed state name, e.g., 'main' */
   state: string;
-  /** Wall-clock timestamp of the action */
+  /** Monotonic timestamp of the action (seconds from trace start) */
   timestamp: number;
   /** Page ID in the trace (needed for snapshot lookup) */
   pageId: string;
-  /** The snapshot name stored in afterSnapshot (used for snapshotByName lookup) */
+  /**
+   * The snapshot name resolved for this marker.
+   * In older Playwright: action.afterSnapshot directly.
+   * In newer Playwright: resolved from the closest `after@` snapshot by timestamp.
+   */
   afterSnapshot: string | undefined;
 }
 
 export interface RenderedSnapshot {
   html: string;
   viewport: { width: number; height: number };
+}
+
+// -- Internal types for raw snapshot data ------------------------------------
+
+interface RawSnapshot {
+  callId: string;
+  snapshotName: string;
+  pageId: string;
+  frameId: string;
+  timestamp: number;
+  wallTime: number;
 }
 
 // -- Constants ----------------------------------------------------------------
@@ -94,11 +109,67 @@ function actionTitle(action: ActionEntry): string {
 }
 
 /**
+ * Extract the page-level key from the storage's _frameSnapshots map.
+ * In current Playwright, snapshots are indexed by frame/page IDs like
+ * "page@abc123" and "frame@def456". We prefer the page@ key.
+ */
+function findPageId(storage: any): string | undefined {
+  const frameSnapshots = storage._frameSnapshots;
+  if (!(frameSnapshots instanceof Map)) return undefined;
+  const keys = [...frameSnapshots.keys()] as string[];
+  return keys.find(k => k.startsWith('page@')) ?? keys[0];
+}
+
+/**
+ * Get all raw snapshots from storage for a given pageId.
+ */
+function getRawSnapshots(storage: any, pageId: string): RawSnapshot[] {
+  const frameSnapshots = storage._frameSnapshots;
+  if (!(frameSnapshots instanceof Map)) return [];
+  const frames = frameSnapshots.get(pageId);
+  if (!frames) return [];
+  return (frames.raw ?? []) as RawSnapshot[];
+}
+
+/**
+ * Find the closest `after@` snapshot to a given timestamp.
+ * Returns the snapshotName or undefined if none found.
+ *
+ * Strategy: find the `after@` snapshot whose timestamp is closest to
+ * (and preferably >= ) the marker timestamp.
+ */
+function findClosestAfterSnapshot(
+  rawSnapshots: RawSnapshot[],
+  markerTimestamp: number,
+): string | undefined {
+  const afterSnaps = rawSnapshots.filter(s => s.snapshotName.startsWith('after@'));
+  if (afterSnaps.length === 0) return undefined;
+
+  let closest = afterSnaps[0];
+  let closestDist = Math.abs(closest.timestamp - markerTimestamp);
+
+  for (const snap of afterSnaps) {
+    const dist = Math.abs(snap.timestamp - markerTimestamp);
+    if (dist < closestDist) {
+      closest = snap;
+      closestDist = dist;
+    }
+  }
+
+  return closest.snapshotName;
+}
+
+/**
  * Load a trace from a backend and find all snapshot markers.
  *
  * Snapshot markers are created by `snapshot({ page, state })` which calls
  * `test.step('[snapshot:page/state]', ...)`. This produces a trace action
  * whose title matches the `[snapshot:...]` pattern.
+ *
+ * Since `test.step` actions don't carry `afterSnapshot` or `pageId` in
+ * current Playwright versions, we resolve these by:
+ * 1. Looking up the page ID from the storage's internal _frameSnapshots map
+ * 2. Finding the closest `after@` snapshot by timestamp
  */
 export async function loadTraceMarkers(backend: TraceLoaderBackend): Promise<{
   markers: TraceSnapshotMarker[];
@@ -107,23 +178,41 @@ export async function loadTraceMarkers(backend: TraceLoaderBackend): Promise<{
   const loader = new TraceLoader();
   await loader.load(backend, () => undefined);
 
+  const storage = loader.storage();
+  const resolvedPageId = findPageId(storage);
+  const rawSnapshots = resolvedPageId ? getRawSnapshots(storage, resolvedPageId) : [];
+
   const markers: TraceSnapshotMarker[] = [];
 
   for (const context of loader.contextEntries) {
     for (const action of context.actions) {
       const title = actionTitle(action);
       const match = MARKER_REGEX.exec(title);
-      if (match) {
-        markers.push({
-          callId: action.callId,
-          label: title,
-          page: match[1],
-          state: match[2],
-          timestamp: action.wallTime ?? action.startTime,
-          pageId: action.pageId,
-          afterSnapshot: action.afterSnapshot,
-        });
+      if (!match) continue;
+
+      const markerTimestamp = action.wallTime ?? action.startTime;
+
+      // Try action's own fields first (older Playwright versions)
+      let afterSnapshot = action.afterSnapshot;
+      let pageId = action.pageId;
+
+      // Resolve from storage if not available on the action
+      if (!pageId) {
+        pageId = resolvedPageId ?? '';
       }
+      if (!afterSnapshot && rawSnapshots.length > 0) {
+        afterSnapshot = findClosestAfterSnapshot(rawSnapshots, markerTimestamp);
+      }
+
+      markers.push({
+        callId: action.callId,
+        label: title,
+        page: match[1],
+        state: match[2],
+        timestamp: markerTimestamp,
+        pageId: pageId!,
+        afterSnapshot,
+      });
     }
   }
 
@@ -133,7 +222,7 @@ export async function loadTraceMarkers(backend: TraceLoaderBackend): Promise<{
 /**
  * Render a snapshot at the given marker to full HTML.
  *
- * Uses the `afterSnapshot` name from the trace action to look up the
+ * Uses the resolved `afterSnapshot` name to look up the
  * snapshot renderer via `SnapshotStorage.snapshotByName()`.
  */
 export async function renderSnapshotAtMarker(
