@@ -41,3 +41,10 @@ export interface ManifestJson {
   playwright: string;
   userAgent: string;
 }
+
+export interface SnapshotMarkerOptions {
+  /** Page identifier — becomes the parent directory (e.g., 'login', 'dashboard') */
+  page: string;
+  /** State within the page (default: 'main') */
+  state?: string;
+}
