@@ -15,7 +15,7 @@ class LoadSnapshotAction : AnAction("Load Snapshot Directory...") {
 
         val descriptor = FileChooserDescriptorFactory.createSingleFolderDescriptor()
         descriptor.title = "Select Snapshot Directory"
-        descriptor.description = "Choose a directory containing index.html and layout.json"
+        descriptor.description = "Choose a directory containing index.html"
 
         val selectedDir = FileChooser.chooseFile(descriptor, project, null) ?: return
         val path = selectedDir.toNioPath()
@@ -24,7 +24,7 @@ class LoadSnapshotAction : AnAction("Load Snapshot Directory...") {
         if (bundle == null) {
             Messages.showErrorDialog(
                 project,
-                "Selected directory must contain index.html and layout.json",
+                "Selected directory must contain index.html",
                 "Invalid Snapshot Directory"
             )
             return

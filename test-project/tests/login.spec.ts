@@ -1,7 +1,7 @@
-import * as path from 'path';
+import * as path from 'node:path';
 import { test, expect } from '@playwright/test';
 import { LoginPage } from '../page-objects/login.page';
-import { saveSnapshot } from 'playwright-snapshot-saver';
+import { snapshot } from 'playwright-snapshot-saver';
 
 const snapshotsDir = path.join(__dirname, '..', '.snapshots');
 
@@ -11,18 +11,10 @@ test.describe('Login Page', () => {
 
     await loginPage.goto();
     await expect(loginPage.usernameInput).toBeVisible();
-    await saveSnapshot(page, {
-      outputDir: snapshotsDir,
-      group: 'login',
-      name: 'initial',
-    });
+    await snapshot({page:'login', state:'initial'})
 
     await loginPage.login('bad-user', 'bad-pass');
     await expect(loginPage.errorMessage).toBeVisible();
-    await saveSnapshot(page, {
-      outputDir: snapshotsDir,
-      group: 'login',
-      name: 'error-state',
-    });
+    await snapshot({page: 'login', state: 'error-state'})
   });
 });

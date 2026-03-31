@@ -1,5 +1,4 @@
 import { defineConfig, devices } from '@playwright/test';
-import * as path from 'path';
 
 export default defineConfig({
   testDir: './tests',
@@ -7,11 +6,12 @@ export default defineConfig({
   expect: { timeout: 10000 },
   retries: 0,
   workers: 1,
-  reporter: 'list',
+  reporter: [['list'], ['html'], ['playwright-snapshot-saver/reporter']],
+  // reporter: [['list'], ['html']],
   use: {
     viewport: { width: 1280, height: 720 },
     screenshot: 'off',
-    trace: 'off',
+    trace: 'on',
   },
   projects: [
     {

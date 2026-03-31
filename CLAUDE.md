@@ -31,36 +31,9 @@ Each snapshot is a directory containing:
 ```
 <snapshot-name>/
   index.html       # Sanitized DOM with CSS inlined (REQUIRED)
-  layout.json      # Element map with bounds (REQUIRED)
   screenshot.webp  # Visual reference (optional)
   manifest.json    # Metadata (optional)
 ```
-
-### layout.json Schema
-
-```json
-{
-  "version": 1,
-  "viewport": { "width": 1280, "height": 720 },
-  "elements": [
-    {
-      "selector": "#username",
-      "role": "textbox",
-      "text": "",
-      "tag": "input",
-      "bounds": { "x": 200, "y": 150, "w": 300, "h": 40 },
-      "interactive": true,
-      "attributes": {
-        "type": "text",
-        "placeholder": "Username",
-        "data-testid": "login-username"
-      }
-    }
-  ]
-}
-```
-
-Elements include: all interactive elements (`button`, `input`, `select`, `textarea`, `a`, `[role=button]`, `[role=link]`, `[tabindex]`) plus any element with `id` or `data-testid`.
 
 ### manifest.json Schema
 
@@ -123,8 +96,8 @@ test-project/
   tests/login.spec.ts
   utils/save-state.ts
   .snapshots/login/
-    initial/      {index.html, layout.json, screenshot.webp, manifest.json}
-    error-state/  {index.html, layout.json, screenshot.webp, manifest.json}
+    initial/      {index.html, screenshot.webp, manifest.json}
+    error-state/  {index.html, screenshot.webp, manifest.json}
 ```
 
 ## Task Sequence
