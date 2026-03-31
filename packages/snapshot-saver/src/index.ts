@@ -3,10 +3,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { SaveSnapshotOptions, SnapshotResult } from './types';
 import { generateInlinedHtml } from './html-inliner';
-import { generateLayout } from './layout-generator';
 import { generateManifest } from './manifest-generator';
 
-export { SaveSnapshotOptions, SnapshotResult, LayoutJson, LayoutElement, ManifestJson } from './types';
+export { SaveSnapshotOptions, SnapshotResult, ManifestJson } from './types';
 
 export async function saveSnapshot(
   page: Page,
@@ -24,13 +23,8 @@ export async function saveSnapshot(
   const manifestEnabled = options.manifest !== false;
 
   // Run all generators in parallel
-  const [html, layout, manifest, _screenshot] = await Promise.all([
+  const [html, manifest, _screenshot] = await Promise.all([
     generateInlinedHtml(page),
-    generateLayout(page, {
-      extraSelectors: options.extraSelectors,
-      excludeSelectors: options.excludeSelectors,
-      extraAttributes: options.extraAttributes,
-    }),
     manifestEnabled ? generateManifest(page) : Promise.resolve(null),
     screenshotEnabled
       ? page.screenshot({
@@ -42,13 +36,10 @@ export async function saveSnapshot(
   ]);
 
   const htmlPath = path.join(outDir, 'index.html');
-  const layoutPath = path.join(outDir, 'layout.json');
   fs.writeFileSync(htmlPath, html, 'utf-8');
-  fs.writeFileSync(layoutPath, JSON.stringify(layout, null, 2), 'utf-8');
 
   const files: SnapshotResult['files'] = {
     html: htmlPath,
-    layout: layoutPath,
   };
 
   if (screenshotEnabled) {
@@ -63,7 +54,6 @@ export async function saveSnapshot(
 
   return {
     outputDir: outDir,
-    elementCount: layout.elements.length,
     files,
   };
 }
