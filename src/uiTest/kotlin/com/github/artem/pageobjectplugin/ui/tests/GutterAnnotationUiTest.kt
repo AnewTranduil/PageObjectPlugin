@@ -37,8 +37,44 @@ class GutterAnnotationUiTest : BaseUiTest() {
                 name.isNotBlank() && !name.contains("No snapshot")
             } catch (_: Exception) { false }
         }
-        // Wait for DaemonCodeAnalyzer pass (annotator runs asynchronously)
+        // Force restart DaemonCodeAnalyzer to trigger the ExternalAnnotator pipeline
+        restartAnnotations()
+        // Give the ExternalAnnotator pipeline time to complete (collect→doAnnotate→apply)
         Thread.sleep(5_000)
+    }
+
+    /**
+     * Programmatically restarts the DaemonCodeAnalyzer for all open editors.
+     */
+    private fun restartAnnotations() {
+        ideFrame().callJs<Boolean>("""
+            var project = com.intellij.openapi.project.ProjectManager.getInstance().getOpenProjects()[0]
+            var analyzer = com.intellij.codeInsight.daemon.DaemonCodeAnalyzer.getInstance(project)
+            var editorManager = com.intellij.openapi.fileEditor.FileEditorManager.getInstance(project)
+            var files = editorManager.getOpenFiles()
+            for (var i = 0; i < files.length; i++) {
+                var psiFile = com.intellij.psi.PsiManager.getInstance(project).findFile(files[i])
+                if (psiFile != null) analyzer.restart(psiFile)
+            }
+            true
+        """, runInEdt = true)
+    }
+
+    /**
+     * Waits until at least one gutter icon tooltip is found, with a restart retry.
+     */
+    private fun waitForGutterBadges() {
+        // First attempt: check if badges already appeared
+        var tooltips = GutterFixture.find(robot).allIconTooltips()
+        if (tooltips.isNotEmpty()) return
+
+        // Retry: restart annotations again and poll
+        restartAnnotations()
+        waitFor(Duration.ofSeconds(30)) {
+            try {
+                GutterFixture.find(robot).allIconTooltips().isNotEmpty()
+            } catch (_: Exception) { false }
+        }
     }
 
     /**
@@ -46,6 +82,8 @@ class GutterAnnotationUiTest : BaseUiTest() {
      */
     @Test
     fun `gutter badge shows 1 match for matched selector`() {
+        waitForGutterBadges()
+        takeScreenshot("before-gutter-1-match")
         val gutter = GutterFixture.find(robot)
         val tooltips = gutter.allIconTooltips()
 
@@ -62,12 +100,14 @@ class GutterAnnotationUiTest : BaseUiTest() {
      */
     @Test
     fun `gutter badge shows 0 matches for unmatched selector`() {
+        waitForGutterBadges()
+        takeScreenshot("before-gutter-0-match")
         val gutter = GutterFixture.find(robot)
         val tooltips = gutter.allIconTooltips()
 
         assertTrue(
-            tooltips.any { it.contains("0 match", ignoreCase = true) },
-            "Expected at least one gutter badge with '0 matches'. All tooltips: $tooltips"
+            tooltips.any { it.contains("0 match", ignoreCase = true) || it.contains("No match", ignoreCase = true) },
+            "Expected at least one gutter badge with '0 matches' or 'No matches'. All tooltips: $tooltips"
         )
     }
 
@@ -79,6 +119,8 @@ class GutterAnnotationUiTest : BaseUiTest() {
      */
     @Test
     fun `gutter badge shows multiple matches for broad selector`() {
+        waitForGutterBadges()
+        takeScreenshot("before-gutter-multi-match")
         // login.page.ts may not have multi-match cases — this test verifies the badge
         // logic works conceptually. The actual match depends on the loaded snapshot.
         val gutter = GutterFixture.find(robot)

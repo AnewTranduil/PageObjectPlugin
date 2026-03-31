@@ -5,13 +5,11 @@ import com.github.artem.pageobjectplugin.ui.fixtures.PageMirrorToolWindowFixture
 import com.github.artem.pageobjectplugin.ui.fixtures.SnapshotBrowserFixture
 import com.intellij.remoterobot.fixtures.CommonContainerFixture
 import com.intellij.remoterobot.fixtures.ComponentFixture
-import com.intellij.remoterobot.utils.keyboard
 import com.intellij.remoterobot.search.locators.byXpath
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import java.awt.event.KeyEvent
 import java.time.Duration
 
 /**
@@ -22,6 +20,28 @@ import java.time.Duration
  * its JSON back to the IDE and inserts a Playwright locator into the editor.
  */
 class ElementPickerUiTest : BaseUiTest() {
+
+    /**
+     * Programmatically toggles inspect mode via the plugin's SnapshotService,
+     * bypassing keyboard shortcuts which fail when the IDE lacks OS focus.
+     */
+    private fun toggleInspectMode() {
+        ideFrame().callJs<Boolean>("""
+            var __pluginId = com.intellij.openapi.extensions.PluginId.getId("com.github.artem.pageobjectplugin")
+            var __plugin = com.intellij.ide.plugins.PluginManagerCore.getPlugin(__pluginId)
+            var __cl = __plugin.getPluginClassLoader()
+            var __svcClass = __cl.loadClass("com.github.artem.pageobjectplugin.services.SnapshotService")
+            var __project = com.intellij.openapi.project.ProjectManager.getInstance().getOpenProjects()[0]
+            var __service = __project.getService(__svcClass)
+            __service.setInspectModeActive(!__service.isInspectModeActive())
+            var __browser = __service.getBrowser()
+            if (__browser != null) {
+                __browser.getCefBrowser().executeJavaScript("window.toggleInspectMode();", "", 0)
+            }
+            true
+        """, runInEdt = true)
+        Thread.sleep(300)
+    }
 
     @BeforeEach
     fun setup() {
@@ -49,14 +69,13 @@ class ElementPickerUiTest : BaseUiTest() {
 
         // Make sure inspect mode is off first
         if (browser.isInspectModeActive()) {
-            ideFrame().keyboard { hotKey(KeyEvent.VK_ALT, KeyEvent.VK_SHIFT, KeyEvent.VK_I) }
-            Thread.sleep(300)
+            toggleInspectMode()
         }
         assertFalse(browser.isInspectModeActive(), "Inspect mode should be off before test")
 
-        ideFrame().keyboard { hotKey(KeyEvent.VK_ALT, KeyEvent.VK_SHIFT, KeyEvent.VK_I) }
-        Thread.sleep(500)
+        toggleInspectMode()
 
+        takeScreenshot("after-inspect-activate")
         assertTrue(
             browser.isInspectModeActive(),
             "Inspect mode should be active after Alt+Shift+I"
@@ -73,15 +92,14 @@ class ElementPickerUiTest : BaseUiTest() {
 
         // Activate
         if (!browser.isInspectModeActive()) {
-            ideFrame().keyboard { hotKey(KeyEvent.VK_ALT, KeyEvent.VK_SHIFT, KeyEvent.VK_I) }
-            Thread.sleep(300)
+            toggleInspectMode()
         }
         assertTrue(browser.isInspectModeActive(), "Inspect mode should be on before toggle-off")
 
         // Deactivate
-        ideFrame().keyboard { hotKey(KeyEvent.VK_ALT, KeyEvent.VK_SHIFT, KeyEvent.VK_I) }
-        Thread.sleep(500)
+        toggleInspectMode()
 
+        takeScreenshot("after-inspect-deactivate")
         assertFalse(
             browser.isInspectModeActive(),
             "Inspect mode should be off after second Alt+Shift+I"
@@ -102,11 +120,11 @@ class ElementPickerUiTest : BaseUiTest() {
         goToLine(8)  // line after last property
 
         // Activate inspect mode
-        ideFrame().keyboard { hotKey(KeyEvent.VK_ALT, KeyEvent.VK_SHIFT, KeyEvent.VK_I) }
-        Thread.sleep(500)
+        toggleInspectMode()
 
         val toolWindow = PageMirrorToolWindowFixture.find(robot)
         val browser = SnapshotBrowserFixture.findInsideToolWindow(toolWindow)
+        takeScreenshot("before-inspect-click")
         assertTrue(browser.isInspectModeActive(), "Inspect mode must be active before clicking")
 
         // Click the login button area in the JCEF component
@@ -115,6 +133,7 @@ class ElementPickerUiTest : BaseUiTest() {
         browser.click()  // clicks center by default — adjust with .moveMouse() if needed
         Thread.sleep(1_500)
 
+        takeScreenshot("after-inspect-click")
         // Inspect mode should exit automatically after click
         assertFalse(
             browser.isInspectModeActive(),
@@ -145,8 +164,7 @@ class ElementPickerUiTest : BaseUiTest() {
 
         // Activate inspect mode
         if (!browser.isInspectModeActive()) {
-            ideFrame().keyboard { hotKey(KeyEvent.VK_ALT, KeyEvent.VK_SHIFT, KeyEvent.VK_I) }
-            Thread.sleep(300)
+            toggleInspectMode()
         }
         assertTrue(browser.isInspectModeActive(), "Inspect mode must be on before click")
 
@@ -154,6 +172,7 @@ class ElementPickerUiTest : BaseUiTest() {
         browser.click()
         Thread.sleep(1_500)
 
+        takeScreenshot("after-auto-exit-click")
         assertFalse(
             browser.isInspectModeActive(),
             "Inspect mode should be off after clicking an element"

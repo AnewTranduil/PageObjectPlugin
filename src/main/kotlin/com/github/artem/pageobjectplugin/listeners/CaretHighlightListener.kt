@@ -43,11 +43,11 @@ class CaretHighlightListener(private val project: Project) : CaretListener, Disp
             schedule(object : TimerTask() {
                 override fun run() {
                     val service = SnapshotService.getInstance(project)
-                    val locator = LocatorExtractor.extract(lineText)
+                    if (service.isHighlightAllActive) return
 
+                    val locator = LocatorExtractor.extract(lineText)
                     if (locator != null) {
-                        val selector = locator.cssSelector ?: locator.value
-                        service.highlightElement(selector)
+                        service.highlightElement(locator.type, locator.value)
                     } else {
                         service.clearHighlight()
                     }

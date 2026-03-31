@@ -25,7 +25,7 @@ class HighlightCurrentSelectorAction : AnAction("Highlight Current Selector") {
 
         val locator = LocatorExtractor.extract(lineText)
         if (locator != null) {
-            service.highlightElement(locator.cssSelector ?: locator.value)
+            service.highlightElement(locator.type, locator.value)
         }
     }
 

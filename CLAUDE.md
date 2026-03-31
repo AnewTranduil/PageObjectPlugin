@@ -105,6 +105,12 @@ src/main/
     META-INF/plugin.xml
     html/
       page-mirror.html
+      js/
+        snapshot.js
+        query.js
+        highlight.js
+        inspect.js
+        theme.js
 ```
 
 ## Test Project Layout
@@ -135,10 +141,16 @@ Tasks MUST be completed in order. Each task is in `docs/tasks/`.
 | 5  | Element picker + code generation  | Click element → insert locator    | 4          |
 | 6  | Live selector validation (gutter) | Match count badges in editor      | 4          |
 | 7  | Refinements and polish            | Settings, shortcuts, themes       | 5, 6       |
+| 8  | Highlight all + duplicates        | Show All button, overlap detection| 4, 6       |
+| 9  | Snapshot saver npm package        | Standalone `playwright-snapshot-saver`             | 0 |
 
 ## Current State
 
-**All core tasks (0–7) are complete.** Plugin features are implemented and unit/integration tests pass.
+**Tasks 0–9 are complete.** All plugin features and the snapshot saver npm package are implemented. Unit/integration tests pass.
+
+- **Task 8a (JS refactor):** Complete. JS split into 5 modules under `resources/html/js/`, assembled at runtime by `PageMirrorToolWindowFactory.assemblePageMirrorHtml()`.
+- **Task 8b (Highlight All):** Complete. "Show All" toolbar button, color-coded multi-highlight, duplicate/overlap detection with visual badges, caret suppression, integration tests. One gap: JS-only overlap detection logic has no standalone unit test.
+- **Task 9 (Snapshot saver npm package):** Complete. `packages/snapshot-saver/` with `saveSnapshot()` API, configurable options (group, screenshot format, manifest toggle, extraSelectors, excludeSelectors, extraAttributes). 10 Playwright integration tests pass. `test-project/` migrated to use the package via `file:` dependency.
 
 **UI tests (30 scenarios) are BLOCKED** — see `docs/UI_tests/diagnostic-report.md` for full details. Summary:
 - `./gradlew runIdeForUiTests` fails due to missing `splitMode` property (IPG 2.13.1 requirement) and configuration cache incompatibility
@@ -149,6 +161,10 @@ Tasks MUST be completed in order. Each task is in `docs/tasks/`.
 ## Working with the Build
 
 When investigating Gradle plugin APIs or build tooling, prefer reading project docs and running `./gradlew` commands (`help --task`, `dependencies`, `buildEnvironment`, etc.) over exploring files outside the project directory (e.g., `.gradle/caches/`, `.intellijPlatform/`). Stay within the project boundary.
+
+## Workflow Rules
+
+- **Never use `node -e` for ad-hoc verification.** Always create a proper test (unit or integration) instead of running inline scripts. Tests are reusable, documented, and run in CI.
 
 ## Common Pitfalls
 

@@ -9,7 +9,7 @@ data class ExtractedLocator(
 object LocatorExtractor {
 
     private val LOCATOR_PATTERN = Regex(
-        """\.locator\(\s*['"`]([^'"`]+)['"`]\s*\)"""
+        """\.locator\(\s*(['"`])(.+?)\1\s*\)"""
     )
 
     private val GET_BY_ROLE_PATTERN = Regex(
@@ -72,7 +72,7 @@ object LocatorExtractor {
         val locatorMatches = LOCATOR_PATTERN.findAll(line).toList()
         if (locatorMatches.isNotEmpty()) {
             val lastMatch = locatorMatches.last()
-            val selector = lastMatch.groupValues[1]
+            val selector = lastMatch.groupValues[2]
             return ExtractedLocator(
                 type = "locator",
                 value = selector,

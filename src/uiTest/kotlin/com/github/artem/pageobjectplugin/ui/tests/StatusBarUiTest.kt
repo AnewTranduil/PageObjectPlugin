@@ -60,6 +60,7 @@ class StatusBarUiTest : BaseUiTest() {
             } catch (_: Exception) { false }
         }
 
+        takeScreenshot("status-bar-snapshot-loaded")
         val text = StatusBarFixture.find(robot).widgetText()
         assertTrue(
             text.contains("login") || text.contains("initial"),

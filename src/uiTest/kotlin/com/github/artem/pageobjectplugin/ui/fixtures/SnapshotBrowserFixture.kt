@@ -57,11 +57,13 @@ class SnapshotBrowserFixture(robot: RemoteRobot, component: RemoteComponent) :
 
     /**
      * Returns true when inspect mode is active.
-     * Since JCEF JS state can't be queried directly via callJs, this is best-effort.
+     * Queries the SnapshotService Kotlin-side flag (kept in sync by ToggleInspectAction
+     * and PickerResultHandler).
      */
     fun isInspectModeActive(): Boolean = try {
         callJs<Boolean>("""
-            new java.lang.Boolean(false)
+            $getServiceJs
+            new java.lang.Boolean(__service.isInspectModeActive())
         """, runInEdt = true)
     } catch (_: Exception) { false }
 

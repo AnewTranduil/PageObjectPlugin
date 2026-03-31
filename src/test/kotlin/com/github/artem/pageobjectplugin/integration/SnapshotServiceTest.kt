@@ -54,15 +54,38 @@ class SnapshotServiceTest : BasePlatformTestCase() {
     }
 
     fun `test highlightElement emits correct JS`() {
-        service.highlightElement("#username")
+        service.highlightElement("locator", "#username")
 
-        assertTrue(capturedJs.any { it.startsWith("window.highlightElement(") && it.contains("#username") })
+        assertTrue(capturedJs.any { it.startsWith("window.highlightElement(") && it.contains("locator") && it.contains("#username") })
     }
 
     fun `test clearHighlight emits correct JS`() {
         service.clearHighlight()
 
         assertEquals("window.clearHighlight();", capturedJs.last())
+    }
+
+    fun `test highlightAllLocators emits highlightAll with JSON array`() {
+        val locators = listOf(
+            com.github.artem.pageobjectplugin.locators.ExtractedLocator("getByTestId", "login-username", "[data-testid=\"login-username\"]"),
+            com.github.artem.pageobjectplugin.locators.ExtractedLocator("getByRole", "button:Login", "[role=\"button\"]")
+        )
+        service.highlightAllLocators(locators)
+
+        val js = capturedJs.last()
+        assertTrue(js.startsWith("window.highlightAll("))
+        assertTrue(js.contains("getByTestId"))
+        assertTrue(js.contains("login-username"))
+        assertTrue(js.contains("getByRole"))
+        assertTrue(js.contains("button:Login"))
+        assertTrue(service.isHighlightAllActive)
+    }
+
+    fun `test clearHighlight resets highlightAll state`() {
+        service.isHighlightAllActive = true
+        service.clearHighlight()
+
+        assertFalse(service.isHighlightAllActive)
     }
 
     fun `test updateAvailableSnapshots with no current auto loads first bundle`() {
