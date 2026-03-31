@@ -356,19 +356,19 @@
     <H2>Login Page</H2>
     <H4>This is where you can log into the secure area. Enter <EM>tomsmith</EM> as username and <EM>SuperSecretPassword!</EM> as password.</H4>
 
-    <DIV __playwright_target__="call@21" id="flash" role="alert" class="error">Your username is invalid! <SPAN class="close" onclick="">×</SPAN></DIV>
+    <DIV id="flash" role="alert" class="error">Your username is invalid! <SPAN class="close" onclick="">×</SPAN></DIV>
 
     <DIV id="login">
       <FORM id="login-form" data-testid="login-form">
         <DIV class="row">
           <LABEL for="username">Username</LABEL>
-          <INPUT __playwright_value_="bad-user" __playwright_target__="call@15" type="text" id="username" name="username" data-testid="login-username" placeholder="Username">
+          <INPUT __playwright_value_="bad-user" type="text" id="username" name="username" data-testid="login-username" placeholder="Username">
         </DIV>
         <DIV class="row">
           <LABEL for="password">Password</LABEL>
-          <INPUT __playwright_value_="bad-pass" __playwright_target__="call@17" type="password" id="password" name="password" data-testid="login-password" placeholder="Password">
+          <INPUT __playwright_value_="bad-pass" type="password" id="password" name="password" data-testid="login-password" placeholder="Password">
         </DIV>
-        <BUTTON __playwright_target__="call@19" type="submit" data-testid="login-button"><I class="fa fa-sign-in"></I> Login</BUTTON>
+        <BUTTON type="submit" data-testid="login-button"><I class="fa fa-sign-in"></I> Login</BUTTON>
       </FORM>
     </DIV>
   </DIV>

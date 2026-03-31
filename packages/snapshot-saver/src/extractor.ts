@@ -137,8 +137,12 @@ async function processTraceZips(
 
         const rendered = await renderSnapshotAtMarker(loader, marker);
 
+        // Strip Playwright's target highlight attributes so the bootstrap script
+        // doesn't overlay blue on elements that were assertion targets.
+        const cleanHtml = rendered.html.replace(/ __playwright_target__="[^"]*"/g, '');
+
         const htmlPath = path.join(snapshotDir, 'index.html');
-        fs.writeFileSync(htmlPath, rendered.html, 'utf-8');
+        fs.writeFileSync(htmlPath, cleanHtml, 'utf-8');
 
         const files: ExtractResult['snapshots'][number]['files'] = { html: htmlPath };
 
