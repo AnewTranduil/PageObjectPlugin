@@ -101,17 +101,15 @@ class SnapshotService(private val project: Project) {
 
         try {
             val html = bundle.htmlPath.readText()
-            val layout = bundle.layoutPath.readText()
-            LOG.info("Read HTML (${html.length} chars) and layout (${layout.length} chars)")
+            LOG.info("Read HTML (${html.length} chars))")
 
             // Parse HTML with Jsoup for gutter validation
             snapshotDocument = Jsoup.parse(html)
 
             val escapedHtml = escapeForJs(html)
-            val escapedLayout = escapeForJs(layout)
 
             LOG.info("Executing window.loadSnapshot via jsExecutor, browser=${browser != null}, cefBrowser=${browser?.cefBrowser != null}")
-            jsExecutor("window.loadSnapshot($escapedHtml, $escapedLayout);")
+            jsExecutor("window.loadSnapshot($escapedHtml);")
 
             // Apply theme and highlight color to the loaded page
             applyTheme()

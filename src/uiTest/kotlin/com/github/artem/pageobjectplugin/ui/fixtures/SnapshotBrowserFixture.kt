@@ -27,23 +27,14 @@ class SnapshotBrowserFixture(robot: RemoteRobot, component: RemoteComponent) :
     """.trimIndent()
 
     /**
-     * Returns the number of elements in the currently loaded snapshot's layout data.
+     * Returns true if a snapshot bundle is currently loaded in the service.
      */
-    fun layoutElementCount(): Int = try {
-        callJs<Int>("""
+    fun isSnapshotLoaded(): Boolean = try {
+        callJs<Boolean>("""
             $getServiceJs
-            var bundle = __service.getCurrentBundle()
-            var count = 0
-            if (bundle != null) {
-                var layoutText = java.nio.file.Files.readString(bundle.getLayoutPath())
-                var json = com.google.gson.JsonParser.parseString(layoutText).getAsJsonObject()
-                if (json.has("elements")) {
-                    count = json.getAsJsonArray("elements").size()
-                }
-            }
-            new java.lang.Integer(count)
+            new java.lang.Boolean(__service.getCurrentBundle() != null)
         """, runInEdt = true)
-    } catch (_: Exception) { 0 }
+    } catch (_: Exception) { false }
 
     /**
      * Returns true if a snapshot bundle is currently loaded.

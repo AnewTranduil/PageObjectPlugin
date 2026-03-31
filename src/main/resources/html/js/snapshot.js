@@ -1,7 +1,5 @@
 // snapshot.js — Snapshot lifecycle and viewport scaling
 
-var _layoutElements = [];
-var _layoutMap = {};
 var _viewportWidth = 1280;
 var _viewportHeight = 720;
 var _scale = 1;
@@ -23,30 +21,15 @@ function applyScale() {
 
 window.addEventListener('resize', applyScale);
 
-window.loadSnapshot = function(html, layoutJson) {
+window.loadSnapshot = function(html) {
     var viewport = document.getElementById('viewport');
     var container = document.getElementById('viewport-container');
     var emptyState = document.getElementById('empty-state');
     var status = document.getElementById('status');
 
-    try {
-        var layout = JSON.parse(layoutJson);
-        _layoutElements = layout.elements || [];
-        _layoutMap = {};
-        for (var i = 0; i < _layoutElements.length; i++) {
-            var el = _layoutElements[i];
-            _layoutMap[el.selector] = el;
-        }
-        if (layout.viewport) {
-            _viewportWidth = layout.viewport.width || 1280;
-            _viewportHeight = layout.viewport.height || 720;
-        }
-        status.textContent = 'Loaded | ' + _layoutElements.length + ' elements';
-    } catch (e) {
-        _layoutElements = [];
-        _layoutMap = {};
-        status.textContent = 'Loaded | layout parse error';
-    }
+    // Reset viewport to defaults; will update once iframe loads
+    _viewportWidth = 1280;
+    _viewportHeight = 720;
 
     viewport.innerHTML = '';
     var iframe = document.createElement('iframe');
@@ -56,8 +39,27 @@ window.loadSnapshot = function(html, layoutJson) {
     iframe.srcdoc = html;
     viewport.appendChild(iframe);
 
+    iframe.onload = function() {
+        // Try to read viewport from iframe's meta tag or body dimensions
+        var doc = iframe.contentDocument;
+        if (doc) {
+            var meta = doc.querySelector('meta[name="viewport"]');
+            if (meta) {
+                var content = meta.getAttribute('content') || '';
+                var wMatch = content.match(/width=(\d+)/);
+                var hMatch = content.match(/height=(\d+)/);
+                if (wMatch) _viewportWidth = parseInt(wMatch[1], 10);
+                if (hMatch) _viewportHeight = parseInt(hMatch[1], 10);
+                iframe.style.width = _viewportWidth + 'px';
+                iframe.style.height = _viewportHeight + 'px';
+            }
+        }
+        applyScale();
+    };
+
     container.style.display = 'block';
     emptyState.style.display = 'none';
+    status.textContent = 'Loaded';
 
     applyScale();
     window.clearHighlight();

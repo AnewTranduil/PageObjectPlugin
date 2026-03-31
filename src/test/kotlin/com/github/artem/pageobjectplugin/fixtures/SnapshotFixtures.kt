@@ -17,8 +17,6 @@ object SnapshotFixtures {
         </body></html>
     """.trimIndent()
 
-    val MINIMAL_LAYOUT_JSON = """{"version":1,"viewport":{"width":1280,"height":720},"elements":[]}"""
-
     val LOGIN_PAGE_TS = """
         import { type Page } from '@playwright/test';
         export class LoginPage {
@@ -34,7 +32,6 @@ object SnapshotFixtures {
     fun createMinimalSnapshotDir(): SnapshotBundle {
         val dir = Files.createTempDirectory("pm-test-")
         dir.resolve("index.html").writeText(MINIMAL_HTML)
-        dir.resolve("layout.json").writeText(MINIMAL_LAYOUT_JSON)
         return SnapshotBundle.fromDirectory(dir)!!
     }
 
@@ -45,7 +42,6 @@ object SnapshotFixtures {
         val source = Path.of(resourceUrl.toURI())
         val dir = Files.createTempDirectory("pm-login-")
         Files.copy(source.resolve("index.html"), dir.resolve("index.html"))
-        Files.copy(source.resolve("layout.json"), dir.resolve("layout.json"))
         Files.copy(source.resolve("manifest.json"), dir.resolve("manifest.json"))
         return SnapshotBundle.fromDirectory(dir)!!
     }
