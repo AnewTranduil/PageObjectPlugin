@@ -5,8 +5,9 @@ import { SaveSnapshotOptions, SnapshotResult } from './types';
 import { generateInlinedHtml } from './html-inliner';
 import { generateManifest } from './manifest-generator';
 
-export { SaveSnapshotOptions, SnapshotResult, ManifestJson, SnapshotMarkerOptions } from './types';
+export { SaveSnapshotOptions, SnapshotResult, ManifestJson, SnapshotMarkerOptions, ExtractOptions, ExtractResult } from './types';
 export { snapshot } from './snapshot-marker';
+export { extractSnapshots } from './extractor';
 
 export async function saveSnapshot(
   page: Page,

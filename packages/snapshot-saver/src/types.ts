@@ -48,3 +48,32 @@ export interface SnapshotMarkerOptions {
   /** State within the page (default: 'main') */
   state?: string;
 }
+
+export interface ExtractOptions {
+  /** Report directory, trace ZIP path, or URL */
+  source: string;
+  /** Output directory (default: '.snapshots') */
+  outputDir?: string;
+  /** Generate screenshot from trace screencast frame (default: true) */
+  screenshot?: boolean;
+  /** Generate manifest.json (default: true) */
+  manifest?: boolean;
+  /** Filter to extract only specific page/state */
+  filter?: {
+    page?: string;
+    state?: string;
+  };
+}
+
+export interface ExtractResult {
+  snapshots: Array<{
+    page: string;
+    state: string;
+    outputDir: string;
+    files: {
+      html: string;
+      screenshot?: string;
+      manifest?: string;
+    };
+  }>;
+}
