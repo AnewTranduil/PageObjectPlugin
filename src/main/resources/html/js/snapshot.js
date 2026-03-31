@@ -33,7 +33,7 @@ window.loadSnapshot = function(html) {
 
     viewport.innerHTML = '';
     var iframe = document.createElement('iframe');
-    iframe.setAttribute('sandbox', 'allow-same-origin');
+    iframe.setAttribute('sandbox', 'allow-same-origin allow-scripts');
     iframe.style.width = _viewportWidth + 'px';
     iframe.style.height = _viewportHeight + 'px';
     iframe.srcdoc = html;
