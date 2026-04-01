@@ -5,14 +5,18 @@ import * as os from 'os';
 /**
  * Downloads trace ZIP files from a hosted Playwright HTML report.
  *
- * Supports two report formats:
- *  1. Reports with an embedded base64 `playwrightReportBase64` blob in the HTML
- *     (produced by newer Playwright versions / self-contained reports).
- *  2. Reports served from a directory where `data/*.zip` files are listed
- *     via an HTML directory index.
+ * Strategy:
+ *  1. Fetch index.html and extract the embedded base64 report zip
+ *     from the `<template id="playwrightReportBase64">` element.
+ *  2. Read `report.json` from inside that zip to discover trace
+ *     attachment paths.
+ *  3. Download each trace zip from `${baseUrl}/${attachmentPath}`.
  *
  * Returns the paths to the downloaded ZIPs and a cleanup function to remove
  * the temporary directory when the caller is done with the files.
+ *
+ * @internal Exported for testing: {@link readReportJsonFromHtml} extracts
+ * the report.json from the embedded base64 zip in an HTML report page.
  */
 export async function downloadTracesFromUrl(reportUrl: string): Promise<{
   zipPaths: string[];
@@ -31,16 +35,15 @@ export async function downloadTracesFromUrl(reportUrl: string): Promise<{
     }
     const indexHtml = await indexResponse.text();
 
-    // Some Playwright report versions embed all report data as base64 JSON
-    // inside an element with id="playwrightReportBase64".
-    const base64Match = indexHtml.match(/id="playwrightReportBase64"[^>]*>([^<]+)/);
-    if (base64Match) {
-      const reportData = JSON.parse(
-        Buffer.from(base64Match[1], 'base64').toString('utf-8'),
-      );
-      zipPaths.push(...(await downloadTraceAttachments(reportData, baseUrl, tmpDir)));
-    } else {
-      zipPaths.push(...(await downloadFromDataDir(baseUrl, tmpDir)));
+    const tracePaths = await extractTracePathsFromHtml(indexHtml);
+
+    // Download each trace zip. Paths are relative to the report root
+    // (typically "data/<sha1>.zip").
+    for (const tracePath of tracePaths) {
+      const traceUrl = `${baseUrl}/${tracePath}`;
+      const zipPath = path.join(tmpDir, path.basename(tracePath));
+      await downloadFile(traceUrl, zipPath);
+      zipPaths.push(zipPath);
     }
   } catch (err) {
     fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -49,7 +52,7 @@ export async function downloadTracesFromUrl(reportUrl: string): Promise<{
 
   if (zipPaths.length === 0) {
     fs.rmSync(tmpDir, { recursive: true, force: true });
-    throw new Error(`No Playwright report data found at ${baseUrl}`);
+    throw new Error(`No trace attachments found in the report at ${baseUrl}`);
   }
 
   return {
@@ -59,70 +62,105 @@ export async function downloadTracesFromUrl(reportUrl: string): Promise<{
 }
 
 // ---------------------------------------------------------------------------
-// Internal helpers
+// Exported helpers (used by tests)
 // ---------------------------------------------------------------------------
 
 /**
- * Walks the parsed report JSON and downloads any trace attachments.
- * Report data structure mirrors the Playwright HTML report bundle format.
+ * Extracts trace attachment paths from the base64-embedded report zip in HTML.
+ * Returns the relative paths (e.g. "data/<sha1>.zip") for each trace attachment.
+ *
+ * Supports Playwright report formats across versions:
+ *  - ~1.49: JS assignment   `playwrightReportBase64 = "data:application/zip;base64,..."`
+ *  - ~1.58: <script> tag    `<script id="playwrightReportBase64" type="application/zip">data:...`
+ *  - 1.60+: <template> tag  `<template id="playwrightReportBase64">data:...`
  */
-async function downloadTraceAttachments(
-  reportData: unknown,
-  baseUrl: string,
-  tmpDir: string,
-): Promise<string[]> {
-  const zipPaths: string[] = [];
-  const data = reportData as {
-    files?: Array<{
-      tests?: Array<{
-        results?: Array<{
-          attachments?: Array<{ name: string; path?: string }>;
-        }>;
-      }>;
-    }>;
-  };
-  const files = data?.files ?? [];
-  for (const file of files) {
-    for (const t of file?.tests ?? []) {
-      for (const result of t?.results ?? []) {
+export async function extractTracePathsFromHtml(indexHtml: string): Promise<string[]> {
+  // Format 1 (Playwright ~1.49): JS variable assignment with base64 data URI in quotes
+  const jsMatch = indexHtml.match(
+    /playwrightReportBase64\s*=\s*"data:application\/zip;base64,([^"]+)"/,
+  );
+  // Format 2 (Playwright ~1.58+): <script> or <template> tag with id="playwrightReportBase64"
+  const tagMatch = !jsMatch
+    ? indexHtml.match(
+        /id="playwrightReportBase64"[^>]*>data:application\/zip;base64,([^<]+)</,
+      )
+    : null;
+
+  const base64Match = jsMatch || tagMatch;
+  if (!base64Match) {
+    throw new Error('No embedded report data found in HTML');
+  }
+
+  const zipBuffer = Buffer.from(base64Match[1], 'base64');
+  const reportJson = await readEntryFromZipBuffer(zipBuffer, 'report.json');
+  const report = JSON.parse(reportJson) as ReportJson;
+
+  const tracePaths: string[] = [];
+  for (const file of report?.files ?? []) {
+    for (const test of file?.tests ?? []) {
+      for (const result of test?.results ?? []) {
         for (const att of result?.attachments ?? []) {
           if (att.name === 'trace' && att.path) {
-            const traceUrl = `${baseUrl}/data/${att.path}`;
-            const zipPath = path.join(tmpDir, path.basename(att.path));
-            await downloadFile(traceUrl, zipPath);
-            zipPaths.push(zipPath);
+            if (!tracePaths.includes(att.path)) {
+              tracePaths.push(att.path);
+            }
           }
         }
       }
     }
   }
-  return zipPaths;
+  return tracePaths;
 }
 
+// ---------------------------------------------------------------------------
+// Internal helpers
+// ---------------------------------------------------------------------------
+
+type ReportJson = {
+  files?: Array<{
+    tests?: Array<{
+      results?: Array<{
+        attachments?: Array<{ name: string; contentType: string; path?: string }>;
+      }>;
+    }>;
+  }>;
+};
+
 /**
- * Attempts to list `<baseUrl>/data/` as an HTML directory and download any
- * linked `.zip` files. Falls back silently when directory listing is disabled.
+ * Reads a single entry from a zip buffer using yauzl from playwright-core.
  */
-async function downloadFromDataDir(baseUrl: string, tmpDir: string): Promise<string[]> {
-  const zipPaths: string[] = [];
-  try {
-    const dataResponse = await fetch(`${baseUrl}/data/`);
-    if (dataResponse.ok) {
-      const html = await dataResponse.text();
-      const zipLinks = html.match(/href="([^"]*\.zip)"/g) ?? [];
-      for (const link of zipLinks) {
-        const fileName = link.match(/href="([^"]*\.zip)"/)?.[1];
-        if (fileName) {
-          const zipPath = path.join(tmpDir, path.basename(fileName));
-          await downloadFile(`${baseUrl}/data/${fileName}`, zipPath);
-          zipPaths.push(zipPath);
+async function readEntryFromZipBuffer(buffer: Buffer, entryName: string): Promise<string> {
+  const playwrightCorePath = path.dirname(require.resolve('playwright-core/package.json'));
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { yauzl } = require(path.join(playwrightCorePath, 'lib', 'zipBundle'));
+
+  return new Promise<string>((resolve, reject) => {
+    yauzl.fromBuffer(buffer, { lazyEntries: true }, (err: Error | null, zipFile: any) => {
+      if (err) return reject(err);
+
+      let found = false;
+      zipFile.on('entry', (entry: any) => {
+        if (entry.fileName === entryName) {
+          found = true;
+          zipFile.openReadStream(entry, (err2: Error | null, stream: any) => {
+            if (err2) return reject(err2);
+            const chunks: Buffer[] = [];
+            stream.on('data', (chunk: Buffer) => chunks.push(chunk));
+            stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')));
+            stream.on('error', reject);
+          });
+        } else {
+          zipFile.readEntry();
         }
-      }
-    }
-  } catch {
-    // Directory listing not available — caller will handle empty result
-  }
-  return zipPaths;
+      });
+
+      zipFile.on('end', () => {
+        if (!found) reject(new Error(`Entry "${entryName}" not found in zip`));
+      });
+      zipFile.on('error', reject);
+      zipFile.readEntry();
+    });
+  });
 }
 
 /**
