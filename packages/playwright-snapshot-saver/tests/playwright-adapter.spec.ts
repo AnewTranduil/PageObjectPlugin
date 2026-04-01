@@ -43,7 +43,7 @@ function contextOptionsEvent(overrides: Record<string, unknown> = {}) {
     browserName: 'chromium',
     options: { viewport: { width: 1280, height: 720 } },
     platform: 'win32',
-    wallTime: 1000,
+    wallTime: 1700000000000,
     monotonicTime: 0,
     sdkLanguage: 'javascript',
     contextId: 'ctx-1',
@@ -127,7 +127,8 @@ test.describe('playwright-adapter', () => {
         callId: 'call-1',
         endTime: 200,
       }),
-      // Snapshot marker step
+      // Snapshot marker step — wallTime 0 simulates test.step actions
+      // that lack wallTime; timestamp should be computed from context offset
       JSON.stringify({
         type: 'before',
         callId: 'call-2',
@@ -137,7 +138,7 @@ test.describe('playwright-adapter', () => {
         class: 'Test',
         method: 'step',
         params: {},
-        wallTime: 2000,
+        wallTime: 0,
         pageId: 'page-1',
         snapshots: [],
       }),
@@ -157,7 +158,7 @@ test.describe('playwright-adapter', () => {
         class: 'Test',
         method: 'step',
         params: {},
-        wallTime: 3000,
+        wallTime: 0,
         pageId: 'page-1',
         snapshots: [],
       }),
@@ -177,7 +178,7 @@ test.describe('playwright-adapter', () => {
       label: '[snapshot:login/main]',
       page: 'login',
       state: 'main',
-      timestamp: 2000,
+      timestamp: 1700000000300,
       pageId: 'page-1',
       afterSnapshot: 'after@call-2',
     });
@@ -187,7 +188,7 @@ test.describe('playwright-adapter', () => {
       label: '[snapshot:dashboard/error-state]',
       page: 'dashboard',
       state: 'error-state',
-      timestamp: 3000,
+      timestamp: 1700000000500,
       pageId: 'page-1',
       afterSnapshot: 'after@call-3',
     });

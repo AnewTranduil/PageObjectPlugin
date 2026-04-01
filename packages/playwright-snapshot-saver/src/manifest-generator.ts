@@ -2,7 +2,7 @@ import { Page } from '@playwright/test';
 import * as fs from 'fs';
 import { ManifestJson } from './types';
 
-export async function generateManifest(page: Page): Promise<ManifestJson> {
+export async function generateManifest(page: Page, previousVersion?: number): Promise<ManifestJson> {
   const viewportSize = page.viewportSize() ?? { width: 1280, height: 720 };
   const userAgent = await page.evaluate(() => navigator.userAgent);
 
@@ -16,7 +16,7 @@ export async function generateManifest(page: Page): Promise<ManifestJson> {
   }
 
   return {
-    version: 1,
+    version: previousVersion !== undefined ? previousVersion + 1 : 1,
     url: page.url(),
     viewport: { width: viewportSize.width, height: viewportSize.height },
     timestamp: new Date().toISOString(),

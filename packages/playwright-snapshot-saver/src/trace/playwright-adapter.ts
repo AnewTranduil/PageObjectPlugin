@@ -190,7 +190,11 @@ export async function loadTraceMarkers(backend: TraceLoaderBackend): Promise<{
       const match = MARKER_REGEX.exec(title);
       if (!match) continue;
 
-      const markerTimestamp = action.wallTime ?? action.startTime;
+      // action.wallTime is often 0/undefined for test.step actions.
+      // Compute real wall-clock time from the context's timing offset.
+      const markerTimestamp = (action.wallTime && action.wallTime > 1e10)
+        ? action.wallTime
+        : context.wallTime + (action.startTime - context.startTime);
 
       // Try action's own fields first (older Playwright versions)
       let afterSnapshot = action.afterSnapshot;

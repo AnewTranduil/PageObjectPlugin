@@ -71,7 +71,9 @@ test('login page snapshots', async ({ page }) => {
 
     // Verify snapshots were extracted
     const loginMainHtml = path.join(snapshotsDir, 'login', 'main', 'index.html');
+    const loginMainManifest = path.join(snapshotsDir, 'login', 'main', 'manifest.json');
     const loginErrorHtml = path.join(snapshotsDir, 'login', 'error', 'index.html');
+    const loginErrorManifest = path.join(snapshotsDir, 'login', 'error', 'manifest.json');
 
     expect(
       fs.existsSync(loginMainHtml),
@@ -81,6 +83,9 @@ test('login page snapshots', async ({ page }) => {
       fs.existsSync(loginErrorHtml),
       `Expected login/error/index.html to exist.\nstdout: ${result.stdout?.slice(-500)}\nstderr: ${result.stderr?.slice(-500)}`
     ).toBe(true);
+
+    expect(fs.existsSync(loginMainManifest), `Expected login/main/manifest.json to exist.`).toBe(true);
+    expect(fs.existsSync(loginErrorManifest), `Expected login/main/manifest.json to exist.`).toBe(true);
 
     // Verify HTML is real content (Playwright trace snapshots use uppercase tags)
     const mainHtml = fs.readFileSync(loginMainHtml, 'utf-8');
@@ -92,5 +97,12 @@ test('login page snapshots', async ({ page }) => {
     expect(errorHtml.length).toBeGreaterThan(100);
     expect(errorHtml.toLowerCase()).toContain('<html');
     expect(errorHtml.toLowerCase()).toContain('login');
+
+    const mainManifest = fs.readFileSync(loginMainManifest, 'utf-8');
+    const errorManifest = fs.readFileSync(loginErrorManifest, 'utf-8');
+
+    const mainManifestJson = JSON.parse(mainManifest)
+    const errorManifestJson = JSON.parse(errorManifest)
+
   });
 });

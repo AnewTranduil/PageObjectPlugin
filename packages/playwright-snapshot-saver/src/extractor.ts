@@ -142,30 +142,45 @@ async function processTraceZips(
         const cleanHtml = rendered.html.replace(/ __playwright_target__="[^"]*"/g, '');
 
         const htmlPath = path.join(snapshotDir, 'index.html');
-        fs.writeFileSync(htmlPath, cleanHtml, 'utf-8');
+        const changed = hasHtmlChanged(htmlPath, cleanHtml);
 
         const files: ExtractResult['snapshots'][number]['files'] = { html: htmlPath };
 
-        if (opts.screenshotEnabled) {
-          const frame = await findScreencastFrame(loader, marker);
-          if (frame) {
-            const screenshotPath = path.join(snapshotDir, 'screenshot.webp');
-            fs.writeFileSync(screenshotPath, frame);
+        if (changed) {
+          fs.writeFileSync(htmlPath, cleanHtml, 'utf-8');
+
+          if (opts.screenshotEnabled) {
+            const frame = await findScreencastFrame(loader, marker);
+            if (frame) {
+              const screenshotPath = path.join(snapshotDir, 'screenshot.webp');
+              fs.writeFileSync(screenshotPath, frame);
+              files.screenshot = screenshotPath;
+            }
+          }
+
+          if (opts.manifestEnabled) {
+            const manifestPath = path.join(snapshotDir, 'manifest.json');
+            const existing = readExistingManifest(manifestPath);
+            const manifest = {
+              version: typeof existing?.version === 'number' ? existing.version + 1 : 1,
+              url: '',
+              viewport: rendered.viewport,
+              timestamp: new Date(marker.timestamp).toISOString(),
+              playwright: getPlaywrightVersion(),
+            };
+            fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8');
+            files.manifest = manifestPath;
+          }
+        } else {
+          // Content unchanged — preserve existing files, just populate paths
+          const screenshotPath = path.join(snapshotDir, 'screenshot.webp');
+          if (opts.screenshotEnabled && fs.existsSync(screenshotPath)) {
             files.screenshot = screenshotPath;
           }
-        }
-
-        if (opts.manifestEnabled) {
-          const manifest = {
-            version: 1,
-            url: '',
-            viewport: rendered.viewport,
-            timestamp: new Date(marker.timestamp).toISOString(),
-            playwright: getPlaywrightVersion(),
-          };
           const manifestPath = path.join(snapshotDir, 'manifest.json');
-          fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8');
-          files.manifest = manifestPath;
+          if (opts.manifestEnabled && fs.existsSync(manifestPath)) {
+            files.manifest = manifestPath;
+          }
         }
 
         const entry = {
@@ -199,6 +214,22 @@ function matchesFilter(
   if (filter.page && marker.page !== filter.page) return false;
   if (filter.state && marker.state !== filter.state) return false;
   return true;
+}
+
+function readExistingManifest(manifestPath: string): Record<string, unknown> | null {
+  try {
+    return JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+  } catch {
+    return null;
+  }
+}
+
+function hasHtmlChanged(htmlPath: string, newHtml: string): boolean {
+  try {
+    return fs.readFileSync(htmlPath, 'utf-8') !== newHtml;
+  } catch {
+    return true;
+  }
 }
 
 function getPlaywrightVersion(): string {
