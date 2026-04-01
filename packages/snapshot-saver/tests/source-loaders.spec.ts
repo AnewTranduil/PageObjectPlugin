@@ -8,6 +8,10 @@ import {
   isPlaywrightReportDir,
 } from '../src/sources/directory-source';
 import { createBackendFromZip } from '../src/sources/zip-source';
+import {
+  downloadTracesFromUrl,
+  extractTracePathsFromHtml,
+} from '../src/sources/url-source';
 
 /**
  * Unit tests for the source loader modules.
@@ -15,8 +19,7 @@ import { createBackendFromZip } from '../src/sources/zip-source';
  * directory-source and zip-source are tested against the filesystem using
  * temporary directories and a real trace ZIP from the test-results directory.
  *
- * url-source requires a live HTTP server and is covered by a separate
- * integration test (not run here).
+ * url-source tests use the real playwright-report from the test-project.
  */
 
 // ---------------------------------------------------------------------------
@@ -228,4 +231,220 @@ test.describe('zip-source', () => {
       cleanup();
     }
   });
+});
+
+// ---------------------------------------------------------------------------
+// url-source
+// ---------------------------------------------------------------------------
+
+
+
+test.describe('url-source', () => {
+
+  test.describe('playwright core 1.49.1', () => {
+    const reportDir = path.join(__dirname, 'fixtures', 'playwright-report-1-49');
+    const reportHtmlPath = path.join(reportDir, 'index.html');
+    test.describe('extractTracePathsFromHtml', () => {
+      test('throws for HTML without embedded report data', async () => {
+        await expect(extractTracePathsFromHtml('<html><body></body></html>')).rejects.toThrow(
+            'No embedded report data found',
+        );
+      });
+
+      test(
+          'extracts trace paths from real playwright-report/index.html',
+          async () => {
+            const html = fs.readFileSync(reportHtmlPath, 'utf-8');
+            const paths = await extractTracePathsFromHtml(html);
+
+            expect(paths.length).toBeGreaterThan(0);
+            // Each path should look like "data/<hash>" (Playwright's default attachmentsBaseURL)
+            for (const p of paths) {
+              expect(p).toMatch(/^data\//);
+            }
+          },
+      );
+
+      test(
+          'extracted paths match actual files in data/ directory',
+          async () => {
+            const html = fs.readFileSync(reportHtmlPath, 'utf-8');
+            const paths = await extractTracePathsFromHtml(html);
+
+            for (const p of paths) {
+              const fullPath = path.join(reportDir, p);
+              expect(fs.existsSync(fullPath)).toBe(true);
+            }
+          },
+      );
+    });
+
+    test.describe('downloadTracesFromUrl (integration)', () => {
+      let serverProcess: ReturnType<typeof import('child_process').spawn> | undefined;
+      const port = 8199;
+
+      test.beforeAll(async () => {
+        // Start a static file server for the report directory
+        const { spawn } = await import('child_process');
+        serverProcess = spawn('npx', ['serve', reportDir, '-l', String(port), '--no-clipboard'], {
+          shell: true,
+          stdio: 'pipe',
+        });
+        // Wait for server to be ready
+        await new Promise<void>((resolve, reject) => {
+          const timeout = setTimeout(() => reject(new Error('Server start timeout')), 10000);
+          const checkReady = async () => {
+            try {
+              const res = await fetch(`http://localhost:${port}/index.html`);
+              if (res.ok) {
+                clearTimeout(timeout);
+                resolve();
+                return;
+              }
+            } catch {
+              // not ready yet
+            }
+            setTimeout(checkReady, 200);
+          };
+          checkReady();
+        });
+      });
+
+      test.afterAll(() => {
+        if (serverProcess) {
+          serverProcess.kill();
+          serverProcess = undefined;
+        }
+      });
+
+      test(
+          'downloads trace ZIPs from a served report',
+          async () => {
+            const result = await downloadTracesFromUrl(`http://localhost:${port}`);
+            try {
+              expect(result.zipPaths.length).toBeGreaterThan(0);
+              for (const zipPath of result.zipPaths) {
+                expect(fs.existsSync(zipPath)).toBe(true);
+                // Each downloaded file should be a valid ZIP (starts with PK magic bytes)
+                const header = Buffer.alloc(2);
+                const fd = fs.openSync(zipPath, 'r');
+                fs.readSync(fd, header, 0, 2, 0);
+                fs.closeSync(fd);
+                expect(header[0]).toBe(0x50); // P
+                expect(header[1]).toBe(0x4b); // K
+              }
+            } finally {
+              result.cleanup();
+            }
+          },
+      );
+
+      test('throws for unreachable URL', async () => {
+        await expect(downloadTracesFromUrl('http://localhost:19999')).rejects.toThrow();
+      });
+    });
+  })
+  test.describe('playwright core 1.58.2', () => {
+    const reportDir = path.join(__dirname, 'fixtures', 'playwright-report-1-58');
+    const reportHtmlPath = path.join(reportDir, 'index.html');
+    test.describe('extractTracePathsFromHtml', () => {
+      test('throws for HTML without embedded report data', async () => {
+        await expect(extractTracePathsFromHtml('<html><body></body></html>')).rejects.toThrow(
+            'No embedded report data found',
+        );
+      });
+
+      test(
+          'extracts trace paths from real playwright-report/index.html',
+          async () => {
+            const html = fs.readFileSync(reportHtmlPath, 'utf-8');
+            const paths = await extractTracePathsFromHtml(html);
+
+            expect(paths.length).toBeGreaterThan(0);
+            // Each path should look like "data/<hash>" (Playwright's default attachmentsBaseURL)
+            for (const p of paths) {
+              expect(p).toMatch(/^data\//);
+            }
+          },
+      );
+
+      test(
+          'extracted paths match actual files in data/ directory',
+          async () => {
+            const html = fs.readFileSync(reportHtmlPath, 'utf-8');
+            const paths = await extractTracePathsFromHtml(html);
+
+            for (const p of paths) {
+              const fullPath = path.join(reportDir, p);
+              expect(fs.existsSync(fullPath)).toBe(true);
+            }
+          },
+      );
+    });
+
+    test.describe('downloadTracesFromUrl (integration)', () => {
+      let serverProcess: ReturnType<typeof import('child_process').spawn> | undefined;
+      const port = 8199;
+
+      test.beforeAll(async () => {
+        // Start a static file server for the report directory
+        const { spawn } = await import('child_process');
+        serverProcess = spawn('npx', ['serve', reportDir, '-l', String(port), '--no-clipboard'], {
+          shell: true,
+          stdio: 'pipe',
+        });
+        // Wait for server to be ready
+        await new Promise<void>((resolve, reject) => {
+          const timeout = setTimeout(() => reject(new Error('Server start timeout')), 10000);
+          const checkReady = async () => {
+            try {
+              const res = await fetch(`http://localhost:${port}/index.html`);
+              if (res.ok) {
+                clearTimeout(timeout);
+                resolve();
+                return;
+              }
+            } catch {
+              // not ready yet
+            }
+            setTimeout(checkReady, 200);
+          };
+          checkReady();
+        });
+      });
+
+      test.afterAll(() => {
+        if (serverProcess) {
+          serverProcess.kill();
+          serverProcess = undefined;
+        }
+      });
+
+      test(
+          'downloads trace ZIPs from a served report',
+          async () => {
+            const result = await downloadTracesFromUrl(`http://localhost:${port}`);
+            try {
+              expect(result.zipPaths.length).toBeGreaterThan(0);
+              for (const zipPath of result.zipPaths) {
+                expect(fs.existsSync(zipPath)).toBe(true);
+                // Each downloaded file should be a valid ZIP (starts with PK magic bytes)
+                const header = Buffer.alloc(2);
+                const fd = fs.openSync(zipPath, 'r');
+                fs.readSync(fd, header, 0, 2, 0);
+                fs.closeSync(fd);
+                expect(header[0]).toBe(0x50); // P
+                expect(header[1]).toBe(0x4b); // K
+              }
+            } finally {
+              result.cleanup();
+            }
+          },
+      );
+
+      test('throws for unreachable URL', async () => {
+        await expect(downloadTracesFromUrl('http://localhost:19999')).rejects.toThrow();
+      });
+    });
+  })
 });
