@@ -218,6 +218,74 @@ test.describe('trace fixtures - extractor', () => {
     }
   });
 
+  test('re-extraction with unchanged content does not overwrite files', async () => {
+    const { dir, cleanup } = makeTmpDir();
+    try {
+      // First extraction
+      await extractSnapshots({ source: SAMPLE_TRACE, outputDir: dir });
+
+      // Record modification times
+      const mainManifest = path.join(dir, 'login', 'main', 'manifest.json');
+      const mainHtml = path.join(dir, 'login', 'main', 'index.html');
+      const mtime1Manifest = fs.statSync(mainManifest).mtimeMs;
+      const mtime1Html = fs.statSync(mainHtml).mtimeMs;
+
+      // Small delay to ensure mtime would differ if files were rewritten
+      await new Promise(r => setTimeout(r, 100));
+
+      // Second extraction — same trace, same content
+      await extractSnapshots({ source: SAMPLE_TRACE, outputDir: dir });
+
+      const mtime2Manifest = fs.statSync(mainManifest).mtimeMs;
+      const mtime2Html = fs.statSync(mainHtml).mtimeMs;
+
+      expect(mtime2Html).toBe(mtime1Html);
+      expect(mtime2Manifest).toBe(mtime1Manifest);
+    } finally {
+      cleanup();
+    }
+  });
+
+  test('manifest version increments when HTML content changes', async () => {
+    const { dir, cleanup } = makeTmpDir();
+    try {
+      // First extraction
+      await extractSnapshots({ source: SAMPLE_TRACE, outputDir: dir });
+
+      const manifestPath = path.join(dir, 'login', 'main', 'manifest.json');
+      const manifest1 = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+      expect(manifest1.version).toBe(1);
+
+      // Tamper with the HTML to simulate a content change
+      const htmlPath = path.join(dir, 'login', 'main', 'index.html');
+      fs.writeFileSync(htmlPath, '<html>modified</html>', 'utf-8');
+
+      // Re-extract — content differs from what extractor produces, so it should write
+      await extractSnapshots({ source: SAMPLE_TRACE, outputDir: dir });
+
+      const manifest2 = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+      expect(manifest2.version).toBe(2);
+    } finally {
+      cleanup();
+    }
+  });
+
+  test('manifest timestamp is a valid date (not 1970)', async () => {
+    const { dir, cleanup } = makeTmpDir();
+    try {
+      await extractSnapshots({ source: SAMPLE_TRACE, outputDir: dir });
+
+      const manifestPath = path.join(dir, 'login', 'main', 'manifest.json');
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+      const date = new Date(manifest.timestamp);
+
+      // Should be a real date, not epoch-adjacent
+      expect(date.getFullYear()).toBeGreaterThan(2020);
+    } finally {
+      cleanup();
+    }
+  });
+
   test('extracted HTML files form valid snapshot bundle directories', async () => {
     const { dir, cleanup } = makeTmpDir();
     try {
