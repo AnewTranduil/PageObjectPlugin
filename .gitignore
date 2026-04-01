@@ -20,7 +20,7 @@ Thumbs.db
 # Local config
 local.properties
 /.claude/worktrees/
-/packages/snapshot-saver/dist/
-/packages/snapshot-saver/node_modules/
-/packages/snapshot-saver/tests/fixtures/.fixture-results/
+/packages/playwright-snapshot-saver/dist/
+/packages/playwright-snapshot-saver/node_modules/
+/packages/playwright-snapshot-saver/tests/fixtures/.fixture-results/
 /.claude/settings.local.json

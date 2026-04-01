@@ -47,7 +47,7 @@ Open your project in IntelliJ IDEA or WebStorm. The **Page Mirror** tool window 
 
 ## Snapshot Saver (npm package)
 
-The [`playwright-snapshot-saver`](packages/snapshot-saver/) package captures sanitized HTML snapshots from Playwright pages. It can be used as a programmatic API or as a Playwright reporter.
+The [`playwright-snapshot-saver`](packages/playwright-snapshot-saver/) package captures sanitized HTML snapshots from Playwright pages. It can be used as a programmatic API or as a Playwright reporter.
 
 Key options:
 - `group` — organize snapshots into subdirectories
@@ -56,7 +56,7 @@ Key options:
 - `extraSelectors` / `excludeSelectors` — control which elements are captured
 - `extraAttributes` — preserve additional HTML attributes in the snapshot
 
-See the [package directory](packages/snapshot-saver/) for full API documentation.
+See the [package directory](packages/playwright-snapshot-saver/) for full API documentation.
 
 ## Compatibility
 
@@ -75,4 +75,4 @@ See the [package directory](packages/snapshot-saver/) for full API documentation
 
 The IntelliJ plugin is licensed under [Apache License 2.0](LICENSE).
 
-The `playwright-snapshot-saver` npm package is licensed under [MIT](packages/snapshot-saver/LICENSE).
+The `playwright-snapshot-saver` npm package is licensed under [MIT](packages/playwright-snapshot-saver/LICENSE).
