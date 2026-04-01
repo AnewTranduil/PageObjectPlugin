@@ -1,7 +1,7 @@
 <idea-plugin>
     <id>com.github.artem.pageobjectplugin</id>
-    <name>Page Object Plugin</name>
-    <vendor>Artem</vendor>
+    <name>Page Object Helper</name>
+    <vendor url="https://github.com/AnewTranduil/PageObjectPlugin">Artem</vendor>
 
     <description><![CDATA[
         Plugin to ease usage of page objects in automated tests.
