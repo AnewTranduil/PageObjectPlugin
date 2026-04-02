@@ -1,5 +1,6 @@
 package com.github.artem.pageobjectplugin.settings
 
+import com.github.artem.pageobjectplugin.services.SnapshotService
 import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogPanel
@@ -8,7 +9,14 @@ import com.intellij.ui.dsl.builder.bindSelected
 import com.intellij.ui.dsl.builder.bindText
 import com.intellij.ui.dsl.builder.panel
 import com.intellij.ui.dsl.builder.toNullableProperty
+import java.awt.Color
+import java.awt.Component
+import java.awt.Graphics
+import javax.swing.Icon
 import javax.swing.JComponent
+import javax.swing.JLabel
+import javax.swing.event.DocumentEvent
+import javax.swing.event.DocumentListener
 import kotlin.reflect.KMutableProperty0
 
 class PageMirrorConfigurable(private val project: Project) : Configurable {
@@ -31,6 +39,7 @@ class PageMirrorConfigurable(private val project: Project) : Configurable {
                 codeGenStyle = codeGenStyle
             )
         )
+        SnapshotService.getInstance(project).applyHighlightColor()
     }
 
     override fun reset() {
@@ -64,14 +73,46 @@ class PageMirrorConfigurable(private val project: Project) : Configurable {
                     .bindSelected(::autoReload)
             }
             row("Highlight color:") {
+                val colorPreview = JLabel(ColorSwatchIcon(parseHexColor(highlightColor)))
                 textField()
                     .bindText(::highlightColor)
+                    .applyToComponent {
+                        document.addDocumentListener(object : DocumentListener {
+                            override fun insertUpdate(e: DocumentEvent) = updatePreview()
+                            override fun removeUpdate(e: DocumentEvent) = updatePreview()
+                            override fun changedUpdate(e: DocumentEvent) = updatePreview()
+                            private fun updatePreview() {
+                                (colorPreview.icon as ColorSwatchIcon).color = parseHexColor(text)
+                                colorPreview.repaint()
+                            }
+                        })
+                    }
+                cell(colorPreview)
             }
             row("Code generation style:") {
                 comboBox(listOf("Property", "Variable"))
                     .bindItem(::codeGenStyle.toNullableProperty())
             }
         }
+    }
+}
+
+private fun parseHexColor(hex: String): Color {
+    return try {
+        Color.decode(hex)
+    } catch (_: NumberFormatException) {
+        Color.GRAY
+    }
+}
+
+private class ColorSwatchIcon(var color: Color, private val size: Int = 16) : Icon {
+    override fun getIconWidth() = size
+    override fun getIconHeight() = size
+    override fun paintIcon(c: Component?, g: Graphics, x: Int, y: Int) {
+        g.color = color
+        g.fillRoundRect(x, y, size, size, 4, 4)
+        g.color = Color.GRAY
+        g.drawRoundRect(x, y, size - 1, size - 1, 4, 4)
     }
 }
 

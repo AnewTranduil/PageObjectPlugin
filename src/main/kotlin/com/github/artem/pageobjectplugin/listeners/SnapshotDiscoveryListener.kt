@@ -17,7 +17,8 @@ class SnapshotDiscoveryListener(private val project: Project) : FileEditorManage
         if (!isTypeScriptFile(file)) return
 
         val filePath = file.toNioPath()
-        val snapshotBundles = discoverSnapshots(filePath)
+        val settings = com.github.artem.pageobjectplugin.settings.PageMirrorSettings.getInstance(project)
+        val snapshotBundles = discoverSnapshots(filePath, settings.state.snapshotSearchDepth)
 
         val service = SnapshotService.getInstance(project)
         service.updateAvailableSnapshots(snapshotBundles)
@@ -29,7 +30,7 @@ class SnapshotDiscoveryListener(private val project: Project) : FileEditorManage
     }
 
     companion object {
-        fun discoverSnapshots(filePath: Path): List<SnapshotBundle> {
+        fun discoverSnapshots(filePath: Path, maxDepth: Int = 3): List<SnapshotBundle> {
             val searchDirs = listOfNotNull(
                 filePath.parent,
                 filePath.parent?.parent
@@ -42,7 +43,7 @@ class SnapshotDiscoveryListener(private val project: Project) : FileEditorManage
                 val snapshotsDir = dir.resolve(".snapshots")
                 if (!snapshotsDir.exists() || !snapshotsDir.isDirectory()) continue
 
-                scanForBundles(snapshotsDir, 0, 2, bundles, seen)
+                scanForBundles(snapshotsDir, 0, maxDepth, bundles, seen)
             }
 
             return bundles

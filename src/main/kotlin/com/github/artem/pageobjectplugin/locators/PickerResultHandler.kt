@@ -1,6 +1,7 @@
 package com.github.artem.pageobjectplugin.locators
 
 import com.github.artem.pageobjectplugin.services.SnapshotService
+import com.github.artem.pageobjectplugin.settings.PageMirrorSettings
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.fileEditor.FileEditorManager
@@ -24,11 +25,14 @@ class PickerResultHandler(private val project: Project) {
 
         val editor = FileEditorManager.getInstance(project).selectedTextEditor ?: return
 
-        val options = listOf(
-            "Property: readonly $fieldName = page.${locatorCode};",
-            "Variable: const $fieldName = page.${locatorCode};",
-            "Copy selector"
-        )
+        val preferredStyle = PageMirrorSettings.getInstance(project).state.codeGenStyle
+        val propertyOption = "Property: readonly $fieldName = page.${locatorCode};"
+        val variableOption = "Variable: const $fieldName = page.${locatorCode};"
+        val options = if (preferredStyle == "Variable") {
+            listOf(variableOption, propertyOption, "Copy selector")
+        } else {
+            listOf(propertyOption, variableOption, "Copy selector")
+        }
 
         val step = object : BaseListPopupStep<String>("Insert Locator", options) {
             override fun onChosen(selectedValue: String?, finalChoice: Boolean): PopupStep<*>? {

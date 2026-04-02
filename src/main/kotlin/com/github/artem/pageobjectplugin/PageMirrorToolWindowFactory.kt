@@ -164,7 +164,8 @@ class PageMirrorToolWindowFactory : ToolWindowFactory {
 
         if (tsFile != null) {
             log.info("refreshSnapshots: discovering from ${tsFile.path}")
-            val bundles = SnapshotDiscoveryListener.discoverSnapshots(tsFile.toNioPath())
+            val maxDepth = com.github.artem.pageobjectplugin.settings.PageMirrorSettings.getInstance(project).state.snapshotSearchDepth
+            val bundles = SnapshotDiscoveryListener.discoverSnapshots(tsFile.toNioPath(), maxDepth)
             log.info("refreshSnapshots: discovered ${bundles.size} bundle(s)")
             service.updateAvailableSnapshots(bundles)
         } else {
