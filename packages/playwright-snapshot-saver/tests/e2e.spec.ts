@@ -28,7 +28,7 @@ test.describe('end-to-end', () => {
     // Use backslash-safe paths for Windows
     const reporterPath = path.resolve(__dirname, '..', 'dist', 'reporter.js').replace(/\\/g, '/');
     const markerPath = path.resolve(__dirname, '..', 'dist', 'snapshot-marker.js').replace(/\\/g, '/');
-    const fixturesPath = path.resolve(__dirname, '..', '..', '..', 'test-project', 'fixtures').replace(/\\/g, '/');
+    const fixturesPath = path.resolve(__dirname, '..', '..', 'test-project', 'fixtures').replace(/\\/g, '/');
 
     // Write config
     fs.writeFileSync(path.join(testDir, 'playwright.config.ts'), `

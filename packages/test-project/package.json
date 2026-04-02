@@ -9,7 +9,7 @@
   "devDependencies": {
     "@playwright/test": "1.59.0",
     "@types/node": "^24.12.0",
-    "playwright-snapshot-saver": "file:../packages/snapshot-saver",
+    "playwright-snapshot-saver": "file:../playwright-snapshot-saver",
     "serve": "^14.2.0"
   }
 }

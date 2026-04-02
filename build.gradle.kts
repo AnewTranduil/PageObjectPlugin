@@ -106,7 +106,7 @@ intellijPlatformTesting {
                 }
                 // Open the test-project on IDE startup so tests don't need to navigate
                 // the Welcome screen — IntelliJ accepts a project path as a program argument.
-                args(rootDir.resolve("test-project").absolutePath)
+                args(rootDir.resolve("packages/test-project").absolutePath)
             }
             plugins {
                 robotServerPlugin(remoteRobotVersion)
@@ -130,6 +130,6 @@ tasks {
         // Required for Retrofit/GSON reflection on JDK 17+
         jvmArgs("--add-opens", "java.base/java.lang=ALL-UNNAMED")
         systemProperty("robot-server.url", System.getProperty("robot-server.url", "http://localhost:8082"))
-        systemProperty("ui.test.project.dir", rootDir.resolve("test-project").absolutePath)
+        systemProperty("ui.test.project.dir", rootDir.resolve("packages/test-project").absolutePath)
     }
 }

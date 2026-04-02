@@ -19,7 +19,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npx serve ../../test-project/fixtures -l 8089 --no-clipboard',
+    command: 'npx serve ../test-project/fixtures -l 8089 --no-clipboard',
     port: 8089,
     reuseExistingServer: true,
   },
