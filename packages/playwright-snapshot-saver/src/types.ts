@@ -54,7 +54,7 @@ export interface ExtractOptions {
   source: string;
   /** Output directory (default: '.snapshots') */
   outputDir?: string;
-  /** Generate screenshot from trace screencast frame (default: true) */
+  /** Generate screenshot from trace screencast frame (default: false) */
   screenshot?: boolean;
   /** Generate manifest.json (default: true) */
   manifest?: boolean;

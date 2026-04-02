@@ -40,7 +40,7 @@ function detectSourceType(source: string): SourceType {
  */
 export async function extractSnapshots(options: ExtractOptions): Promise<ExtractResult> {
   const outputDir = options.outputDir ?? '.snapshots';
-  const screenshotEnabled = options.screenshot !== false;
+  const screenshotEnabled = options.screenshot === true;
   const manifestEnabled = options.manifest !== false;
 
   const sourceType = detectSourceType(options.source);

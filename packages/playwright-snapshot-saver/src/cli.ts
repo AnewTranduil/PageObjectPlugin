@@ -23,7 +23,7 @@ async function main() {
     console.error('  --output <dir>        Output directory (default: .snapshots)');
     console.error('  --page <name>         Filter by page name');
     console.error('  --state <name>        Filter by state name');
-    console.error('  --no-screenshot       Skip screenshot generation');
+    console.error('  --screenshot          Enable screenshot generation (off by default)');
     console.error('  --no-manifest         Skip manifest.json generation');
     process.exit(1);
   }
@@ -62,13 +62,14 @@ function parseArgs(args: string[]): {
   screenshot: boolean;
   manifest: boolean;
 } {
-  const result: any = { screenshot: true, manifest: true };
+  const result: any = { screenshot: false, manifest: true };
   for (let i = 0; i < args.length; i++) {
     switch (args[i]) {
       case '--source': result.source = args[++i]; break;
       case '--output': result.output = args[++i]; break;
       case '--page': result.page = args[++i]; break;
       case '--state': result.state = args[++i]; break;
+      case '--screenshot': result.screenshot = true; break;
       case '--no-screenshot': result.screenshot = false; break;
       case '--no-manifest': result.manifest = false; break;
       default:
