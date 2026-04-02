@@ -1,6 +1,6 @@
 {
   "name": "playwright-snapshot-saver",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Capture Playwright page snapshots for Page Mirror IntelliJ plugin",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
