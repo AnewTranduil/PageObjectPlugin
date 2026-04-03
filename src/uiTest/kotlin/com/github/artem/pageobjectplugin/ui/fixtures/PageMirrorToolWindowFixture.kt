@@ -85,7 +85,7 @@ class PageMirrorToolWindowFixture(robot: RemoteRobot, component: RemoteComponent
             "//div[@class='InternalDecoratorImpl' and contains(@accessiblename, 'Page Mirror')]"
 
         fun find(robot: RemoteRobot): PageMirrorToolWindowFixture =
-            robot.find(byXpath(TOOL_WINDOW_XPATH), Duration.ofSeconds(10))
+            robot.find(byXpath(TOOL_WINDOW_XPATH), Duration.ofSeconds(30))
 
         fun isVisible(robot: RemoteRobot): Boolean = try {
             robot.findAll<ComponentFixture>(byXpath(TOOL_WINDOW_XPATH)).isNotEmpty()

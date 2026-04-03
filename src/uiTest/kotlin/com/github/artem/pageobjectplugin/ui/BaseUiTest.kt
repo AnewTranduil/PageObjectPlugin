@@ -52,8 +52,24 @@ abstract class BaseUiTest {
         // Bring IDE to front — the window may be minimized/iconified
         bringIdeToFront()
 
-        // Give the IDE a moment to finish indexing
-        Thread.sleep(3_000)
+        // Give the IDE a moment to finish indexing (longer in CI)
+        Thread.sleep(5_000)
+
+        // Ensure the Page Mirror tool window is open before any tests run
+        openToolWindow()
+        waitFor(Duration.ofSeconds(30)) {
+            try {
+                robot.find<CommonContainerFixture>(
+                    byXpath("//div[@class='InternalDecoratorImpl' and contains(@accessiblename, 'Page Mirror')]"),
+                    Duration.ofSeconds(5)
+                )
+                true
+            } catch (_: Exception) {
+                System.err.println("[waitForIde] Page Mirror tool window not yet visible, retrying...")
+                openToolWindow()
+                false
+            }
+        }
     }
 
     private fun ensureRobotServerReachable() {

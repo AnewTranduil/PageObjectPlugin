@@ -101,6 +101,9 @@ intellijPlatformTesting {
                         "-Didea.trust.all.projects=true",
                         "-Deap.require.license=false",
                         "-Dide.show.tips.on.startup.default.value=false",
+                        "-Dide.browser.jcef.sandbox.enable=false",
+                        "-Djava.awt.headless=false",
+                        "-Dsun.java2d.xrender=false",
                         "-Xmx2g",
                     )
                 }

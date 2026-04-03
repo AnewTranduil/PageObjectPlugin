@@ -87,10 +87,10 @@ jobs:
           exit 1
 
       - name: Run UI tests
-        run: ./gradlew uiTest
+        run: ./gradlew uiTest --info
 
       - name: Upload UI test reports
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ui-test-reports
