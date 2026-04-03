@@ -87,7 +87,92 @@ jobs:
           exit 1
 
       - name: Run UI tests
-        run: ./gradlew uiTest --info
+        id: uitest
+        run: ./gradlew uiTest --info 2>&1 | tee /tmp/ui-test-output.txt
+        continue-on-error: true
+
+      - name: Generate test result summary
+        if: always() && steps.uitest.outcome != 'skipped'
+        run: |
+          echo "## UI Test Results" > /tmp/ui-test-summary.md
+          echo "" >> /tmp/ui-test-summary.md
+
+          # Extract test summary
+          SUMMARY=$(grep -E '\d+ tests completed' /tmp/ui-test-output.txt || echo "No test summary found")
+          if [ "${{ steps.uitest.outcome }}" = "success" ]; then
+            echo "**Status:** ✅ $SUMMARY" >> /tmp/ui-test-summary.md
+          else
+            echo "**Status:** ❌ $SUMMARY" >> /tmp/ui-test-summary.md
+          fi
+          echo "" >> /tmp/ui-test-summary.md
+
+          # List failed tests
+          FAILURES=$(grep 'FAILED' /tmp/ui-test-output.txt | grep -v 'BUILD FAILED' | grep -v 'Task.*FAILED' | head -40 || true)
+          if [ -n "$FAILURES" ]; then
+            echo "### Failed Tests" >> /tmp/ui-test-summary.md
+            echo '```' >> /tmp/ui-test-summary.md
+            echo "$FAILURES" >> /tmp/ui-test-summary.md
+            echo '```' >> /tmp/ui-test-summary.md
+            echo "" >> /tmp/ui-test-summary.md
+          fi
+
+          # List captured screenshots
+          echo "### Screenshots" >> /tmp/ui-test-summary.md
+          if [ -d "build/reports/tests/uiTest/screenshots" ]; then
+            SHOTS=$(ls -1 build/reports/tests/uiTest/screenshots/*.png 2>/dev/null | wc -l)
+            echo "📸 **$SHOTS screenshots captured** (available in \`ui-test-reports\` artifact)" >> /tmp/ui-test-summary.md
+            echo '```' >> /tmp/ui-test-summary.md
+            ls -1 build/reports/tests/uiTest/screenshots/*.png 2>/dev/null | sed 's|build/reports/tests/uiTest/screenshots/||' | head -40
+            ls -1 build/reports/tests/uiTest/screenshots/*.png 2>/dev/null | sed 's|build/reports/tests/uiTest/screenshots/||' >> /tmp/ui-test-summary.md
+            echo '```' >> /tmp/ui-test-summary.md
+          else
+            echo "⚠️ No screenshots directory found" >> /tmp/ui-test-summary.md
+          fi
+          echo "" >> /tmp/ui-test-summary.md
+
+          # Extract diagnostic output from BaseUiTest
+          echo "### Diagnostics" >> /tmp/ui-test-summary.md
+          echo '```' >> /tmp/ui-test-summary.md
+          grep -E '\[(waitForIde|screenshot|triggerVfsRefresh|bringIdeToFront)\]' /tmp/ui-test-output.txt | head -30 >> /tmp/ui-test-summary.md || echo "No diagnostic output found" >> /tmp/ui-test-summary.md
+          echo '```' >> /tmp/ui-test-summary.md
+
+          cat /tmp/ui-test-summary.md
+
+      - name: Post results to PR
+        if: always() && github.event_name == 'pull_request' && steps.uitest.outcome != 'skipped'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let body;
+            try {
+              body = fs.readFileSync('/tmp/ui-test-summary.md', 'utf8');
+            } catch (e) {
+              body = '## UI Test Results\n\n⚠️ Could not read test summary.';
+            }
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body?.startsWith('## UI Test Results'));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                comment_id: existing.id, body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: context.issue.number, body,
+              });
+            }
+
+      - name: Fail if UI tests failed
+        if: steps.uitest.outcome == 'failure'
+        run: exit 1
 
       - name: Upload UI test reports
         if: always()

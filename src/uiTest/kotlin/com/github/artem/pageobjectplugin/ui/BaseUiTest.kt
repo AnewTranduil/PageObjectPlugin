@@ -10,6 +10,7 @@ import okhttp3.Request
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.extension.ExtendWith
 import java.net.HttpURLConnection
 import java.net.URI
 import java.nio.file.Files
@@ -24,6 +25,7 @@ import java.time.Duration
  *   - The IDE was started with test-project/ open (configured in build.gradle.kts)
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@ExtendWith(ScreenshotOnFailureExtension::class)
 abstract class BaseUiTest {
 
     protected val robot: RemoteRobot by lazy {
