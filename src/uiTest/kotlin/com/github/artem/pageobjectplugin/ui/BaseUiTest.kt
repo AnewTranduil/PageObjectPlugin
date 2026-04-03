@@ -74,6 +74,29 @@ abstract class BaseUiTest {
             }
         }
 
+        // Take a diagnostic screenshot of the IDE state
+        takeScreenshot("after-tool-window-open")
+
+        // Check if JCEF is available (determines tool window content)
+        val jcefAvailable = try {
+            ideFrame().callJs<Boolean>("""
+                com.intellij.ui.jcef.JBCefApp.isSupported()
+            """, runInEdt = true)
+        } catch (e: Exception) {
+            System.err.println("[waitForIde] JCEF check failed: ${e.message}")
+            false
+        }
+        System.err.println("[waitForIde] JCEF available: $jcefAvailable")
+
+        if (!jcefAvailable) {
+            System.err.println("[waitForIde] JCEF not supported — tool window will show fallback label, skipping snapshot discovery")
+            takeScreenshot("jcef-not-available")
+            Assumptions.abort<Unit>(
+                "JCEF is not supported in this CI environment. " +
+                    "UI tests requiring the browser component cannot run."
+            )
+        }
+
         // Open a .ts file to trigger snapshot discovery, then wait for it to complete
         openFileInEditor("login.page.ts")
         triggerVfsRefresh()
