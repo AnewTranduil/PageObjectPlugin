@@ -77,6 +77,34 @@ abstract class BaseUiTest {
         // Take a diagnostic screenshot of the IDE state
         takeScreenshot("after-tool-window-open")
 
+        // Log all components inside the tool window for debugging
+        try {
+            val tw = robot.find<CommonContainerFixture>(
+                byXpath("//div[@class='InternalDecoratorImpl' and contains(@accessiblename, 'Page Mirror')]"),
+                Duration.ofSeconds(5)
+            )
+            val componentTree = tw.callJs<String>("""
+                function dump(c, depth) {
+                    var indent = "";
+                    for (var i = 0; i < depth; i++) indent += "  ";
+                    var name = c.getClass().getSimpleName();
+                    var result = indent + name;
+                    if (c instanceof java.awt.Container) {
+                        var count = c.getComponentCount();
+                        result += " (" + count + " children)";
+                        for (var i = 0; i < count && depth < 4; i++) {
+                            result += "\n" + dump(c.getComponent(i), depth + 1);
+                        }
+                    }
+                    return result;
+                }
+                dump(component, 0);
+            """, runInEdt = true)
+            System.err.println("[waitForIde] Tool window component tree:\n$componentTree")
+        } catch (e: Exception) {
+            System.err.println("[waitForIde] Failed to dump component tree: ${e.message}")
+        }
+
         // Check if JCEF is available (determines tool window content)
         val jcefAvailable = try {
             ideFrame().callJs<Boolean>("""
