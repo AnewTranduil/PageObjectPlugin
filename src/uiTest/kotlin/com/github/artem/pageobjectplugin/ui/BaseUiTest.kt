@@ -5,10 +5,7 @@ import com.intellij.remoterobot.fixtures.CommonContainerFixture
 import com.intellij.remoterobot.fixtures.ComponentFixture
 import com.intellij.remoterobot.search.locators.byXpath
 import com.intellij.remoterobot.utils.waitFor
-import okhttp3.OkHttpClient
-import okhttp3.Request
 import org.junit.jupiter.api.Assumptions
-import java.util.Base64
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.extension.ExtendWith
@@ -17,6 +14,7 @@ import java.net.URI
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Duration
+import javax.imageio.ImageIO
 
 /**
  * Base class for all Page Mirror UI tests.
@@ -135,7 +133,10 @@ abstract class BaseUiTest {
                     byXpath("//div[@class='InternalDecoratorImpl' and contains(@accessiblename, 'Page Mirror')]"),
                     Duration.ofSeconds(5)
                 )
-                val combo = tw.find<ComponentFixture>(byXpath(".//div[@class='JComboBox']"), Duration.ofSeconds(3))
+                val combo = tw.find<ComponentFixture>(
+                    byXpath(".//div[@class='JComboBox' or @class='ComboBox']"),
+                    Duration.ofSeconds(3)
+                )
                 val selected: String = combo.callJs("component.getSelectedItem() != null ? '' + component.getSelectedItem() : ''")
                 val ready = selected.isNotBlank() && !selected.contains("No snapshots")
                 if (!ready) {
@@ -180,8 +181,7 @@ abstract class BaseUiTest {
     private val screenshotDir: Path = Path.of("build/screenshots/uiTest")
 
     /**
-     * Captures a screenshot of the IDE window and saves it as a PNG.
-     * Uses the Remote Robot server's /screenshot HTTP endpoint.
+     * Captures a full-screen screenshot via Remote Robot API and saves it as PNG.
      * [label] is a short descriptive tag (e.g. "after-snapshot-load").
      */
     protected fun takeScreenshot(label: String) {
@@ -192,22 +192,9 @@ abstract class BaseUiTest {
             val fileName = "${className}_${label}_$timestamp.png"
             val filePath = screenshotDir.resolve(fileName)
 
-            val client = OkHttpClient()
-            val request = Request.Builder()
-                .url("$robotUrl/screenshot")
-                .build()
-            client.newCall(request).execute().use { response ->
-                if (response.isSuccessful && response.body != null) {
-                    val bytes = response.body!!.bytes()
-                    Files.write(filePath, bytes)
-                    println("[screenshot] Saved: $filePath (${bytes.size} bytes)")
-                    // Base64 encode for CI log viewing
-                    val b64 = Base64.getEncoder().encodeToString(bytes)
-                    println("[screenshot:base64:$label] data:image/png;base64,$b64")
-                } else {
-                    System.err.println("[screenshot] Server returned ${response.code} for '$label'")
-                }
-            }
+            val image = robot.getScreenshot()
+            ImageIO.write(image, "png", filePath.toFile())
+            println("[screenshot] Saved: $filePath")
         } catch (e: Exception) {
             System.err.println("[screenshot] Failed to capture '$label': ${e.message}")
         }

@@ -1,19 +1,19 @@
 package com.github.artem.pageobjectplugin.ui
 
-import okhttp3.OkHttpClient
-import okhttp3.Request
+import com.intellij.remoterobot.RemoteRobot
 import org.junit.jupiter.api.extension.ExtensionContext
 import org.junit.jupiter.api.extension.TestWatcher
 import java.nio.file.Files
 import java.nio.file.Path
+import javax.imageio.ImageIO
 
 /**
  * JUnit 5 extension that automatically captures a screenshot of the IDE
- * when a test fails. Screenshots are saved to build/reports/tests/uiTest/screenshots/
+ * when a test fails. Screenshots are saved to build/screenshots/uiTest/
  * with the naming pattern: ClassName_methodName_FAILED_timestamp.png
  *
- * Register on test classes via @ExtendWith(ScreenshotOnFailureExtension::class)
- * or inherit from BaseUiTest which registers it automatically.
+ * Uses Remote Robot's getScreenshot() API for full-screen capture.
+ * Registered on BaseUiTest via @ExtendWith.
  */
 class ScreenshotOnFailureExtension : TestWatcher {
 
@@ -39,18 +39,10 @@ class ScreenshotOnFailureExtension : TestWatcher {
             val fileName = "${className}_${methodName}_${status}_$timestamp.png"
             val filePath = screenshotDir.resolve(fileName)
 
-            val client = OkHttpClient()
-            val request = Request.Builder()
-                .url("$robotUrl/screenshot")
-                .build()
-            client.newCall(request).execute().use { response ->
-                if (response.isSuccessful && response.body != null) {
-                    Files.write(filePath, response.body!!.bytes())
-                    System.err.println("[screenshot] $status: $filePath")
-                } else {
-                    System.err.println("[screenshot] Server returned ${response.code} for $className.$methodName")
-                }
-            }
+            val robot = RemoteRobot(robotUrl)
+            val image = robot.getScreenshot()
+            ImageIO.write(image, "png", filePath.toFile())
+            System.err.println("[screenshot] $status: $filePath")
         } catch (e: Exception) {
             System.err.println("[screenshot] Failed to capture for ${context.displayName}: ${e.message}")
         }

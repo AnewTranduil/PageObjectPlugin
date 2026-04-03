@@ -23,7 +23,7 @@ class PageMirrorToolWindowFixture(robot: RemoteRobot, component: RemoteComponent
 
     /** The snapshot selector combo box. */
     val comboBox: ComponentFixture
-        get() = find(byXpath(".//div[@class='JComboBox']"), Duration.ofSeconds(5))
+        get() = find(byXpath(".//div[@class='JComboBox' or @class='ComboBox']"), Duration.ofSeconds(5))
 
     /** The Refresh button. */
     val refreshButton: ComponentFixture
