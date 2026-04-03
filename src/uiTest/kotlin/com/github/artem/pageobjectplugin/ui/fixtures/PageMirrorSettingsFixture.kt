@@ -93,6 +93,9 @@ class PageMirrorSettingsFixture(robot: RemoteRobot, component: RemoteComponent) 
          * Page Mirror configurable, avoiding fragile tree-search navigation.
          */
         fun open(robot: RemoteRobot): PageMirrorSettingsFixture {
+            // Close any stale dialogs first
+            closeAllDialogs(robot)
+
             val frame = robot.find<CommonContainerFixture>(
                 byXpath("//div[@class='IdeFrameImpl']"),
                 Duration.ofSeconds(5)
@@ -114,17 +117,32 @@ class PageMirrorSettingsFixture(robot: RemoteRobot, component: RemoteComponent) 
             waitFor(Duration.ofSeconds(15)) {
                 robot.findAll<CommonContainerFixture>(byXpath(SETTINGS_DIALOG_XPATH)).isNotEmpty()
             }
-            Thread.sleep(1_000)
+            Thread.sleep(2_000)
 
-            // Find the settings panel
+            // Find the settings panel — try Page Mirror panel first, then dialog root
             return try {
                 robot.find(
                     byXpath("$SETTINGS_DIALOG_XPATH//div[@accessiblename='Page Mirror']"),
-                    Duration.ofSeconds(5)
+                    Duration.ofSeconds(10)
                 )
             } catch (_: Exception) {
                 robot.find(byXpath(SETTINGS_DIALOG_XPATH), Duration.ofSeconds(5))
             }
+        }
+
+        /** Closes all open dialogs by clicking Cancel on each. */
+        private fun closeAllDialogs(robot: RemoteRobot) {
+            try {
+                val dialogs = robot.findAll<CommonContainerFixture>(byXpath(SETTINGS_DIALOG_XPATH))
+                for (dialog in dialogs) {
+                    try {
+                        dialog.findAll<ComponentFixture>(byXpath(".//div[@text='Cancel']"))
+                            .firstOrNull()?.click()
+                        Thread.sleep(300)
+                    } catch (_: Exception) {}
+                }
+            } catch (_: Exception) {}
+            Thread.sleep(300)
         }
 
         /** Clicks the OK button to apply and close the settings dialog. */
