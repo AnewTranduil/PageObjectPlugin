@@ -18,6 +18,9 @@ class SettingsPersistenceTest : BasePlatformTestCase() {
         assertTrue(settings.state.autoReloadOnChange)
         assertEquals("#3B82F6", settings.state.highlightColor)
         assertEquals("Property", settings.state.codeGenStyle)
+        assertEquals("(.+)\\.page\\.ts", settings.state.pageObjectPattern)
+        assertEquals(".snapshots", settings.state.snapshotsRoot)
+        assertEquals(".ts,.tsx", settings.state.fileExtensions)
     }
 
     fun `test loadState overrides all fields`() {
@@ -27,7 +30,10 @@ class SettingsPersistenceTest : BasePlatformTestCase() {
                 snapshotSearchDepth = 5,
                 autoReloadOnChange = false,
                 highlightColor = "#FF0000",
-                codeGenStyle = "Variable"
+                codeGenStyle = "Variable",
+                pageObjectPattern = "(.+)Page\\.ts",
+                snapshotsRoot = "custom-snapshots",
+                fileExtensions = ".ts,.tsx,.js"
             )
         )
 
@@ -35,6 +41,9 @@ class SettingsPersistenceTest : BasePlatformTestCase() {
         assertFalse(settings.state.autoReloadOnChange)
         assertEquals("#FF0000", settings.state.highlightColor)
         assertEquals("Variable", settings.state.codeGenStyle)
+        assertEquals("(.+)Page\\.ts", settings.state.pageObjectPattern)
+        assertEquals("custom-snapshots", settings.state.snapshotsRoot)
+        assertEquals(".ts,.tsx,.js", settings.state.fileExtensions)
     }
 
     fun `test getState returns updated values after loadState`() {
@@ -66,6 +75,19 @@ class SettingsPersistenceTest : BasePlatformTestCase() {
         settings.loadState(PageMirrorSettings.State(codeGenStyle = "Variable"))
 
         assertEquals("Variable", settings.state.codeGenStyle)
+    }
+
+    fun `test isSupportedFile matches configured extensions`() {
+        val settings = PageMirrorSettings.getInstance(project)
+
+        assertTrue(settings.isSupportedFile("login.page.ts"))
+        assertTrue(settings.isSupportedFile("test.tsx"))
+        assertFalse(settings.isSupportedFile("readme.md"))
+        assertFalse(settings.isSupportedFile("style.css"))
+
+        settings.loadState(PageMirrorSettings.State(fileExtensions = ".ts,.tsx,.js"))
+        assertTrue(settings.isSupportedFile("utils.js"))
+        assertFalse(settings.isSupportedFile("style.css"))
     }
 
     fun `test autoReloadOnChange can be set to false`() {

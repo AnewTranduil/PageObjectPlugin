@@ -1,6 +1,9 @@
 package com.github.artem.pageobjectplugin.settings
 
+import com.github.artem.pageobjectplugin.listeners.SnapshotDiscoveryListener
 import com.github.artem.pageobjectplugin.services.SnapshotService
+import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
 import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogPanel
@@ -15,6 +18,7 @@ import java.awt.Graphics
 import javax.swing.Icon
 import javax.swing.JComponent
 import javax.swing.JLabel
+import javax.swing.JTextField
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
 import kotlin.reflect.KMutableProperty0
@@ -36,10 +40,36 @@ class PageMirrorConfigurable(private val project: Project) : Configurable {
                 snapshotSearchDepth = searchDepth,
                 autoReloadOnChange = autoReload,
                 highlightColor = highlightColor,
-                codeGenStyle = codeGenStyle
+                codeGenStyle = codeGenStyle,
+                pageObjectPattern = pageObjectPattern,
+                snapshotsRoot = snapshotsRoot,
+                fileExtensions = fileExtensions
             )
         )
-        SnapshotService.getInstance(project).applyHighlightColor()
+        val service = SnapshotService.getInstance(project)
+        service.applyHighlightColor()
+        triggerSnapshotRediscovery(service)
+        DaemonCodeAnalyzer.getInstance(project).restart()
+    }
+
+    private fun triggerSnapshotRediscovery(service: SnapshotService) {
+        val settingsInstance = PageMirrorSettings.getInstance(project)
+        val settings = settingsInstance.state
+        val openFiles = FileEditorManager.getInstance(project).openFiles
+        val tsFile = openFiles.firstOrNull { settingsInstance.isSupportedFile(it.name) }
+        if (tsFile == null) {
+            service.updateAvailableSnapshots(emptyList())
+            return
+        }
+        val pageName = SnapshotDiscoveryListener.extractPageName(tsFile.name, settings.pageObjectPattern)
+        if (pageName == null) {
+            service.updateAvailableSnapshots(emptyList())
+            return
+        }
+        val projectRoot = project.basePath?.let { java.nio.file.Path.of(it) } ?: return
+        val snapshotGroupDir = projectRoot.resolve(settings.snapshotsRoot).resolve(pageName)
+        val bundles = SnapshotDiscoveryListener.scanForBundles(snapshotGroupDir, settings.snapshotSearchDepth)
+        service.updateAvailableSnapshots(bundles)
     }
 
     override fun reset() {
@@ -48,6 +78,9 @@ class PageMirrorConfigurable(private val project: Project) : Configurable {
         autoReload = state.autoReloadOnChange
         highlightColor = state.highlightColor
         codeGenStyle = state.codeGenStyle
+        pageObjectPattern = state.pageObjectPattern
+        snapshotsRoot = state.snapshotsRoot
+        fileExtensions = state.fileExtensions
         settingsPanel.reset()
     }
 
@@ -55,6 +88,9 @@ class PageMirrorConfigurable(private val project: Project) : Configurable {
     private var autoReload = true
     private var highlightColor = "#3B82F6"
     private var codeGenStyle = "Property"
+    private var pageObjectPattern = "(.+)\\.page\\.ts"
+    private var snapshotsRoot = ".snapshots"
+    private var fileExtensions = ".ts,.tsx"
 
     private fun createSettingsPanel(): DialogPanel {
         val state = PageMirrorSettings.getInstance(project).state
@@ -62,8 +98,73 @@ class PageMirrorConfigurable(private val project: Project) : Configurable {
         autoReload = state.autoReloadOnChange
         highlightColor = state.highlightColor
         codeGenStyle = state.codeGenStyle
+        pageObjectPattern = state.pageObjectPattern
+        snapshotsRoot = state.snapshotsRoot
+        fileExtensions = state.fileExtensions
+
+        val patternStatus = JLabel(validatePattern(pageObjectPattern))
+        val testResultLabel = JLabel("")
+        var patternField: JTextField? = null
+        var testField: JTextField? = null
+
+        fun updateTestResult() {
+            val pattern = patternField?.text ?: return
+            val filename = testField?.text.orEmpty()
+            testResultLabel.text = if (filename.isNotEmpty()) testPatternMatch(pattern, filename) else ""
+        }
 
         return panel {
+            row("File extensions:") {
+                textField()
+                    .bindText(::fileExtensions)
+                    .comment("Comma-separated, e.g. .ts,.tsx,.js")
+            }
+            row("Page object pattern:") {
+                textField()
+                    .bindText(::pageObjectPattern)
+                    .applyToComponent {
+                        patternField = this
+                        document.addDocumentListener(object : DocumentListener {
+                            override fun insertUpdate(e: DocumentEvent) = updateStatus()
+                            override fun removeUpdate(e: DocumentEvent) = updateStatus()
+                            override fun changedUpdate(e: DocumentEvent) = updateStatus()
+                            private fun updateStatus() {
+                                patternStatus.text = validatePattern(text)
+                                updateTestResult()
+                            }
+                        })
+                    }
+                cell(patternStatus)
+            }
+            row("Test filename:") {
+                textField()
+                    .applyToComponent {
+                        testField = this
+                        document.addDocumentListener(object : DocumentListener {
+                            override fun insertUpdate(e: DocumentEvent) = updateTestResult()
+                            override fun removeUpdate(e: DocumentEvent) = updateTestResult()
+                            override fun changedUpdate(e: DocumentEvent) = updateTestResult()
+                        })
+                    }
+                    .comment("Type a filename to test the pattern above")
+                cell(testResultLabel)
+            }
+            row("Snapshots root:") {
+                val resolvedLabel = JLabel(resolveSnapshotsRootHint(snapshotsRoot))
+                textField()
+                    .bindText(::snapshotsRoot)
+                    .applyToComponent {
+                        document.addDocumentListener(object : DocumentListener {
+                            override fun insertUpdate(e: DocumentEvent) = updateHint()
+                            override fun removeUpdate(e: DocumentEvent) = updateHint()
+                            override fun changedUpdate(e: DocumentEvent) = updateHint()
+                            private fun updateHint() {
+                                resolvedLabel.text = resolveSnapshotsRootHint(text)
+                            }
+                        })
+                    }
+                cell(resolvedLabel)
+            }
             row("Snapshot search depth:") {
                 spinner(1..10, 1)
                     .bindIntValue(::searchDepth)
@@ -94,6 +195,51 @@ class PageMirrorConfigurable(private val project: Project) : Configurable {
                     .bindItem(::codeGenStyle.toNullableProperty())
             }
         }
+    }
+    private fun testPatternMatch(pattern: String, filename: String): String {
+        if (pattern.isBlank()) return ""
+        return try {
+            val regex = Regex(pattern)
+            val match = regex.matchEntire(filename)
+            if (match != null) {
+                val pageName = match.groupValues.getOrNull(1)
+                if (!pageName.isNullOrEmpty()) {
+                    "✓ Match → page name: \"$pageName\""
+                } else {
+                    "✓ Match (no capture group)"
+                }
+            } else {
+                "✗ No match"
+            }
+        } catch (_: Exception) {
+            "✗ Invalid regex"
+        }
+    }
+
+    private fun validatePattern(pattern: String): String {
+        if (pattern.isBlank()) return "⚠ Pattern is empty"
+        return try {
+            val regex = Regex(pattern)
+            val sampleFiles = listOf("example.page.ts", "ExamplePage.ts")
+            for (sample in sampleFiles) {
+                val match = regex.matchEntire(sample)
+                if (match != null) {
+                    val pageName = match.groupValues.getOrNull(1)
+                    if (!pageName.isNullOrEmpty()) {
+                        return "✓ \"$sample\" → page name: \"$pageName\""
+                    }
+                    return "⚠ No capture group — add (...) to extract page name"
+                }
+            }
+            "✓ Valid (no match on samples)"
+        } catch (_: Exception) {
+            "✗ Invalid regex"
+        }
+    }
+
+    private fun resolveSnapshotsRootHint(root: String): String {
+        val basePath = project.basePath ?: return ""
+        return "→ $basePath/$root"
     }
 }
 

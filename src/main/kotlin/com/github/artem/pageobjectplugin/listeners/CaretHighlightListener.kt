@@ -2,6 +2,7 @@ package com.github.artem.pageobjectplugin.listeners
 
 import com.github.artem.pageobjectplugin.locators.LocatorExtractor
 import com.github.artem.pageobjectplugin.services.SnapshotService
+import com.github.artem.pageobjectplugin.settings.PageMirrorSettings
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.editor.EditorFactory
 import com.intellij.openapi.editor.event.CaretEvent
@@ -30,7 +31,7 @@ class CaretHighlightListener(private val project: Project) : CaretListener, Disp
 
         val document = editor.document
         val file = FileDocumentManager.getInstance().getFile(document) ?: return
-        if (!file.name.endsWith(".ts") && !file.name.endsWith(".tsx")) return
+        if (!PageMirrorSettings.getInstance(project).isSupportedFile(file.name)) return
 
         val offset = event.caret?.offset ?: return
         val lineNumber = document.getLineNumber(offset)

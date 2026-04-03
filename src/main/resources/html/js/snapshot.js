@@ -64,3 +64,16 @@ window.loadSnapshot = function(html) {
     applyScale();
     window.clearHighlight();
 };
+
+window.clearSnapshot = function() {
+    var viewport = document.getElementById('viewport');
+    var container = document.getElementById('viewport-container');
+    var emptyState = document.getElementById('empty-state');
+    var status = document.getElementById('status');
+
+    viewport.innerHTML = '';
+    container.style.display = 'none';
+    emptyState.style.display = '';
+    status.textContent = 'No snapshot loaded';
+    window.clearHighlight();
+};
