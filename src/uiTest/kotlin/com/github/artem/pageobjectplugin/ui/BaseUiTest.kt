@@ -125,7 +125,7 @@ abstract class BaseUiTest {
 
     // ── Screenshot helper ─────────────────────────────────────────────────────
 
-    private val screenshotDir: Path = Path.of("build/reports/tests/uiTest/screenshots")
+    private val screenshotDir: Path = Path.of("build/screenshots/uiTest")
 
     /**
      * Captures a screenshot of the IDE window and saves it as a PNG.

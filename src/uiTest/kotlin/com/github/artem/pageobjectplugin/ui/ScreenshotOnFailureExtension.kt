@@ -17,7 +17,7 @@ import java.nio.file.Path
  */
 class ScreenshotOnFailureExtension : TestWatcher {
 
-    private val screenshotDir: Path = Path.of("build/reports/tests/uiTest/screenshots")
+    private val screenshotDir: Path = Path.of("build/screenshots/uiTest")
     private val robotUrl: String =
         System.getProperty("robot-server.url", "http://localhost:8082")
 
