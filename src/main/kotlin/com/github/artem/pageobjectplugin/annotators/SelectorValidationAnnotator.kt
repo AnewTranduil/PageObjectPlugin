@@ -3,6 +3,7 @@ package com.github.artem.pageobjectplugin.annotators
 import com.github.artem.pageobjectplugin.locators.ExtractedLocator
 import com.github.artem.pageobjectplugin.locators.LocatorExtractor
 import com.github.artem.pageobjectplugin.services.SnapshotService
+import com.github.artem.pageobjectplugin.settings.PageMirrorSettings
 import com.intellij.lang.annotation.AnnotationHolder
 import com.intellij.lang.annotation.ExternalAnnotator
 import com.intellij.lang.annotation.HighlightSeverity
@@ -28,8 +29,8 @@ data class SelectorAnnotation(
 class SelectorValidationAnnotator : ExternalAnnotator<PsiFile, List<SelectorAnnotation>>() {
 
     override fun collectInformation(file: PsiFile): PsiFile? {
-        if (!file.name.endsWith(".ts") && !file.name.endsWith(".tsx")) return null
         val project = file.project
+        if (!PageMirrorSettings.getInstance(project).isSupportedFile(file.name)) return null
         val service = SnapshotService.getInstance(project)
         if (service.snapshotDocument == null) return null
         return file

@@ -15,8 +15,18 @@ class PageMirrorSettings : PersistentStateComponent<PageMirrorSettings.State> {
         var snapshotSearchDepth: Int = 3,
         var autoReloadOnChange: Boolean = true,
         var highlightColor: String = "#3B82F6",
-        var codeGenStyle: String = "Property"
+        var codeGenStyle: String = "Property",
+        var pageObjectPattern: String = "(.+)\\.page\\.ts",
+        var snapshotsRoot: String = ".snapshots",
+        var fileExtensions: String = ".ts,.tsx"
     )
+
+    fun isSupportedFile(fileName: String): Boolean {
+        return state.fileExtensions.split(",")
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .any { ext -> fileName.endsWith(ext) }
+    }
 
     private var myState = State()
 

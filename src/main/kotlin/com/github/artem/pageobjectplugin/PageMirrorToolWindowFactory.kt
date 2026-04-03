@@ -160,16 +160,27 @@ class PageMirrorToolWindowFactory : ToolWindowFactory {
         val log = logger<PageMirrorToolWindowFactory>()
         val openFiles = FileEditorManager.getInstance(project).openFiles
         log.info("refreshSnapshots: ${openFiles.size} open file(s): ${openFiles.map { it.name }}")
-        val tsFile = openFiles.firstOrNull { it.name.endsWith(".ts") || it.name.endsWith(".tsx") }
+        val settingsInstance = com.github.artem.pageobjectplugin.settings.PageMirrorSettings.getInstance(project)
+        val tsFile = openFiles.firstOrNull { settingsInstance.isSupportedFile(it.name) }
 
         if (tsFile != null) {
-            log.info("refreshSnapshots: discovering from ${tsFile.path}")
-            val maxDepth = com.github.artem.pageobjectplugin.settings.PageMirrorSettings.getInstance(project).state.snapshotSearchDepth
-            val bundles = SnapshotDiscoveryListener.discoverSnapshots(tsFile.toNioPath(), maxDepth)
-            log.info("refreshSnapshots: discovered ${bundles.size} bundle(s)")
-            service.updateAvailableSnapshots(bundles)
+            val settings = settingsInstance.state
+            val pageName = SnapshotDiscoveryListener.extractPageName(tsFile.name, settings.pageObjectPattern)
+
+            if (pageName != null) {
+                val projectRoot = project.basePath?.let { java.nio.file.Path.of(it) }
+                if (projectRoot != null) {
+                    val snapshotGroupDir = projectRoot.resolve(settings.snapshotsRoot).resolve(pageName)
+                    log.info("refreshSnapshots: discovering from $snapshotGroupDir for page '$pageName'")
+                    val bundles = SnapshotDiscoveryListener.scanForBundles(snapshotGroupDir, settings.snapshotSearchDepth)
+                    log.info("refreshSnapshots: discovered ${bundles.size} bundle(s)")
+                    service.updateAvailableSnapshots(bundles)
+                }
+            } else {
+                log.info("refreshSnapshots: ${tsFile.name} is not a page object file, skipping discovery")
+            }
         } else {
-            log.info("refreshSnapshots: no .ts/.tsx file open, skipping discovery")
+            log.info("refreshSnapshots: no supported file open, skipping discovery")
         }
     }
 

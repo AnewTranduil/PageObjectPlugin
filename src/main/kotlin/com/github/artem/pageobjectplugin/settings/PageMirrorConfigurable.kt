@@ -36,7 +36,10 @@ class PageMirrorConfigurable(private val project: Project) : Configurable {
                 snapshotSearchDepth = searchDepth,
                 autoReloadOnChange = autoReload,
                 highlightColor = highlightColor,
-                codeGenStyle = codeGenStyle
+                codeGenStyle = codeGenStyle,
+                pageObjectPattern = pageObjectPattern,
+                snapshotsRoot = snapshotsRoot,
+                fileExtensions = fileExtensions
             )
         )
         SnapshotService.getInstance(project).applyHighlightColor()
@@ -48,6 +51,9 @@ class PageMirrorConfigurable(private val project: Project) : Configurable {
         autoReload = state.autoReloadOnChange
         highlightColor = state.highlightColor
         codeGenStyle = state.codeGenStyle
+        pageObjectPattern = state.pageObjectPattern
+        snapshotsRoot = state.snapshotsRoot
+        fileExtensions = state.fileExtensions
         settingsPanel.reset()
     }
 
@@ -55,6 +61,9 @@ class PageMirrorConfigurable(private val project: Project) : Configurable {
     private var autoReload = true
     private var highlightColor = "#3B82F6"
     private var codeGenStyle = "Property"
+    private var pageObjectPattern = "(.+)\\.page\\.ts"
+    private var snapshotsRoot = ".snapshots"
+    private var fileExtensions = ".ts,.tsx"
 
     private fun createSettingsPanel(): DialogPanel {
         val state = PageMirrorSettings.getInstance(project).state
@@ -62,8 +71,48 @@ class PageMirrorConfigurable(private val project: Project) : Configurable {
         autoReload = state.autoReloadOnChange
         highlightColor = state.highlightColor
         codeGenStyle = state.codeGenStyle
+        pageObjectPattern = state.pageObjectPattern
+        snapshotsRoot = state.snapshotsRoot
+        fileExtensions = state.fileExtensions
 
         return panel {
+            row("File extensions:") {
+                textField()
+                    .bindText(::fileExtensions)
+                    .comment("Comma-separated, e.g. .ts,.tsx,.js")
+            }
+            row("Page object pattern:") {
+                val patternStatus = JLabel(validatePattern(pageObjectPattern))
+                textField()
+                    .bindText(::pageObjectPattern)
+                    .applyToComponent {
+                        document.addDocumentListener(object : DocumentListener {
+                            override fun insertUpdate(e: DocumentEvent) = updateStatus()
+                            override fun removeUpdate(e: DocumentEvent) = updateStatus()
+                            override fun changedUpdate(e: DocumentEvent) = updateStatus()
+                            private fun updateStatus() {
+                                patternStatus.text = validatePattern(text)
+                            }
+                        })
+                    }
+                cell(patternStatus)
+            }
+            row("Snapshots root:") {
+                val resolvedLabel = JLabel(resolveSnapshotsRootHint(snapshotsRoot))
+                textField()
+                    .bindText(::snapshotsRoot)
+                    .applyToComponent {
+                        document.addDocumentListener(object : DocumentListener {
+                            override fun insertUpdate(e: DocumentEvent) = updateHint()
+                            override fun removeUpdate(e: DocumentEvent) = updateHint()
+                            override fun changedUpdate(e: DocumentEvent) = updateHint()
+                            private fun updateHint() {
+                                resolvedLabel.text = resolveSnapshotsRootHint(text)
+                            }
+                        })
+                    }
+                cell(resolvedLabel)
+            }
             row("Snapshot search depth:") {
                 spinner(1..10, 1)
                     .bindIntValue(::searchDepth)
@@ -94,6 +143,31 @@ class PageMirrorConfigurable(private val project: Project) : Configurable {
                     .bindItem(::codeGenStyle.toNullableProperty())
             }
         }
+    }
+    private fun validatePattern(pattern: String): String {
+        if (pattern.isBlank()) return "⚠ Pattern is empty"
+        return try {
+            val regex = Regex(pattern)
+            val sampleFiles = listOf("example.page.ts", "ExamplePage.ts")
+            for (sample in sampleFiles) {
+                val match = regex.matchEntire(sample)
+                if (match != null) {
+                    val pageName = match.groupValues.getOrNull(1)
+                    if (!pageName.isNullOrEmpty()) {
+                        return "✓ \"$sample\" → page name: \"$pageName\""
+                    }
+                    return "⚠ No capture group — add (...) to extract page name"
+                }
+            }
+            "✓ Valid (no match on samples)"
+        } catch (_: Exception) {
+            "✗ Invalid regex"
+        }
+    }
+
+    private fun resolveSnapshotsRootHint(root: String): String {
+        val basePath = project.basePath ?: return ""
+        return "→ $basePath/$root"
     }
 }
 

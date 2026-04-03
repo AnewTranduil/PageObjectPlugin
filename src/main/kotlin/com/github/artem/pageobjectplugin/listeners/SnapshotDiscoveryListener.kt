@@ -2,6 +2,7 @@ package com.github.artem.pageobjectplugin.listeners
 
 import com.github.artem.pageobjectplugin.model.SnapshotBundle
 import com.github.artem.pageobjectplugin.services.SnapshotService
+import com.github.artem.pageobjectplugin.settings.PageMirrorSettings
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.project.Project
@@ -14,42 +15,42 @@ import kotlin.io.path.listDirectoryEntries
 class SnapshotDiscoveryListener(private val project: Project) : FileEditorManagerListener {
 
     override fun fileOpened(source: FileEditorManager, file: VirtualFile) {
-        if (!isTypeScriptFile(file)) return
+        val settingsInstance = PageMirrorSettings.getInstance(project)
+        if (!settingsInstance.isSupportedFile(file.name)) return
 
-        val filePath = file.toNioPath()
-        val settings = com.github.artem.pageobjectplugin.settings.PageMirrorSettings.getInstance(project)
-        val snapshotBundles = discoverSnapshots(filePath, settings.state.snapshotSearchDepth)
+        val settings = settingsInstance.state
+        val pageName = extractPageName(file.name, settings.pageObjectPattern) ?: return
+
+        val projectRoot = project.basePath?.let { Path.of(it) } ?: return
+        val snapshotGroupDir = projectRoot.resolve(settings.snapshotsRoot).resolve(pageName)
+
+        val bundles = scanForBundles(snapshotGroupDir, settings.snapshotSearchDepth)
 
         val service = SnapshotService.getInstance(project)
-        service.updateAvailableSnapshots(snapshotBundles)
-    }
-
-    private fun isTypeScriptFile(file: VirtualFile): Boolean {
-        val name = file.name
-        return name.endsWith(".ts") || name.endsWith(".tsx")
+        service.updateAvailableSnapshots(bundles)
     }
 
     companion object {
-        fun discoverSnapshots(filePath: Path, maxDepth: Int = 3): List<SnapshotBundle> {
-            val searchDirs = listOfNotNull(
-                filePath.parent,
-                filePath.parent?.parent
-            )
+        fun extractPageName(filename: String, pattern: String): String? {
+            return try {
+                val regex = Regex(pattern)
+                val match = regex.matchEntire(filename) ?: return null
+                match.groupValues.getOrNull(1)?.takeIf { it.isNotEmpty() }
+            } catch (_: Exception) {
+                null
+            }
+        }
+
+        fun scanForBundles(dir: Path, maxDepth: Int = 3): List<SnapshotBundle> {
+            if (!dir.exists() || !dir.isDirectory()) return emptyList()
 
             val bundles = mutableListOf<SnapshotBundle>()
             val seen = mutableSetOf<Path>()
-
-            for (dir in searchDirs) {
-                val snapshotsDir = dir.resolve(".snapshots")
-                if (!snapshotsDir.exists() || !snapshotsDir.isDirectory()) continue
-
-                scanForBundles(snapshotsDir, 0, maxDepth, bundles, seen)
-            }
-
+            scanRecursive(dir, 0, maxDepth, bundles, seen)
             return bundles
         }
 
-        private fun scanForBundles(
+        private fun scanRecursive(
             dir: Path,
             depth: Int,
             maxDepth: Int,
@@ -69,7 +70,7 @@ class SnapshotDiscoveryListener(private val project: Project) : FileEditorManage
                 try {
                     for (child in dir.listDirectoryEntries()) {
                         if (child.isDirectory()) {
-                            scanForBundles(child, depth + 1, maxDepth, results, seen)
+                            scanRecursive(child, depth + 1, maxDepth, results, seen)
                         }
                     }
                 } catch (_: Exception) {
