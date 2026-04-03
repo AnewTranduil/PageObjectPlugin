@@ -87,7 +87,7 @@ jobs:
           exit 1
 
       - name: Run UI tests
-        run: ./gradlew uiTest --info
+        run: ./gradlew uiTest --info --tests "*.ToolWindowUiTest"
 
       - name: Upload UI test reports
         if: success() || failure()

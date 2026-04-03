@@ -8,6 +8,7 @@ import com.intellij.remoterobot.utils.waitFor
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.junit.jupiter.api.Assumptions
+import java.util.Base64
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.extension.ExtendWith
@@ -197,8 +198,12 @@ abstract class BaseUiTest {
                 .build()
             client.newCall(request).execute().use { response ->
                 if (response.isSuccessful && response.body != null) {
-                    Files.write(filePath, response.body!!.bytes())
-                    println("[screenshot] Saved: $filePath")
+                    val bytes = response.body!!.bytes()
+                    Files.write(filePath, bytes)
+                    println("[screenshot] Saved: $filePath (${bytes.size} bytes)")
+                    // Base64 encode for CI log viewing
+                    val b64 = Base64.getEncoder().encodeToString(bytes)
+                    println("[screenshot:base64:$label] data:image/png;base64,$b64")
                 } else {
                     System.err.println("[screenshot] Server returned ${response.code} for '$label'")
                 }
