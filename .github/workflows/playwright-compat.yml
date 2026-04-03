@@ -13,7 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-
       - uses: actions/setup-node@v6
         with:
           node-version: '24'
@@ -33,7 +32,7 @@ jobs:
           npx playwright install chromium
 
       - name: Run tests
-        working-directory: packages/snapshot-saver
+        working-directory: packages/playwright-snapshot-saver
         run: npx playwright test
 
       - name: Create issue on failure
