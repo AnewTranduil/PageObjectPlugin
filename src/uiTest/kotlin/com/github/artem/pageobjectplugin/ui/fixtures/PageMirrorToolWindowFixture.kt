@@ -27,7 +27,7 @@ class PageMirrorToolWindowFixture(robot: RemoteRobot, component: RemoteComponent
 
     /** The Refresh button. */
     val refreshButton: ComponentFixture
-        get() = find(byXpath(".//div[@class='JButton']"), Duration.ofSeconds(5))
+        get() = find(byXpath(".//div[@class='JButton' and @text='Refresh']"), Duration.ofSeconds(5))
 
     /** Returns the currently displayed text in the combo box. */
     fun selectedSnapshotName(): String =
