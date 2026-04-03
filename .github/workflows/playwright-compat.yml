@@ -5,15 +5,18 @@ on:
     - cron: '0 8 * * *'  # Daily at 08:00 UTC
   workflow_dispatch:       # Manual trigger
 
+permissions:
+  issues: write
+
 jobs:
   check-compatibility:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '24'
 
       - name: Get latest Playwright version
         id: version
@@ -23,7 +26,7 @@ jobs:
           echo "Latest Playwright version: $LATEST"
 
       - name: Install dependencies
-        working-directory: packages/snapshot-saver
+        working-directory: packages/playwright-snapshot-saver
         run: |
           npm install
           npm install playwright@${{ steps.version.outputs.latest }} playwright-core@${{ steps.version.outputs.latest }} @playwright/test@${{ steps.version.outputs.latest }}
@@ -35,7 +38,7 @@ jobs:
 
       - name: Create issue on failure
         if: failure()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const version = '${{ steps.version.outputs.latest }}';
