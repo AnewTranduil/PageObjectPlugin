@@ -137,10 +137,11 @@ class HighlightBridgeUiTest : BaseUiTest() {
         // Note: LOCATOR_BUTTON_LINE (14) is skipped because its selector
         // 'button[type="submit"]' contains mixed quotes that LocatorExtractor
         // can't parse (nested " inside ' breaks the single-pass regex).
+        // LOCATOR_ERROR_LINE (15) is skipped because #flash.error doesn't exist
+        // in the login/initial snapshot (only appears in error-state snapshot).
         val locatorLines = listOf(
             LOCATOR_USERNAME_LINE to "#username",
             LOCATOR_PASSWORD_LINE to "#password",
-            LOCATOR_ERROR_LINE    to "#flash.error",
         )
 
         for ((line, description) in locatorLines) {

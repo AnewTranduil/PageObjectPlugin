@@ -2,18 +2,19 @@ package com.github.artem.pageobjectplugin.ui
 
 import com.intellij.remoterobot.RemoteRobot
 import com.intellij.remoterobot.fixtures.CommonContainerFixture
+import com.intellij.remoterobot.fixtures.ComponentFixture
 import com.intellij.remoterobot.search.locators.byXpath
 import com.intellij.remoterobot.utils.waitFor
-import okhttp3.OkHttpClient
-import okhttp3.Request
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.extension.ExtendWith
 import java.net.HttpURLConnection
 import java.net.URI
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Duration
+import javax.imageio.ImageIO
 
 /**
  * Base class for all Page Mirror UI tests.
@@ -23,6 +24,7 @@ import java.time.Duration
  *   - The IDE was started with test-project/ open (configured in build.gradle.kts)
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@ExtendWith(ScreenshotOnFailureExtension::class)
 abstract class BaseUiTest {
 
     protected val robot: RemoteRobot by lazy {
@@ -52,8 +54,53 @@ abstract class BaseUiTest {
         // Bring IDE to front — the window may be minimized/iconified
         bringIdeToFront()
 
-        // Give the IDE a moment to finish indexing
-        Thread.sleep(3_000)
+        // Give the IDE a moment to finish indexing (longer in CI)
+        Thread.sleep(5_000)
+
+        // Ensure the Page Mirror tool window is open before any tests run
+        openToolWindow()
+        waitFor(Duration.ofSeconds(30)) {
+            try {
+                robot.find<CommonContainerFixture>(
+                    byXpath("//div[@class='InternalDecoratorImpl' and contains(@accessiblename, 'Page Mirror')]"),
+                    Duration.ofSeconds(5)
+                )
+                true
+            } catch (_: Exception) {
+                System.err.println("[waitForIde] Page Mirror tool window not yet visible, retrying...")
+                openToolWindow()
+                false
+            }
+        }
+
+        // Take a diagnostic screenshot of the IDE state
+        takeScreenshot("after-tool-window-open")
+
+        // Open a .ts file to trigger snapshot discovery, then wait for it to complete
+        openFileInEditor("login.page.ts")
+        triggerVfsRefresh()
+        waitFor(Duration.ofSeconds(60)) {
+            try {
+                val tw = robot.find<CommonContainerFixture>(
+                    byXpath("//div[@class='InternalDecoratorImpl' and contains(@accessiblename, 'Page Mirror')]"),
+                    Duration.ofSeconds(5)
+                )
+                val combo = tw.find<ComponentFixture>(
+                    byXpath(".//div[@class='JComboBox' or @class='ComboBox']"),
+                    Duration.ofSeconds(3)
+                )
+                val selected: String = combo.callJs("component.getSelectedItem() != null ? '' + component.getSelectedItem() : ''")
+                val ready = selected.isNotBlank() && !selected.contains("No snapshots")
+                if (!ready) {
+                    System.err.println("[waitForIde] Snapshot combo not ready yet: '$selected'")
+                }
+                ready
+            } catch (e: Exception) {
+                System.err.println("[waitForIde] Snapshot discovery check failed: ${e.message}")
+                false
+            }
+        }
+        System.err.println("[waitForIde] Snapshot discovery complete, tests can proceed")
     }
 
     private fun ensureRobotServerReachable() {
@@ -83,11 +130,10 @@ abstract class BaseUiTest {
 
     // ── Screenshot helper ─────────────────────────────────────────────────────
 
-    private val screenshotDir: Path = Path.of("build/reports/tests/uiTest/screenshots")
+    private val screenshotDir: Path = Path.of("build/screenshots/uiTest")
 
     /**
-     * Captures a screenshot of the IDE window and saves it as a PNG.
-     * Uses the Remote Robot server's /screenshot HTTP endpoint.
+     * Captures a full-screen screenshot via Remote Robot API and saves it as PNG.
      * [label] is a short descriptive tag (e.g. "after-snapshot-load").
      */
     protected fun takeScreenshot(label: String) {
@@ -98,18 +144,9 @@ abstract class BaseUiTest {
             val fileName = "${className}_${label}_$timestamp.png"
             val filePath = screenshotDir.resolve(fileName)
 
-            val client = OkHttpClient()
-            val request = Request.Builder()
-                .url("$robotUrl/screenshot")
-                .build()
-            client.newCall(request).execute().use { response ->
-                if (response.isSuccessful && response.body != null) {
-                    Files.write(filePath, response.body!!.bytes())
-                    println("[screenshot] Saved: $filePath")
-                } else {
-                    System.err.println("[screenshot] Server returned ${response.code} for '$label'")
-                }
-            }
+            val image = robot.getScreenshot()
+            ImageIO.write(image, "png", filePath.toFile())
+            println("[screenshot] Saved: $filePath")
         } catch (e: Exception) {
             System.err.println("[screenshot] Failed to capture '$label': ${e.message}")
         }
@@ -199,6 +236,22 @@ abstract class BaseUiTest {
             true
         """, runInEdt = true)
         Thread.sleep(500)
+    }
+
+    /**
+     * Forces a VFS refresh so externally-placed snapshot files become visible to the IDE.
+     * Critical in CI where files exist on disk but VFS hasn't picked them up yet.
+     */
+    protected fun triggerVfsRefresh() {
+        try {
+            ideFrame().callJs<Boolean>("""
+                com.intellij.openapi.vfs.VirtualFileManager.getInstance().refreshWithoutFileWatcher(true)
+                true
+            """, runInEdt = true)
+            Thread.sleep(2_000)
+        } catch (e: Exception) {
+            System.err.println("[triggerVfsRefresh] failed: ${e.message}")
+        }
     }
 
     /**

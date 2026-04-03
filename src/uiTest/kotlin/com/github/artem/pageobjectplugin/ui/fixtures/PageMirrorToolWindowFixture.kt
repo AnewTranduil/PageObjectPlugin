@@ -23,11 +23,11 @@ class PageMirrorToolWindowFixture(robot: RemoteRobot, component: RemoteComponent
 
     /** The snapshot selector combo box. */
     val comboBox: ComponentFixture
-        get() = find(byXpath(".//div[@class='JComboBox']"), Duration.ofSeconds(5))
+        get() = find(byXpath(".//div[@class='JComboBox' or @class='ComboBox']"), Duration.ofSeconds(5))
 
     /** The Refresh button. */
     val refreshButton: ComponentFixture
-        get() = find(byXpath(".//div[@class='JButton']"), Duration.ofSeconds(5))
+        get() = find(byXpath(".//div[@class='JButton' and @text='Refresh']"), Duration.ofSeconds(5))
 
     /** Returns the currently displayed text in the combo box. */
     fun selectedSnapshotName(): String =
@@ -85,7 +85,7 @@ class PageMirrorToolWindowFixture(robot: RemoteRobot, component: RemoteComponent
             "//div[@class='InternalDecoratorImpl' and contains(@accessiblename, 'Page Mirror')]"
 
         fun find(robot: RemoteRobot): PageMirrorToolWindowFixture =
-            robot.find(byXpath(TOOL_WINDOW_XPATH), Duration.ofSeconds(10))
+            robot.find(byXpath(TOOL_WINDOW_XPATH), Duration.ofSeconds(30))
 
         fun isVisible(robot: RemoteRobot): Boolean = try {
             robot.findAll<ComponentFixture>(byXpath(TOOL_WINDOW_XPATH)).isNotEmpty()
