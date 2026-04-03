@@ -89,10 +89,20 @@ class SnapshotService(private val project: Project) {
         availableSnapshots = bundles
         snapshotListeners.forEach { it() }
 
-        if (currentBundle == null && bundles.isNotEmpty()) {
+        if (bundles.isEmpty()) {
+            clearSnapshot()
+        } else if (currentBundle == null) {
             LOG.info("No current bundle, auto-loading first: ${bundles.first().htmlPath}")
             loadSnapshot(bundles.first())
         }
+    }
+
+    fun clearSnapshot() {
+        LOG.info("clearSnapshot: resetting to empty state")
+        currentBundle = null
+        snapshotDocument = null
+        jsExecutor("window.clearSnapshot();")
+        restartAnnotations()
     }
 
     fun loadSnapshot(bundle: SnapshotBundle) {
