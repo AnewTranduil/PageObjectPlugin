@@ -35,6 +35,21 @@ jobs:
           name: unit-test-reports
           path: build/reports/tests/test/
 
+      - name: Upload test report to dashboard
+        if: success() || failure()
+        run: |
+          cd build/reports/tests/test && zip -r ../../../../unit-test-report.zip . && cd ../../../..
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.RD_TOKEN }}" \
+            -F "report=@unit-test-report.zip" \
+            "https://reports.artemon.cloud/api/v1/upload?\
+          suite=unit-tests&\
+          run_id=${{ github.run_id }}&\
+          run_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}&\
+          job_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}&\
+          git_ref=${{ github.ref_name }}&\
+          git_sha=${{ github.sha }}"
+
   ui-tests:
     name: UI E2E Tests
     runs-on: ubuntu-latest
@@ -99,6 +114,21 @@ jobs:
             build/screenshots/uiTest/
             build/idea-sandbox/system/log/
 
+      - name: Upload UI test report to dashboard
+        if: success() || failure()
+        run: |
+          cd build/reports/tests/uiTest && zip -r ../../../../ui-test-report.zip . && cd ../../../..
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.RD_TOKEN }}" \
+            -F "report=@ui-test-report.zip" \
+            "https://reports.artemon.cloud/api/v1/upload?\
+          suite=ui-tests&\
+          run_id=${{ github.run_id }}&\
+          run_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}&\
+          job_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}&\
+          git_ref=${{ github.ref_name }}&\
+          git_sha=${{ github.sha }}"
+
   playwright-tests:
     name: Playwright Snapshot Saver Tests
     runs-on: ubuntu-latest
@@ -122,7 +152,7 @@ jobs:
 
       - name: Run Playwright tests
         working-directory: packages/playwright-snapshot-saver
-        run: npm test
+        run: npx playwright test --reporter=list,html
 
       - name: Upload Playwright reports
         if: failure()
@@ -130,3 +160,18 @@ jobs:
         with:
           name: playwright-test-reports
           path: packages/playwright-snapshot-saver/test-results/
+
+      - name: Upload Playwright report to dashboard
+        if: success() || failure()
+        run: |
+          cd packages/playwright-snapshot-saver/playwright-report && zip -r ../../../playwright-report.zip . && cd ../../..
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.RD_TOKEN }}" \
+            -F "report=@playwright-report.zip" \
+            "https://reports.artemon.cloud/api/v1/upload?\
+          suite=playwright-tests&\
+          run_id=${{ github.run_id }}&\
+          run_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}&\
+          job_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}&\
+          git_ref=${{ github.ref_name }}&\
+          git_sha=${{ github.sha }}"
