@@ -138,6 +138,7 @@ When investigating Gradle plugin APIs or build tooling, prefer reading project d
 ## Workflow Rules
 
 - **Never use `node -e` for ad-hoc verification.** Always create a proper test (unit or integration) instead of running inline scripts. Tests are reusable, documented, and run in CI.
+- **No Claude attribution in git artifacts.** Do NOT add "Generated with Claude Code", "Co-Authored-By: Claude", `https://claude.ai/code` links, or any similar attribution to commit messages or PR descriptions. Keep commits and PRs clean of tool-identifying footers.
 
 ## Common Pitfalls
 
