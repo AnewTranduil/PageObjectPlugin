@@ -4,10 +4,17 @@ import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 plugins {
     id("org.jetbrains.kotlin.jvm") version "2.1.0"
     id("org.jetbrains.intellij.platform")
+    id("org.jetbrains.changelog") version "2.2.1"
 }
 
 group = providers.gradleProperty("pluginGroup").get()
 version = providers.gradleProperty("pluginVersion").get()
+
+changelog {
+    version = providers.gradleProperty("pluginVersion")
+    groups.set(listOf("Added", "Changed", "Fixed", "Removed"))
+    repositoryUrl = "https://github.com/AnewTranduil/PageObjectPlugin"
+}
 
 val remoteRobotVersion = "0.11.23"
 
@@ -63,6 +70,17 @@ intellijPlatform {
 
         ideaVersion {
             sinceBuild = "243"
+        }
+
+        changeNotes = provider {
+            with(changelog) {
+                renderItem(
+                    (getOrNull(providers.gradleProperty("pluginVersion").get()) ?: getUnreleased())
+                        .withHeader(false)
+                        .withEmptySections(false),
+                    org.jetbrains.changelog.Changelog.OutputType.HTML,
+                )
+            }
         }
     }
 
