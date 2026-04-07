@@ -147,3 +147,64 @@ When investigating Gradle plugin APIs or build tooling, prefer reading project d
 - **File watcher misses:** External changes (from Playwright) may not trigger `VirtualFileListener`. Call `VirtualFileManager.getInstance().refreshWithoutFileWatcher()`.
 - **Stale gutter annotations:** Call `DaemonCodeAnalyzer.getInstance(project).restart()` after snapshot reload.
 - **JCEF debugging:** Remote debugging available on port 9222.
+
+## Report Dashboard Access
+
+CI publishes Playwright report bundles to the `reportdashboard` service
+(repo: `anewtranduil/reportdashboard`). Future Claude Code sessions can both
+upload new reports and **read past reports** using the same bearer token.
+
+- **Base URL**: `https://reports.artemon.cloud` (override via
+  `REPORT_DASHBOARD_URL`).
+- **Auth**: `Authorization: Bearer $REPORT_DASHBOARD_TOKEN`. The token is
+  bound to a single project (this plugin's) — no slug needs to be passed.
+  Never log or echo the token.
+- **Whitelisted past Authentik** (see Traefik labels in
+  `reportdashboard/docker-compose.yml`): only `/health`, `/api/v1/upload`,
+  `/api/v1/executions/*`, and `/api/v1/external/*`. Any other path returns a
+  302 to `auth.artemon.cloud` and must NOT be scripted.
+
+### Upload (used by `.github/workflows/ci.yml`)
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/api/v1/upload` | Upload one suite's report bundle (`-F report=@bundle.zip` + `suite`, `run_id`, `run_url`, `job_url`, `git_ref`, `git_sha`) |
+| POST | `/api/v1/executions/{run_id}/finalize` | Finalize a run after every suite has been uploaded |
+
+### Read (use from a local shell or Claude session)
+
+All responses are JSON `{"ok":true,"data":...}` except the file-serving route.
+
+| Method | Path | Returns |
+|---|---|---|
+| GET | `/api/v1/external/project` | Project metadata (`slug`, `name`, `github_repo`, `max_executions`) |
+| GET | `/api/v1/external/runs` | Array of executions, newest first, each with `run_id`, `status`, `git_ref`, `git_sha`, `run_url`, `suite_count` |
+| GET | `/api/v1/external/runs/{run_id}` | Execution details + list of suites (`slug`, `name`, `job_url`, `size_bytes`, `file_count`) |
+| GET | `/api/v1/external/runs/{run_id}/{suite}/{path...}` | Raw file from the report; a directory path falls back to `index.html` |
+
+Example — find the latest run and download its rendered HTML report for the
+`chromium` suite:
+
+```bash
+BASE="${REPORT_DASHBOARD_URL:-https://reports.artemon.cloud}"
+AUTH="Authorization: Bearer $REPORT_DASHBOARD_TOKEN"
+
+RUN_ID=$(curl -sH "$AUTH" "$BASE/api/v1/external/runs" \
+           | jq -r '.data[0].run_id')
+
+curl -sH "$AUTH" "$BASE/api/v1/external/runs/$RUN_ID" | jq .
+
+curl -sH "$AUTH" \
+  "$BASE/api/v1/external/runs/$RUN_ID/chromium/index.html" \
+  -o report.html
+```
+
+### Troubleshooting
+
+- **302 to `auth.artemon.cloud/application/o/authorize/...`** → the path is
+  not in the Authentik whitelist. Only `/health`, `/api/v1/upload`,
+  `/api/v1/executions/*`, and `/api/v1/external/*` bypass Authentik.
+- **`{"ok":false,"error":"Missing API key"}`** → the bearer header was not
+  sent or was rejected. Re-check `REPORT_DASHBOARD_TOKEN`.
+- **404 on a file path** → the suite slug is case-sensitive and must match
+  what CI uploaded; list suites via `/api/v1/external/runs/{run_id}` first.
