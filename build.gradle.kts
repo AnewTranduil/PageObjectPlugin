@@ -3,6 +3,7 @@ import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 
 plugins {
     id("org.jetbrains.kotlin.jvm") version "2.1.0"
+    id("org.jetbrains.kotlin.plugin.serialization") version "2.1.0"
     id("org.jetbrains.intellij.platform")
     id("org.jetbrains.changelog") version "2.2.1"
 }
@@ -56,6 +57,7 @@ dependencies {
     "uiTestImplementation"("org.junit.jupiter:junit-jupiter:5.10.1")
     "uiTestImplementation"("com.squareup.okhttp3:okhttp:4.12.0")
     "uiTestImplementation"("com.squareup.okhttp3:logging-interceptor:4.12.0")
+    "uiTestImplementation"("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     "uiTestRuntimeOnly"("org.junit.platform:junit-platform-launcher")
 }
 
@@ -120,6 +122,10 @@ intellijPlatformTesting {
                         "-Deap.require.license=false",
                         "-Dide.show.tips.on.startup.default.value=false",
                         "-Dide.browser.jcef.sandbox.enable=false",
+                        // Expose JCEF Chrome DevTools Protocol so TraceBundleExtension
+                        // can subscribe to Runtime.consoleAPICalled and capture the
+                        // tool window's console output on test failure.
+                        "-Dide.browser.jcef.debug.port=9222",
                         "-Djava.awt.headless=false",
                         "-Dsun.java2d.xrender=false",
                         "-Xmx2g",
@@ -152,5 +158,17 @@ tasks {
         jvmArgs("--add-opens", "java.base/java.lang=ALL-UNNAMED")
         systemProperty("robot-server.url", System.getProperty("robot-server.url", "http://localhost:8082"))
         systemProperty("ui.test.project.dir", rootDir.resolve("packages/test-project").absolutePath)
+        // -PcaptureAllTraces=true forces TraceBundleExtension to write a bundle
+        // for every test (passing or failing). Default writes only on failure.
+        systemProperty(
+            "ui.test.captureAllTraces",
+            providers.gradleProperty("captureAllTraces").orElse("false").get(),
+        )
+        // Sandbox path so TraceBundleExtension can locate idea.log under
+        // build/idea-sandbox/system/log/ regardless of IPG layout changes.
+        systemProperty(
+            "ui.test.sandbox.dir",
+            layout.buildDirectory.dir("idea-sandbox").get().asFile.absolutePath,
+        )
     }
 }

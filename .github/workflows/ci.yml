@@ -111,6 +111,7 @@ jobs:
           name: ui-test-reports
           path: |
             build/reports/tests/uiTest/
+            build/reports/uiTest/traces/
             build/screenshots/uiTest/
             build/idea-sandbox/system/log/
 

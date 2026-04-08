@@ -2,6 +2,8 @@ package com.github.artem.pageobjectplugin.ui
 
 import com.github.artem.pageobjectplugin.ui.fixtures.PageMirrorToolWindowFixture
 import com.github.artem.pageobjectplugin.ui.support.RetryOnceExtension
+import com.github.artem.pageobjectplugin.ui.support.StepRecorder
+import com.github.artem.pageobjectplugin.ui.support.TraceBundleExtension
 import com.github.artem.pageobjectplugin.ui.support.Wait
 import com.intellij.remoterobot.RemoteRobot
 import com.intellij.remoterobot.fixtures.CommonContainerFixture
@@ -14,10 +16,8 @@ import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.extension.ExtendWith
 import java.net.HttpURLConnection
 import java.net.URI
-import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Duration
-import javax.imageio.ImageIO
 
 /**
  * Base class for all Page Mirror UI tests.
@@ -28,7 +28,7 @@ import javax.imageio.ImageIO
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @ExtendWith(RetryOnceExtension::class)
-@ExtendWith(ScreenshotOnFailureExtension::class)
+@ExtendWith(TraceBundleExtension::class)
 abstract class BaseUiTest {
 
     protected val robot: RemoteRobot by lazy {
@@ -156,26 +156,14 @@ abstract class BaseUiTest {
 
     // ── Screenshot helper ─────────────────────────────────────────────────────
 
-    private val screenshotDir: Path = Path.of("build/screenshots/uiTest")
-
     /**
-     * Captures a full-screen screenshot via Remote Robot API and saves it as PNG.
-     * [label] is a short descriptive tag (e.g. "after-snapshot-load").
+     * Records a marker step. The screenshot is captured by [StepRecorder.step]
+     * and materialized into the per-test trace bundle by [TraceBundleExtension].
+     * Test classes that called this in the legacy code path keep working
+     * unchanged — their screenshots now appear inside `trace.json` steps.
      */
     protected fun takeScreenshot(label: String) {
-        try {
-            Files.createDirectories(screenshotDir)
-            val className = this::class.simpleName ?: "Unknown"
-            val timestamp = System.currentTimeMillis()
-            val fileName = "${className}_${label}_$timestamp.png"
-            val filePath = screenshotDir.resolve(fileName)
-
-            val image = robot.getScreenshot()
-            ImageIO.write(image, "png", filePath.toFile())
-            println("[screenshot] Saved: $filePath")
-        } catch (e: Exception) {
-            System.err.println("[screenshot] Failed to capture '$label': ${e.message}")
-        }
+        StepRecorder.step(label, robot) { /* marker step — capture only */ }
     }
 
     // ── Component helpers ─────────────────────────────────────────────────────
