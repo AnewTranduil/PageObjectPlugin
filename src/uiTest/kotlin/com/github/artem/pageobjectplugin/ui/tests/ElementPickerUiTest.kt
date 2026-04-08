@@ -125,13 +125,14 @@ class ElementPickerUiTest : BaseUiTest() {
             var __cl = __plugin.getPluginClassLoader()
             var __handlerClass = __cl.loadClass("com.github.artem.pageobjectplugin.locators.PickerResultHandler")
             var __project = com.intellij.openapi.project.ProjectManager.getInstance().getOpenProjects()[0]
-            var __ctor = __handlerClass.getConstructor(com.intellij.openapi.project.Project.class)
+            // Rhino JS does not support the Java `.class` literal suffix. Use
+            // Class.forName(...) to obtain Class<?> objects and pass them to
+            // the reflection APIs.
+            var __projectClass = java.lang.Class.forName("com.intellij.openapi.project.Project", true, __cl)
+            var __stringClass = java.lang.Class.forName("java.lang.String")
+            var __ctor = __handlerClass.getConstructor(__projectClass)
             var __handler = __ctor.newInstance(__project)
-            var __method = __handlerClass.getMethod(
-                "insertLocatorForTest",
-                java.lang.String.class,
-                java.lang.String.class
-            )
+            var __method = __handlerClass.getMethod("insertLocatorForTest", __stringClass, __stringClass)
             var __bytes = java.util.Base64.getDecoder().decode("$base64Json")
             var __json = new java.lang.String(__bytes, java.nio.charset.StandardCharsets.UTF_8)
             var __result = __method.invoke(__handler, __json, "Property")
