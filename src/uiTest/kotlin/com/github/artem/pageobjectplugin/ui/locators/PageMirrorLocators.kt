@@ -46,29 +46,47 @@ object PageMirrorLocators {
     )
 
     // ── Settings dialog ──────────────────────────────────────────────────────
+    //
+    // All four testable fields have explicit accessible names set by
+    // PageMirrorConfigurable (see main/...settings/PageMirrorConfigurable.kt)
+    // so locators do not depend on IntelliJ UI DSL's labelFor propagation or
+    // on the concrete runtime class (JBIntSpinner, JBTextField, JBCheckBox,
+    // ComboBox, ...). Accessible names are standard Swing accessibility —
+    // setting them is a no-cost improvement that also helps screen readers.
 
     val settingsPageMirrorPanel: Locator = byXpath(
         "//div[@class='DialogRootPane']//div[@accessiblename='Page Mirror']"
     )
 
-    /** Generic JSpinner inside the dialog body — used as the "dialog ready" probe. */
-    val settingsAnySpinner: Locator =
-        byXpath("//div[@class='DialogRootPane']//div[@class='JSpinner']")
+    /**
+     * "Dialog ready" probe — the spinner is the first Page Mirror-specific
+     * control that appears inside the dialog body, so we poll for it to
+     * confirm the dialog finished rendering.
+     */
+    val settingsAnySpinner: Locator = byXpath(
+        "//div[@class='DialogRootPane']//div[@accessiblename='Snapshot search depth']"
+    )
 
     val settingsSearchDepthSpinner: Locator =
-        byXpath(".//div[@class='JSpinner']")
+        byXpath(".//div[@accessiblename='Snapshot search depth']")
 
-    val settingsSearchDepthField: Locator =
-        byXpath(".//div[@class='JSpinner']//div[@class='JFormattedTextField']")
+    /**
+     * The editable text field inside the spinner. IntelliJ's JBIntSpinner
+     * uses a JFormattedTextField for the value editor; we target it by class
+     * name to click/focus it before typing a new value.
+     */
+    val settingsSearchDepthField: Locator = byXpath(
+        ".//div[@accessiblename='Snapshot search depth']//div[contains(@class,'FormattedTextField')]"
+    )
 
     val settingsAutoReloadCheckbox: Locator =
-        byXpath(".//div[@class='JCheckBox']")
+        byXpath(".//div[@accessiblename='Auto-reload on file change']")
 
     val settingsHighlightColorField: Locator =
-        byXpath(".//div[@class='JTextField']")
+        byXpath(".//div[@accessiblename='Highlight color']")
 
     val settingsCodeGenCombo: Locator =
-        byXpath(".//div[@class='JComboBox']")
+        byXpath(".//div[@accessiblename='Code generation style']")
 
     // ── Status bar ───────────────────────────────────────────────────────────
 

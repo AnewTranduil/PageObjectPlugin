@@ -5,11 +5,8 @@ import com.github.artem.pageobjectplugin.ui.fixtures.PageMirrorToolWindowFixture
 import com.github.artem.pageobjectplugin.ui.fixtures.SnapshotBrowserFixture
 import com.github.artem.pageobjectplugin.ui.pages.EditorPage
 import com.github.artem.pageobjectplugin.ui.pages.PluginToolWindowPage
-import com.intellij.remoterobot.fixtures.ComponentFixture
-import com.intellij.remoterobot.search.locators.byXpath
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.time.Duration
@@ -106,77 +103,129 @@ class ElementPickerUiTest : BaseUiTest() {
     }
 
     /**
+     * Simulates a JCEF inspect click by calling `PickerResultHandler`'s
+     * test-only entry point directly with fabricated element JSON. Bypasses
+     * the real click + popup since both are unreliable under Xvfb:
+     *   - JCEF click routing via Xvfb doesn't always reach the iframe
+     *   - JBPopupFactory's list popup requires real keyboard focus
+     * The helper exercises everything downstream (JSON parse, locator +
+     * field-name generation, WriteAction + document insertion, service
+     * state sync), which is the business logic we want to validate.
+     *
+     * The JSON is base64-encoded on the Kotlin side and decoded inside the
+     * JS payload so nested quotes and backslashes don't need escaping.
+     */
+    private fun simulatePickerElementClick(jsonString: String): String {
+        val base64Json = java.util.Base64.getEncoder()
+            .encodeToString(jsonString.toByteArray(Charsets.UTF_8))
+        return ideFrame().callJs<String>(
+            """
+            var __pluginId = com.intellij.openapi.extensions.PluginId.getId("com.github.artem.pageobjectplugin")
+            var __plugin = com.intellij.ide.plugins.PluginManagerCore.getPlugin(__pluginId)
+            var __cl = __plugin.getPluginClassLoader()
+            var __handlerClass = __cl.loadClass("com.github.artem.pageobjectplugin.locators.PickerResultHandler")
+            var __project = com.intellij.openapi.project.ProjectManager.getInstance().getOpenProjects()[0]
+            var __ctor = __handlerClass.getConstructor(com.intellij.openapi.project.Project.class)
+            var __handler = __ctor.newInstance(__project)
+            var __method = __handlerClass.getMethod(
+                "insertLocatorForTest",
+                java.lang.String.class,
+                java.lang.String.class
+            )
+            var __bytes = java.util.Base64.getDecoder().decode("$base64Json")
+            var __json = new java.lang.String(__bytes, java.nio.charset.StandardCharsets.UTF_8)
+            var __result = __method.invoke(__handler, __json, "Property")
+            __result == null ? "" : ("" + __result)
+            """.trimIndent(),
+            runInEdt = true,
+        )
+    }
+
+    private fun activeEditorText(): String {
+        return ideFrame().callJs<String>(
+            """
+            var project = com.intellij.openapi.project.ProjectManager.getInstance().getOpenProjects()[0]
+            var editor = com.intellij.openapi.fileEditor.FileEditorManager.getInstance(project).getSelectedTextEditor()
+            editor != null ? editor.getDocument().getText() : ""
+            """.trimIndent(),
+            runInEdt = true,
+        )
+    }
+
+    /**
      * UT-15: Clicking an element in the JCEF snapshot while in inspect mode inserts
      * a Playwright locator into the currently active editor.
      *
-     * The login snapshot contains a button element at approximately (527, 341) in the
-     * 1280×720 viewport.  We click the JCEF component at a proportionally scaled position.
+     * Under Xvfb the real JCEF click is unreliable so we exercise the
+     * `PickerResultHandler.insertLocatorForTest` entry point directly with
+     * fabricated ElementData matching the login-button. See
+     * [simulatePickerElementClick] for the rationale.
      */
-    @Disabled("CI: JCEF inspect mode click interaction unreliable under Xvfb")
     @Test
     fun `clicking element in inspect mode inserts locator into editor`() {
-        // Position caret at end of class body for insertion
         editor.openFileInEditor("login.page.ts")
         editor.goToLine(8)  // line after last property
 
-        // Activate inspect mode
-        toggleInspectMode()
-
+        // Activate inspect mode first so we can verify auto-exit below
         val toolWindow = PageMirrorToolWindowFixture.find(robot)
         val browser = SnapshotBrowserFixture.findInsideToolWindow(toolWindow)
+        if (!browser.isInspectModeActive()) {
+            toggleInspectMode()
+        }
+        assertTrue(browser.isInspectModeActive(), "Inspect mode must be active before simulated click")
         takeScreenshot("before-inspect-click")
-        assertTrue(browser.isInspectModeActive(), "Inspect mode must be active before clicking")
 
-        // Click the login button area in the JCEF component
-        // The button is roughly centered in the snapshot; click the JCEF component
-        // at a position that maps to the button (approx. 40% from left, 50% from top)
-        browser.click()  // clicks center by default — adjust with .moveMouse() if needed
-        Thread.sleep(1_500)
-
+        val elementJson = """
+            {"selector":"button[type=\"submit\"]","tag":"button","role":"button","text":"Login","attributes":{"type":"submit","data-testid":"login-button"}}
+        """.trimIndent()
+        val inserted = simulatePickerElementClick(elementJson)
         takeScreenshot("after-inspect-click")
-        // Inspect mode should exit automatically after click
+
+        // The helper resets the inspect-mode flag; verify it took effect.
         assertFalse(
             browser.isInspectModeActive(),
-            "Inspect mode should auto-exit after element click"
+            "Inspect mode should auto-exit after insertLocatorForTest",
         )
 
-        // The editor should now contain a new locator line
-        val editorContent = ideFrame()
-            .find<ComponentFixture>(
-                byXpath("//div[@class='EditorComponentImpl']"),
-                Duration.ofSeconds(5)
-            )
-            .callJs<String>("component.getDocument().getText()")
+        // The helper returns the inserted code; assert it looks like a locator.
+        assertTrue(
+            inserted.contains("getByTestId") || inserted.contains("page.locator") ||
+                inserted.contains("getByRole") || inserted.contains("getByText"),
+            "Returned inserted code should be a Playwright locator, was: '$inserted'",
+        )
 
-        val hasLocator = editorContent.contains("page.getBy") ||
-            editorContent.contains("page.locator")
-        assertTrue(hasLocator, "Editor should contain a newly inserted Playwright locator")
+        // And the editor should now contain that code.
+        val content = activeEditorText()
+        assertTrue(
+            content.contains("page.getBy") || content.contains("page.locator"),
+            "Editor should contain a newly inserted Playwright locator",
+        )
     }
 
     /**
      * UT-16: Inspect mode exits automatically after an element is clicked.
-     * Covered in UT-15 as part of the same flow.
+     *
+     * Same Xvfb rationale as UT-15 — we call the test-only helper instead
+     * of issuing a real JCEF click.
      */
-    @Disabled("CI: JCEF inspect mode click interaction unreliable under Xvfb")
     @Test
     fun `inspect mode auto exits after element click`() {
         val toolWindow = PageMirrorToolWindowFixture.find(robot)
         val browser = SnapshotBrowserFixture.findInsideToolWindow(toolWindow)
 
-        // Activate inspect mode
         if (!browser.isInspectModeActive()) {
             toggleInspectMode()
         }
-        assertTrue(browser.isInspectModeActive(), "Inspect mode must be on before click")
+        assertTrue(browser.isInspectModeActive(), "Inspect mode must be on before simulated click")
 
-        // Click an element
-        browser.click()
-        Thread.sleep(1_500)
+        simulatePickerElementClick(
+            """{"selector":"#username","tag":"input","role":null,"text":null,"attributes":{"id":"username"}}""",
+        )
 
         takeScreenshot("after-auto-exit-click")
         assertFalse(
             browser.isInspectModeActive(),
-            "Inspect mode should be off after clicking an element"
+            "Inspect mode should be off after insertLocatorForTest",
         )
     }
 }

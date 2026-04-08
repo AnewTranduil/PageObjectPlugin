@@ -7,25 +7,19 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 
 /**
  * UI tests: UT-21 to UT-25 — Settings dialog.
  *
  * Reference example for [SettingsChangeFlow] + [com.github.artem.pageobjectplugin.ui.pages.PluginSettingsPage]
- * composition. Currently `@Disabled` because the IntelliJ UI DSL wraps form
- * controls (JSpinner, JTextField, JComboBox) under different XPath classes
- * than the locators in [com.github.artem.pageobjectplugin.ui.locators.PageMirrorLocators]
- * expect — re-enable after [com.github.artem.pageobjectplugin.ui.locators.PageMirrorLocators]
- * is rewritten with accessiblename-based selectors.
+ * composition. Enabled after `PageMirrorConfigurable` was given explicit
+ * accessible names on its four testable fields (see
+ * `main/...settings/PageMirrorConfigurable.kt`) and the settings locators in
+ * [com.github.artem.pageobjectplugin.ui.locators.PageMirrorLocators] were
+ * rewritten to match those accessible names instead of relying on UI DSL
+ * class-name quirks (JBIntSpinner vs JSpinner, etc.).
  */
-@Disabled(
-    "CI: Settings dialog components (JSpinner, JTextField, JComboBox) not " +
-        "found — IntelliJ UI DSL wraps them. Reference kept as a Page/Flow " +
-        "structural example. Re-enable after locators are rewritten to " +
-        "accessiblename-based XPaths."
-)
 class SettingsUiTest : BaseUiTest() {
 
     private val editor by lazy { EditorPage(robot) }
