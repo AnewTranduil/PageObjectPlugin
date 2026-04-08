@@ -103,29 +103,36 @@ abstract class BaseUiTest {
         System.err.println("[waitForIde] Snapshot discovery complete, tests can proceed")
     }
 
+    /**
+     * Fast-fail health check: HEAD-poll the robot server every 500ms for up to 30s.
+     * Any HTTP response (including 404/405) proves the socket is listening.
+     * If the server never appears, abort the test (treated as skipped, not failed)
+     * so running `uiTest` without `runIdeForUiTests` yields a clear "runner missing"
+     * signal in CI rather than a 2-minute hang.
+     */
     private fun ensureRobotServerReachable() {
-        val maxAttempts = 5
-        val delayMs = 2_000L
-        for (attempt in 1..maxAttempts) {
+        val deadline = System.nanoTime() + Duration.ofSeconds(30).toNanos()
+        val intervalMs = 500L
+        var lastError: String? = null
+        while (System.nanoTime() < deadline) {
             try {
                 val connection = URI(robotUrl).toURL()
                     .openConnection() as HttpURLConnection
-                connection.connectTimeout = 2_000
-                connection.readTimeout = 2_000
-                connection.requestMethod = "GET"
-                connection.responseCode
+                connection.connectTimeout = 400
+                connection.readTimeout = 400
+                connection.requestMethod = "HEAD"
+                val code = connection.responseCode
                 connection.disconnect()
-                return
-            } catch (_: Exception) {
-                if (attempt == maxAttempts) {
-                    Assumptions.abort<Unit>(
-                        "Robot server not reachable at $robotUrl after $maxAttempts attempts. " +
-                            "Is ./gradlew runIdeForUiTests running?"
-                    )
-                }
-                Thread.sleep(delayMs)
+                if (code in 100..599) return
+            } catch (e: Exception) {
+                lastError = "${e.javaClass.simpleName}: ${e.message}"
             }
+            Thread.sleep(intervalMs)
         }
+        Assumptions.abort<Unit>(
+            "Robot server not reachable at $robotUrl after 30s " +
+                "(last error: ${lastError ?: "none"}). Is ./gradlew runIdeForUiTests running?"
+        )
     }
 
     // ── Screenshot helper ─────────────────────────────────────────────────────
