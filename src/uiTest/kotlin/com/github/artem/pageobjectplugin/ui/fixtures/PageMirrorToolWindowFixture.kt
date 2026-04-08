@@ -1,13 +1,11 @@
 package com.github.artem.pageobjectplugin.ui.fixtures
 
+import com.github.artem.pageobjectplugin.ui.locators.PageMirrorLocators
+import com.github.artem.pageobjectplugin.ui.support.Wait
 import com.intellij.remoterobot.RemoteRobot
 import com.intellij.remoterobot.data.RemoteComponent
 import com.intellij.remoterobot.fixtures.CommonContainerFixture
 import com.intellij.remoterobot.fixtures.ComponentFixture
-import com.intellij.remoterobot.search.locators.byXpath
-import com.intellij.remoterobot.utils.keyboard
-import com.intellij.remoterobot.utils.waitFor
-import java.awt.event.KeyEvent
 import java.time.Duration
 
 /**
@@ -23,11 +21,11 @@ class PageMirrorToolWindowFixture(robot: RemoteRobot, component: RemoteComponent
 
     /** The snapshot selector combo box. */
     val comboBox: ComponentFixture
-        get() = find(byXpath(".//div[@class='JComboBox' or @class='ComboBox']"), Duration.ofSeconds(5))
+        get() = find(PageMirrorLocators.toolWindowCombo, Duration.ofSeconds(5))
 
     /** The Refresh button. */
     val refreshButton: ComponentFixture
-        get() = find(byXpath(".//div[@class='JButton' and @text='Refresh']"), Duration.ofSeconds(5))
+        get() = find(PageMirrorLocators.toolWindowRefreshButton, Duration.ofSeconds(5))
 
     /** Returns the currently displayed text in the combo box. */
     fun selectedSnapshotName(): String =
@@ -39,7 +37,14 @@ class PageMirrorToolWindowFixture(robot: RemoteRobot, component: RemoteComponent
      */
     fun selectSnapshot(partialName: String) {
         comboBox.click()
-        Thread.sleep(500)
+        // Wait for the popup to actually appear instead of a fixed sleep.
+        Wait.pollUntilTrue(
+            timeout = Duration.ofSeconds(3),
+            interval = Duration.ofMillis(50),
+            message = { "combo popup never opened" },
+        ) {
+            comboBox.callJs("component.isPopupVisible()", runInEdt = true)
+        }
         // Use callJs to iterate items and select the matching one
         comboBox.callJs<Boolean>("""
             var model = component.getModel()
@@ -52,7 +57,14 @@ class PageMirrorToolWindowFixture(robot: RemoteRobot, component: RemoteComponent
             }
             true
         """, runInEdt = true)
-        Thread.sleep(500)
+        // Wait for the selection to actually take effect.
+        Wait.pollUntilTrue(
+            timeout = Duration.ofSeconds(3),
+            interval = Duration.ofMillis(50),
+            message = { "selected snapshot never contained '$partialName'" },
+        ) {
+            selectedSnapshotName().contains(partialName)
+        }
     }
 
     /** Returns all snapshot names from the combo box model. */
@@ -71,24 +83,16 @@ class PageMirrorToolWindowFixture(robot: RemoteRobot, component: RemoteComponent
 
     /** True if the JCEF browser component is present and visible. */
     fun isBrowserVisible(): Boolean = try {
-        find<ComponentFixture>(
-            byXpath(
-                ".//div[@class='JBCefOsrComponent' " +
-                    "or @class='CefBrowserWr' or contains(@class, 'JBCefBrowser')]"
-            ),
-            Duration.ofSeconds(3)
-        ).isShowing
+        find<ComponentFixture>(PageMirrorLocators.jcefBrowserAny, Duration.ofSeconds(3))
+            .isShowing
     } catch (_: Exception) { false }
 
     companion object {
-        private const val TOOL_WINDOW_XPATH =
-            "//div[@class='InternalDecoratorImpl' and contains(@accessiblename, 'Page Mirror')]"
-
         fun find(robot: RemoteRobot): PageMirrorToolWindowFixture =
-            robot.find(byXpath(TOOL_WINDOW_XPATH), Duration.ofSeconds(30))
+            robot.find(PageMirrorLocators.toolWindowDecorator, Duration.ofSeconds(30))
 
         fun isVisible(robot: RemoteRobot): Boolean = try {
-            robot.findAll<ComponentFixture>(byXpath(TOOL_WINDOW_XPATH)).isNotEmpty()
+            robot.findAll<ComponentFixture>(PageMirrorLocators.toolWindowDecorator).isNotEmpty()
         } catch (_: Exception) { false }
     }
 }

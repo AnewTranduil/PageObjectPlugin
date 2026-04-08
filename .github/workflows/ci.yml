@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'claude/**']
   pull_request:
   workflow_dispatch:
 
@@ -104,6 +104,28 @@ jobs:
       - name: Run UI tests
         run: ./gradlew uiTest --info
 
+      - name: Dump trace bundles to log (diagnostic)
+        if: failure()
+        run: |
+          # Print the failure message + stack for every failed trace bundle.
+          # Makes CI logs self-diagnosing without needing to download the
+          # GH Actions artifact or query the report dashboard.
+          ./gradlew generateTraceIndex --quiet || true
+          if [ ! -d build/reports/uiTest/traces ]; then
+            echo "::warning::no trace bundles produced"
+            exit 0
+          fi
+          sudo apt-get install -y --no-install-recommends jq
+          find build/reports/uiTest/traces -maxdepth 2 -name 'trace.json' | sort | while read -r f; do
+            status=$(jq -r '.status // "?"' "$f")
+            name=$(jq -r '(.test.className // "?") + "." + (.test.method // "?")' "$f")
+            echo "::group::[$status] $name"
+            jq -r '.failure // empty | "message: " + .message + "\n" + (.stack // "" | .[0:1800])' "$f"
+            # Last 8 steps with error markers
+            jq -r '(.steps // [])[-8:] | .[] | "  \(.index // "?") [\(.durationMs // "?")ms] \(.label // "")\(if .error then "  !! " + .error else "" end)"' "$f"
+            echo "::endgroup::"
+          done
+
       - name: Upload UI test reports
         if: success() || failure()
         uses: actions/upload-artifact@v4
@@ -111,6 +133,7 @@ jobs:
           name: ui-test-reports
           path: |
             build/reports/tests/uiTest/
+            build/reports/uiTest/traces/
             build/screenshots/uiTest/
             build/idea-sandbox/system/log/
 
@@ -128,6 +151,27 @@ jobs:
           job_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}&\
           git_ref=${{ github.ref_name }}&\
           git_sha=${{ github.sha }}"
+
+      - name: Upload UI trace bundles to dashboard
+        if: success() || failure()
+        env:
+          RD_TOKEN: ${{ secrets.RD_TOKEN }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GIT_REF: ${{ github.ref_name }}
+          GIT_SHA: ${{ github.sha }}
+        run: |
+          # `finalizedBy("generateTraceIndex")` already wrote the index on the
+          # Gradle side; make doubly sure it exists before zipping so the
+          # dashboard suite URL always resolves to a landing page.
+          ./gradlew generateTraceIndex --quiet || true
+          if [ ! -d build/reports/uiTest/traces ] || [ -z "$(ls -A build/reports/uiTest/traces 2>/dev/null)" ]; then
+            echo "No trace bundles produced — skipping ui-test-traces upload."
+            exit 0
+          fi
+          (cd build/reports/uiTest/traces && zip -r ../../../../ui-test-traces.zip .)
+          URL="https://reports.artemon.cloud/api/v1/upload?suite=ui-test-traces&run_id=${RUN_ID}&run_url=${RUN_URL}&job_url=${RUN_URL}&git_ref=${GIT_REF}&git_sha=${GIT_SHA}"
+          curl -X POST -H "Authorization: Bearer ${RD_TOKEN}" -F "report=@ui-test-traces.zip" "$URL"
 
   playwright-tests:
     name: Playwright Snapshot Saver Tests

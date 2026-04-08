@@ -149,6 +149,38 @@ When investigating Gradle plugin APIs or build tooling, prefer reading project d
 - **Stale gutter annotations:** Call `DaemonCodeAnalyzer.getInstance(project).restart()` after snapshot reload.
 - **JCEF debugging:** Remote debugging available on port 9222.
 
+## UI Test Conventions
+
+UI tests live under `src/uiTest/kotlin/com/github/artem/pageobjectplugin/ui/`
+and run against a sandboxed IDE launched by `./gradlew runIdeForUiTests`.
+The layout was overhauled in Task 13 — follow these rules.
+
+- **Layering rule.** Tests call Flows or Pages, never raw fixtures.
+  Flows orchestrate multiple Pages. Pages compose Fixtures and call
+  `StepRecorder.step("...")` for each logical action so the action
+  shows up in `trace.json`. Fixtures contain no literal XPath strings —
+  every locator comes from `ui/locators/`.
+- **Polling.** Use `ui.support.Wait.pollUntil` / `pollUntilTrue`. Never
+  `Thread.sleep` in infrastructure code (BaseUiTest + fixtures + pages).
+  A rare bounded sleep is allowed only with a `TODO(13b)` comment
+  explaining why no completion signal exists.
+- **Diagnostics.** Failures produce a trace bundle at
+  `build/reports/uiTest/traces/<Class>__<method>/` with `trace.json`,
+  `idea.log`, `dom.html`, `jcef-console.log`, `threads.txt`, and
+  `screenshots/`. Pass `-PcaptureAllTraces=true` to also bundle passing
+  tests.
+- **Retry.** `RetryOnceExtension` re-runs a failing test method exactly
+  once; the retry is surfaced via `publishReportEntry("flaky","true")`
+  and the `flaky` field in `trace.json`. JUnit does NOT re-fire
+  `@BeforeEach` / `@AfterEach` on retry, so per-test setup must be
+  idempotent. Tests should always be in working shape — fix flakiness,
+  do not hide it.
+- **Reference tests.** `tests/ToolWindowUiTest.kt` is the canonical
+  Page/Flow example for active tests. `tests/SettingsUiTest.kt` is the
+  canonical example for tests that compose `SettingsChangeFlow`; it is
+  currently `@Disabled` for unrelated reasons (UI DSL component
+  wrapping) but kept as a structural reference.
+
 ## Report Dashboard Access
 
 CI publishes Playwright report bundles to the `reportdashboard` service

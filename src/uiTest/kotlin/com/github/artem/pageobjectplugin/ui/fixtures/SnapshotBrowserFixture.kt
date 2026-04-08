@@ -1,10 +1,9 @@
 package com.github.artem.pageobjectplugin.ui.fixtures
 
+import com.github.artem.pageobjectplugin.ui.locators.PageMirrorLocators
 import com.intellij.remoterobot.RemoteRobot
 import com.intellij.remoterobot.data.RemoteComponent
 import com.intellij.remoterobot.fixtures.CommonContainerFixture
-import com.intellij.remoterobot.fixtures.ComponentFixture
-import com.intellij.remoterobot.search.locators.byXpath
 import java.time.Duration
 
 /**
@@ -68,25 +67,21 @@ class SnapshotBrowserFixture(robot: RemoteRobot, component: RemoteComponent) :
     } catch (_: Exception) { false }
 
     companion object {
-        private val JCEF_XPATHS = listOf(
-            "//div[@class='JBCefOsrComponent']",
-            "//div[contains(@class, 'JBCefBrowser')]",
-            "//div[@class='CefBrowserWr']",
-        )
-
         fun find(robot: RemoteRobot): SnapshotBrowserFixture {
-            for (xpath in JCEF_XPATHS) {
+            for (locator in PageMirrorLocators.jcefBrowserCandidates) {
                 try {
-                    return robot.find(byXpath(xpath), Duration.ofSeconds(3))
+                    return robot.find(locator, Duration.ofSeconds(3))
                 } catch (_: Exception) { /* try next */ }
             }
-            throw AssertionError("JCEF browser component not found. Tried XPaths: $JCEF_XPATHS.")
+            throw AssertionError(
+                "JCEF browser component not found. Tried ${PageMirrorLocators.jcefBrowserCandidates.size} candidates."
+            )
         }
 
         fun findInsideToolWindow(toolWindow: PageMirrorToolWindowFixture): SnapshotBrowserFixture {
-            for (xpath in JCEF_XPATHS.map { it.replace("//", ".//") }) {
+            for (locator in PageMirrorLocators.jcefBrowserInsideContainer) {
                 try {
-                    return toolWindow.find(byXpath(xpath), Duration.ofSeconds(3))
+                    return toolWindow.find(locator, Duration.ofSeconds(3))
                 } catch (_: Exception) { /* try next */ }
             }
             throw AssertionError("JCEF browser not found inside Page Mirror tool window")
