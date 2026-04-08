@@ -5,17 +5,19 @@ export class LoginPage {
   readonly passwordInput: Locator;
   readonly loginButton: Locator;
   readonly errorMessage: Locator;
-  // Intentionally unmatched locator — used by the plugin's UI tests
-  // (GutterAnnotationUiTest UT-18) to exercise the "0 matches" gutter
-  // badge path. Never referenced by the Playwright test itself.
-  readonly nonexistentElement: Locator;
+  readonly nonexistent: Locator;
 
   constructor(private readonly page: Page) {
     this.usernameInput = page.locator('#username');
     this.passwordInput = page.locator('#password');
     this.loginButton = page.locator('button[type="submit"]');
     this.errorMessage = page.locator('#flash.error');
-    this.nonexistentElement = page.locator('#pagemirror-test-nonexistent-element-zzz');
+    // Appended at the END of the constructor so earlier locator lines
+    // (10-13) stay at their original positions — HighlightBridgeUiTest
+    // hardcodes those line numbers. This locator is intentionally
+    // unmatched in any snapshot and gives GutterAnnotationUiTest UT-18
+    // a guaranteed "0 matches" gutter badge to assert on.
+    this.nonexistent = page.locator('#pagemirror-test-nonexistent-element-zzz');
   }
 
   async goto() {
