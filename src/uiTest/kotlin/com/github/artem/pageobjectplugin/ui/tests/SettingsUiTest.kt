@@ -1,38 +1,47 @@
 package com.github.artem.pageobjectplugin.ui.tests
 
 import com.github.artem.pageobjectplugin.ui.BaseUiTest
-import com.github.artem.pageobjectplugin.ui.fixtures.PageMirrorSettingsFixture
-import com.github.artem.pageobjectplugin.ui.fixtures.PageMirrorToolWindowFixture
-import com.github.artem.pageobjectplugin.ui.fixtures.SnapshotBrowserFixture
+import com.github.artem.pageobjectplugin.ui.flows.SettingsChangeFlow
+import com.github.artem.pageobjectplugin.ui.pages.EditorPage
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 
 /**
  * UI tests: UT-21 to UT-25 — Settings dialog.
  *
- * Tests that the Settings > Tools > Page Mirror panel is present and that
- * changes persist correctly.
+ * Reference example for [SettingsChangeFlow] + [com.github.artem.pageobjectplugin.ui.pages.PluginSettingsPage]
+ * composition. Currently `@Disabled` because the IntelliJ UI DSL wraps form
+ * controls (JSpinner, JTextField, JComboBox) under different XPath classes
+ * than the locators in [com.github.artem.pageobjectplugin.ui.locators.PageMirrorLocators]
+ * expect — re-enable after [com.github.artem.pageobjectplugin.ui.locators.PageMirrorLocators]
+ * is rewritten with accessiblename-based selectors.
  */
-@Disabled("CI: Settings dialog components (JSpinner, JTextField, JComboBox) not found — IntelliJ UI DSL wraps them with different class names")
+@Disabled(
+    "CI: Settings dialog components (JSpinner, JTextField, JComboBox) not " +
+        "found — IntelliJ UI DSL wraps them. Reference kept as a Page/Flow " +
+        "structural example. Re-enable after locators are rewritten to " +
+        "accessiblename-based XPaths."
+)
 class SettingsUiTest : BaseUiTest() {
 
+    private val editor by lazy { EditorPage(robot) }
+    private val settings by lazy { SettingsChangeFlow(robot) }
+
     @BeforeEach
-    fun setup() {
-        // Make sure we have a project open (IDE was started with test-project)
-        openFileInEditor("login.page.ts")
-        Thread.sleep(1_000)
+    fun ensureProjectOpen() {
+        editor.openFileInEditor("login.page.ts")
     }
 
     @AfterEach
     fun resetSettings() {
-        // Close any open dialog first (settings or other)
-        try { PageMirrorSettingsFixture.clickCancel(robot) } catch (_: Exception) {}
-        Thread.sleep(300)
-        // Restore default settings programmatically via IDE API
+        // Restore default settings programmatically via IDE API. Cancels any
+        // open dialog first via SettingsChangeFlow.withSettings's exception
+        // path on a no-op block — but since this is a fast restore call we
+        // do it directly via callJs for robustness.
         try {
             ideFrame().callJs<Boolean>("""
                 var project = com.intellij.openapi.project.ProjectManager.getInstance().getOpenProjects()[0]
@@ -40,10 +49,10 @@ class SettingsUiTest : BaseUiTest() {
                 var __plugin = com.intellij.ide.plugins.PluginManagerCore.getPlugin(__pluginId)
                 var __cl = __plugin.getPluginClassLoader()
                 var __svcClass = __cl.loadClass("com.github.artem.pageobjectplugin.settings.PageMirrorSettings")
-                var settings = project.getService(__svcClass)
+                var serviceInstance = project.getService(__svcClass)
                 var __stateClass = __cl.loadClass("com.github.artem.pageobjectplugin.settings.PageMirrorSettings" + "\u0024" + "State")
                 var defaultState = __stateClass.getDeclaredConstructor().newInstance()
-                settings.loadState(defaultState)
+                serviceInstance.loadState(defaultState)
                 true
             """, runInEdt = true)
         } catch (_: Exception) {
@@ -56,23 +65,23 @@ class SettingsUiTest : BaseUiTest() {
      */
     @Test
     fun `settings dialog shows all page mirror fields`() {
-        val settings = PageMirrorSettingsFixture.open(robot)
-        takeScreenshot("settings-dialog-open")
+        settings.withSettings { page ->
+            takeScreenshot("settings-dialog-open")
 
-        // Verify all fields are accessible (no exception = field is present)
-        val depth = settings.searchDepth()
-        val color = settings.highlightColor()
-        val style = settings.codeGenStyle()
-        val autoReload = settings.isAutoReloadEnabled()
+            val depth = page.searchDepth()
+            val color = page.highlightColor()
+            val style = page.codeGenStyle()
+            page.isAutoReloadEnabled()  // smoke check — value not asserted
 
-        assertTrue(depth in 1..10, "Search depth should be between 1 and 10, was $depth")
-        assertTrue(color.startsWith("#"), "Highlight color should be a hex string, was '$color'")
-        assertTrue(
-            style == "Property" || style == "Variable",
-            "Code gen style should be 'Property' or 'Variable', was '$style'"
-        )
+            assertTrue(depth in 1..10, "Search depth should be between 1 and 10, was $depth")
+            assertTrue(color.startsWith("#"), "Highlight color should be a hex string, was '$color'")
+            assertTrue(
+                style == "Property" || style == "Variable",
+                "Code gen style should be 'Property' or 'Variable', was '$style'",
+            )
 
-        PageMirrorSettingsFixture.clickCancel(robot)
+            page.clickCancel()
+        }
     }
 
     /**
@@ -80,34 +89,32 @@ class SettingsUiTest : BaseUiTest() {
      */
     @Test
     fun `search depth change persists after ok`() {
-        val settings = PageMirrorSettingsFixture.open(robot)
         settings.setSearchDepth(5)
-        takeScreenshot("settings-depth-changed")
-        PageMirrorSettingsFixture.clickOk(robot)
 
-        // Reopen and verify
-        val reopened = PageMirrorSettingsFixture.open(robot)
-        val persisted = reopened.searchDepth()
-        PageMirrorSettingsFixture.clickCancel(robot)
-
+        var persisted = -1
+        settings.withSettings { page ->
+            persisted = page.searchDepth()
+            page.clickCancel()
+        }
         assertEquals(5, persisted, "Search depth 5 should persist after saving")
     }
 
     /**
      * UT-23: Changing the highlight color and clicking Apply takes effect.
-     * Indirectly verified by checking the setting persists (JCEF color change
-     * requires snapshot to be loaded; confirmed by UT-22 pattern).
      */
     @Test
     fun `highlight color change persists after apply`() {
-        val settings = PageMirrorSettingsFixture.open(robot)
-        settings.setHighlightColor("#FF0000")
-        PageMirrorSettingsFixture.clickApply(robot)
+        settings.withSettings { page ->
+            page.setHighlightColor("#FF0000")
+            page.clickApply()
+            page.clickCancel()
+        }
 
-        // Verify without closing dialog
-        val colorAfterApply = PageMirrorSettingsFixture.open(robot).highlightColor()
-        PageMirrorSettingsFixture.clickCancel(robot)
-
+        var colorAfterApply = ""
+        settings.withSettings { page ->
+            colorAfterApply = page.highlightColor()
+            page.clickCancel()
+        }
         assertEquals("#FF0000", colorAfterApply, "Highlight color #FF0000 should persist after Apply")
     }
 
@@ -116,13 +123,13 @@ class SettingsUiTest : BaseUiTest() {
      */
     @Test
     fun `code gen style variable is saved`() {
-        val settings = PageMirrorSettingsFixture.open(robot)
         settings.setCodeGenStyle("Variable")
-        PageMirrorSettingsFixture.clickOk(robot)
 
-        val persisted = PageMirrorSettingsFixture.open(robot).codeGenStyle()
-        PageMirrorSettingsFixture.clickCancel(robot)
-
+        var persisted = ""
+        settings.withSettings { page ->
+            persisted = page.codeGenStyle()
+            page.clickCancel()
+        }
         assertEquals("Variable", persisted, "Code gen style 'Variable' should persist")
     }
 
@@ -131,19 +138,14 @@ class SettingsUiTest : BaseUiTest() {
      */
     @Test
     fun `code gen style property is saved`() {
-        // First set to Variable
-        var settings = PageMirrorSettingsFixture.open(robot)
         settings.setCodeGenStyle("Variable")
-        PageMirrorSettingsFixture.clickOk(robot)
-
-        // Then set back to Property
-        settings = PageMirrorSettingsFixture.open(robot)
         settings.setCodeGenStyle("Property")
-        PageMirrorSettingsFixture.clickOk(robot)
 
-        val persisted = PageMirrorSettingsFixture.open(robot).codeGenStyle()
-        PageMirrorSettingsFixture.clickCancel(robot)
-
+        var persisted = ""
+        settings.withSettings { page ->
+            persisted = page.codeGenStyle()
+            page.clickCancel()
+        }
         assertEquals("Property", persisted, "Code gen style 'Property' should persist")
     }
 }

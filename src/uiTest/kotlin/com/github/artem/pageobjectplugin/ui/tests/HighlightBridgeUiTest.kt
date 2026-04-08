@@ -3,6 +3,8 @@ package com.github.artem.pageobjectplugin.ui.tests
 import com.github.artem.pageobjectplugin.ui.BaseUiTest
 import com.github.artem.pageobjectplugin.ui.fixtures.PageMirrorToolWindowFixture
 import com.github.artem.pageobjectplugin.ui.fixtures.SnapshotBrowserFixture
+import com.github.artem.pageobjectplugin.ui.pages.EditorPage
+import com.github.artem.pageobjectplugin.ui.pages.PluginToolWindowPage
 import com.intellij.remoterobot.utils.keyboard
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -37,20 +39,17 @@ class HighlightBridgeUiTest : BaseUiTest() {
     private val LOCATOR_ERROR_LINE = 15
     private val BLANK_LINE = 1  // import line — no locator
 
+    private val editor by lazy { EditorPage(robot) }
+    private val toolWindow by lazy { PluginToolWindowPage(robot) }
+
     @BeforeEach
     fun setup() {
-        openFileInEditor("login.page.ts")
-        Thread.sleep(1_000)
+        editor.openFileInEditor("login.page.ts")
         if (!PageMirrorToolWindowFixture.isVisible(robot)) {
-            openToolWindow()
+            toolWindow.open()
         }
-        waitFor(Duration.ofSeconds(15)) {
-            try {
-                val name = PageMirrorToolWindowFixture.find(robot).selectedSnapshotName()
-                name.isNotBlank() && !name.contains("No snapshot")
-            } catch (_: Exception) { false }
-        }
-        Thread.sleep(2_000)  // wait for JCEF page to fully load
+        toolWindow.waitForSnapshotDiscovery(Duration.ofSeconds(15))
+        Thread.sleep(2_000)  // JCEF page first paint — no observable signal
     }
 
     /**
@@ -58,7 +57,7 @@ class HighlightBridgeUiTest : BaseUiTest() {
      */
     @Test
     fun `caret on locator line triggers highlight`() {
-        goToLine(LOCATOR_USERNAME_LINE)
+        editor.goToLine(LOCATOR_USERNAME_LINE)
         // Debounce is 150 ms; give it extra headroom
         Thread.sleep(1_000)
 
@@ -78,11 +77,11 @@ class HighlightBridgeUiTest : BaseUiTest() {
     @Test
     fun `caret on non locator line clears highlight`() {
         // First activate a highlight
-        goToLine(LOCATOR_USERNAME_LINE)
+        editor.goToLine(LOCATOR_USERNAME_LINE)
         Thread.sleep(1_000)
 
         // Move caret to a non-locator line
-        goToLine(BLANK_LINE)
+        editor.goToLine(BLANK_LINE)
         Thread.sleep(1_000)
 
         takeScreenshot("after-goto-blank-line")
@@ -101,7 +100,7 @@ class HighlightBridgeUiTest : BaseUiTest() {
      */
     @Test
     fun `alt shift H shortcut triggers highlight`() {
-        goToLine(LOCATOR_PASSWORD_LINE)
+        editor.goToLine(LOCATOR_PASSWORD_LINE)
         Thread.sleep(300)
 
         ideFrame().keyboard {
@@ -145,7 +144,7 @@ class HighlightBridgeUiTest : BaseUiTest() {
         )
 
         for ((line, description) in locatorLines) {
-            goToLine(line)
+            editor.goToLine(line)
             Thread.sleep(1_000)
             takeScreenshot("locator-line-$line")
             assertTrue(

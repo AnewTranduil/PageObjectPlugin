@@ -3,7 +3,8 @@ package com.github.artem.pageobjectplugin.ui.tests
 import com.github.artem.pageobjectplugin.ui.BaseUiTest
 import com.github.artem.pageobjectplugin.ui.fixtures.GutterFixture
 import com.github.artem.pageobjectplugin.ui.fixtures.PageMirrorToolWindowFixture
-import org.junit.jupiter.api.Assertions.assertFalse
+import com.github.artem.pageobjectplugin.ui.pages.EditorPage
+import com.github.artem.pageobjectplugin.ui.pages.PluginToolWindowPage
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Disabled
@@ -24,20 +25,16 @@ import java.time.Duration
  */
 class GutterAnnotationUiTest : BaseUiTest() {
 
+    private val editor by lazy { EditorPage(robot) }
+    private val toolWindow by lazy { PluginToolWindowPage(robot) }
+
     @BeforeEach
     fun loadSnapshotAndOpenFile() {
-        openFileInEditor("login.page.ts")
-        Thread.sleep(1_000)
+        editor.openFileInEditor("login.page.ts")
         if (!PageMirrorToolWindowFixture.isVisible(robot)) {
-            openToolWindow()
+            toolWindow.open()
         }
-        // Wait for snapshot auto-discovery
-        waitFor(Duration.ofSeconds(15)) {
-            try {
-                val name = PageMirrorToolWindowFixture.find(robot).selectedSnapshotName()
-                name.isNotBlank() && !name.contains("No snapshot")
-            } catch (_: Exception) { false }
-        }
+        toolWindow.waitForSnapshotDiscovery(Duration.ofSeconds(15))
         // Force restart DaemonCodeAnalyzer to trigger the ExternalAnnotator pipeline
         restartAnnotations()
         // Give the ExternalAnnotator pipeline time to complete (collect→doAnnotate→apply)
@@ -144,7 +141,7 @@ class GutterAnnotationUiTest : BaseUiTest() {
     @Test
     fun `no gutter badges in non ts file`() {
         // Open the playwright config (a .ts file) or a .json file that won't have locators
-        openFileInEditor("playwright.config.ts")
+        editor.openFileInEditor("playwright.config.ts")
         Thread.sleep(3_000)
 
         val gutter = GutterFixture.find(robot)

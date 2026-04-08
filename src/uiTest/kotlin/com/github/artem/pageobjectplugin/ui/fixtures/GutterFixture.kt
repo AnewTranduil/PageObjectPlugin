@@ -1,17 +1,16 @@
 package com.github.artem.pageobjectplugin.ui.fixtures
 
+import com.github.artem.pageobjectplugin.ui.locators.IntelliJLocators
 import com.intellij.remoterobot.RemoteRobot
 import com.intellij.remoterobot.data.RemoteComponent
 import com.intellij.remoterobot.fixtures.CommonContainerFixture
-import com.intellij.remoterobot.fixtures.ComponentFixture
-import com.intellij.remoterobot.search.locators.byXpath
 import java.time.Duration
 
 /**
  * Fixture for the editor gutter component.
  *
  * Provides helpers to check Page Mirror gutter annotations (match-count badges)
- * produced by [SelectorValidationAnnotator].
+ * produced by `SelectorValidationAnnotator`.
  *
  * Gutter icons are NOT separate Swing components — they're painted on a single
  * EditorGutterComponentImpl canvas. We query them programmatically via the
@@ -69,9 +68,6 @@ class GutterFixture(robot: RemoteRobot, component: RemoteComponent) :
 
     companion object {
         fun find(robot: RemoteRobot): GutterFixture =
-            robot.find(
-                byXpath("//div[@class='EditorGutterComponentImpl']"),
-                Duration.ofSeconds(10)
-            )
+            robot.find(IntelliJLocators.editorGutter, Duration.ofSeconds(10))
     }
 }

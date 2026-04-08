@@ -1,11 +1,12 @@
 package com.github.artem.pageobjectplugin.ui.fixtures
 
+import com.github.artem.pageobjectplugin.ui.locators.IntelliJLocators
+import com.github.artem.pageobjectplugin.ui.locators.PageMirrorLocators
 import com.github.artem.pageobjectplugin.ui.support.Wait
 import com.intellij.remoterobot.RemoteRobot
 import com.intellij.remoterobot.data.RemoteComponent
 import com.intellij.remoterobot.fixtures.CommonContainerFixture
 import com.intellij.remoterobot.fixtures.ComponentFixture
-import com.intellij.remoterobot.search.locators.byXpath
 import com.intellij.remoterobot.utils.keyboard
 import com.intellij.remoterobot.utils.waitFor
 import java.awt.event.KeyEvent
@@ -21,22 +22,23 @@ class PageMirrorSettingsFixture(robot: RemoteRobot, component: RemoteComponent) 
 
     /** The "Snapshot search depth" JSpinner. */
     val searchDepthSpinner: ComponentFixture
-        get() = find(byXpath(".//div[@class='JSpinner']"), Duration.ofSeconds(5))
+        get() = find(PageMirrorLocators.settingsSearchDepthSpinner, Duration.ofSeconds(5))
 
     /** The "Auto-reload on file change" JCheckBox. */
     val autoReloadCheckbox: ComponentFixture
-        get() = find(byXpath(".//div[@class='JCheckBox']"), Duration.ofSeconds(5))
+        get() = find(PageMirrorLocators.settingsAutoReloadCheckbox, Duration.ofSeconds(5))
 
     /** The "Highlight color" JTextField. */
     val highlightColorField: ComponentFixture
-        get() = find(byXpath(".//div[@class='JTextField']"), Duration.ofSeconds(5))
+        get() = find(PageMirrorLocators.settingsHighlightColorField, Duration.ofSeconds(5))
 
     /** The "Code generation style" JComboBox. */
     val codeGenStyleCombo: ComponentFixture
-        get() = find(byXpath(".//div[@class='JComboBox']"), Duration.ofSeconds(5))
+        get() = find(PageMirrorLocators.settingsCodeGenCombo, Duration.ofSeconds(5))
 
     /** Returns the current value shown in the search depth spinner. */
-    fun searchDepth(): Int = searchDepthSpinner.callJs("java.lang.Integer.parseInt(component.getValue().toString())")
+    fun searchDepth(): Int =
+        searchDepthSpinner.callJs("java.lang.Integer.parseInt(component.getValue().toString())")
 
     /** Returns the current highlight color text. */
     fun highlightColor(): String = highlightColorField.callJs("component.getText()")
@@ -54,8 +56,8 @@ class PageMirrorSettingsFixture(robot: RemoteRobot, component: RemoteComponent) 
     fun setSearchDepth(value: Int) {
         // Click the formatted text field inside the spinner to give it focus
         find<ComponentFixture>(
-            byXpath(".//div[@class='JSpinner']//div[@class='JFormattedTextField']"),
-            Duration.ofSeconds(5)
+            PageMirrorLocators.settingsSearchDepthField,
+            Duration.ofSeconds(5),
         ).click()
         // Send keys to the focused field (keyboard acts on the global focus)
         keyboard {
@@ -84,7 +86,6 @@ class PageMirrorSettingsFixture(robot: RemoteRobot, component: RemoteComponent) 
     }
 
     companion object {
-        private const val SETTINGS_DIALOG_XPATH = "//div[@class='DialogRootPane']"
 
         /**
          * Opens the IDE Settings dialog, navigates to Tools > Page Mirror,
@@ -98,8 +99,8 @@ class PageMirrorSettingsFixture(robot: RemoteRobot, component: RemoteComponent) 
             closeAllDialogs(robot)
 
             val frame = robot.find<CommonContainerFixture>(
-                byXpath("//div[@class='IdeFrameImpl']"),
-                Duration.ofSeconds(5)
+                IntelliJLocators.ideFrame,
+                Duration.ofSeconds(5),
             )
 
             // Open Settings dialog programmatically via ShowSettingsUtil
@@ -116,7 +117,7 @@ class PageMirrorSettingsFixture(robot: RemoteRobot, component: RemoteComponent) 
 
             // Wait for settings dialog
             waitFor(Duration.ofSeconds(15)) {
-                robot.findAll<CommonContainerFixture>(byXpath(SETTINGS_DIALOG_XPATH)).isNotEmpty()
+                robot.findAll<CommonContainerFixture>(IntelliJLocators.dialogRoot).isNotEmpty()
             }
             // Poll until at least one inner control (a JSpinner is present on Page Mirror)
             // is findable instead of a fixed sleep that papers over slow dialog rendering.
@@ -126,9 +127,8 @@ class PageMirrorSettingsFixture(robot: RemoteRobot, component: RemoteComponent) 
                 message = { "settings dialog body never rendered" },
             ) {
                 try {
-                    robot.findAll<ComponentFixture>(
-                        byXpath("$SETTINGS_DIALOG_XPATH//div[@class='JSpinner']")
-                    ).isNotEmpty()
+                    robot.findAll<ComponentFixture>(PageMirrorLocators.settingsAnySpinner)
+                        .isNotEmpty()
                 } catch (_: Exception) {
                     false
                 }
@@ -136,22 +136,19 @@ class PageMirrorSettingsFixture(robot: RemoteRobot, component: RemoteComponent) 
 
             // Find the settings panel — try Page Mirror panel first, then dialog root
             return try {
-                robot.find(
-                    byXpath("$SETTINGS_DIALOG_XPATH//div[@accessiblename='Page Mirror']"),
-                    Duration.ofSeconds(10)
-                )
+                robot.find(PageMirrorLocators.settingsPageMirrorPanel, Duration.ofSeconds(10))
             } catch (_: Exception) {
-                robot.find(byXpath(SETTINGS_DIALOG_XPATH), Duration.ofSeconds(5))
+                robot.find(IntelliJLocators.dialogRoot, Duration.ofSeconds(5))
             }
         }
 
         /** Closes all open dialogs by clicking Cancel on each. */
         private fun closeAllDialogs(robot: RemoteRobot) {
             try {
-                val dialogs = robot.findAll<CommonContainerFixture>(byXpath(SETTINGS_DIALOG_XPATH))
+                val dialogs = robot.findAll<CommonContainerFixture>(IntelliJLocators.dialogRoot)
                 for (dialog in dialogs) {
                     try {
-                        dialog.findAll<ComponentFixture>(byXpath(".//div[@text='Cancel']"))
+                        dialog.findAll<ComponentFixture>(IntelliJLocators.dialogCancelRelative)
                             .firstOrNull()?.click()
                     } catch (_: Exception) {}
                 }
@@ -163,7 +160,7 @@ class PageMirrorSettingsFixture(robot: RemoteRobot, component: RemoteComponent) 
                     interval = Duration.ofMillis(100),
                     message = { "stale dialogs failed to close" },
                 ) {
-                    robot.findAll<CommonContainerFixture>(byXpath(SETTINGS_DIALOG_XPATH)).isEmpty()
+                    robot.findAll<CommonContainerFixture>(IntelliJLocators.dialogRoot).isEmpty()
                 }
             } catch (_: AssertionError) {
                 // Best-effort cleanup; let the caller fail if a stale dialog matters.
@@ -172,23 +169,19 @@ class PageMirrorSettingsFixture(robot: RemoteRobot, component: RemoteComponent) 
 
         /** Clicks the OK button to apply and close the settings dialog. */
         fun clickOk(robot: RemoteRobot) {
-            robot.findAll<ComponentFixture>(
-                byXpath("//div[@class='DialogRootPane']//div[@text='OK']")
-            ).firstOrNull()?.click()
+            robot.findAll<ComponentFixture>(IntelliJLocators.dialogOk).firstOrNull()?.click()
             Wait.pollUntilTrue(
                 timeout = Duration.ofSeconds(3),
                 interval = Duration.ofMillis(50),
                 message = { "settings dialog still open after OK" },
             ) {
-                robot.findAll<CommonContainerFixture>(byXpath(SETTINGS_DIALOG_XPATH)).isEmpty()
+                robot.findAll<CommonContainerFixture>(IntelliJLocators.dialogRoot).isEmpty()
             }
         }
 
         /** Clicks the Apply button (keeps dialog open). */
         fun clickApply(robot: RemoteRobot) {
-            robot.findAll<ComponentFixture>(
-                byXpath("//div[@class='DialogRootPane']//div[@text='Apply']")
-            ).firstOrNull()?.click()
+            robot.findAll<ComponentFixture>(IntelliJLocators.dialogApply).firstOrNull()?.click()
             // TODO(13b): Apply intentionally does not close the dialog and there is no
             // observable completion signal — short bounded wait covers the apply round-trip.
             Thread.sleep(300)
@@ -196,15 +189,13 @@ class PageMirrorSettingsFixture(robot: RemoteRobot, component: RemoteComponent) 
 
         /** Clicks the Cancel button. */
         fun clickCancel(robot: RemoteRobot) {
-            robot.findAll<ComponentFixture>(
-                byXpath("//div[@class='DialogRootPane']//div[@text='Cancel']")
-            ).firstOrNull()?.click()
+            robot.findAll<ComponentFixture>(IntelliJLocators.dialogCancel).firstOrNull()?.click()
             Wait.pollUntilTrue(
                 timeout = Duration.ofSeconds(3),
                 interval = Duration.ofMillis(50),
                 message = { "settings dialog still open after Cancel" },
             ) {
-                robot.findAll<CommonContainerFixture>(byXpath(SETTINGS_DIALOG_XPATH)).isEmpty()
+                robot.findAll<CommonContainerFixture>(IntelliJLocators.dialogRoot).isEmpty()
             }
         }
     }

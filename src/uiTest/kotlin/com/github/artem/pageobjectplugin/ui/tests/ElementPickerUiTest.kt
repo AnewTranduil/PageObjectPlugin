@@ -3,7 +3,8 @@ package com.github.artem.pageobjectplugin.ui.tests
 import com.github.artem.pageobjectplugin.ui.BaseUiTest
 import com.github.artem.pageobjectplugin.ui.fixtures.PageMirrorToolWindowFixture
 import com.github.artem.pageobjectplugin.ui.fixtures.SnapshotBrowserFixture
-import com.intellij.remoterobot.fixtures.CommonContainerFixture
+import com.github.artem.pageobjectplugin.ui.pages.EditorPage
+import com.github.artem.pageobjectplugin.ui.pages.PluginToolWindowPage
 import com.intellij.remoterobot.fixtures.ComponentFixture
 import com.intellij.remoterobot.search.locators.byXpath
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -21,6 +22,9 @@ import java.time.Duration
  * its JSON back to the IDE and inserts a Playwright locator into the editor.
  */
 class ElementPickerUiTest : BaseUiTest() {
+
+    private val editor by lazy { EditorPage(robot) }
+    private val toolWindow by lazy { PluginToolWindowPage(robot) }
 
     /**
      * Programmatically toggles inspect mode via the plugin's SnapshotService,
@@ -46,18 +50,12 @@ class ElementPickerUiTest : BaseUiTest() {
 
     @BeforeEach
     fun setup() {
-        openFileInEditor("login.page.ts")
-        Thread.sleep(1_000)
+        editor.openFileInEditor("login.page.ts")
         if (!PageMirrorToolWindowFixture.isVisible(robot)) {
-            openToolWindow()
+            toolWindow.open()
         }
-        waitFor(Duration.ofSeconds(15)) {
-            try {
-                val name = PageMirrorToolWindowFixture.find(robot).selectedSnapshotName()
-                name.isNotBlank() && !name.contains("No snapshot")
-            } catch (_: Exception) { false }
-        }
-        Thread.sleep(2_000)
+        toolWindow.waitForSnapshotDiscovery(Duration.ofSeconds(15))
+        Thread.sleep(2_000)  // JCEF page first paint — no observable signal
     }
 
     /**
@@ -118,8 +116,8 @@ class ElementPickerUiTest : BaseUiTest() {
     @Test
     fun `clicking element in inspect mode inserts locator into editor`() {
         // Position caret at end of class body for insertion
-        openFileInEditor("login.page.ts")
-        goToLine(8)  // line after last property
+        editor.openFileInEditor("login.page.ts")
+        editor.goToLine(8)  // line after last property
 
         // Activate inspect mode
         toggleInspectMode()

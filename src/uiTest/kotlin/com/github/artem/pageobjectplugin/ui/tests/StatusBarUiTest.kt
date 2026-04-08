@@ -3,8 +3,7 @@ package com.github.artem.pageobjectplugin.ui.tests
 import com.github.artem.pageobjectplugin.ui.BaseUiTest
 import com.github.artem.pageobjectplugin.ui.fixtures.PageMirrorToolWindowFixture
 import com.github.artem.pageobjectplugin.ui.fixtures.StatusBarFixture
-import com.intellij.remoterobot.fixtures.ComponentFixture
-import com.intellij.remoterobot.search.locators.byXpath
+import com.github.artem.pageobjectplugin.ui.pages.EditorPage
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -20,11 +19,13 @@ import java.time.Duration
  */
 class StatusBarUiTest : BaseUiTest() {
 
+    private val editor by lazy { EditorPage(robot) }
+
     @BeforeEach
     fun setup() {
         // Open a non-.ts file first so no snapshot is auto-discovered initially
         // (playwright.config.ts has no locators so no auto-load should happen)
-        openFileInEditor("playwright.config.ts")
+        editor.openFileInEditor("playwright.config.ts")
         Thread.sleep(2_000)
     }
 
@@ -51,7 +52,7 @@ class StatusBarUiTest : BaseUiTest() {
     @Test
     fun `status bar shows snapshot name after load`() {
         // Open a .ts file to trigger auto-discovery
-        openFileInEditor("login.page.ts")
+        editor.openFileInEditor("login.page.ts")
 
         waitFor(Duration.ofSeconds(15)) {
             try {
@@ -78,7 +79,7 @@ class StatusBarUiTest : BaseUiTest() {
     @Test
     fun `clicking status bar widget focuses tool window`() {
         // Ensure snapshot is loaded first so the widget is interactive
-        openFileInEditor("login.page.ts")
+        editor.openFileInEditor("login.page.ts")
         waitFor(Duration.ofSeconds(15)) {
             try { StatusBarFixture.isSnapshotLoaded(robot) } catch (_: Exception) { false }
         }
