@@ -1,5 +1,6 @@
 package com.github.artem.pageobjectplugin.ui.fixtures
 
+import com.github.artem.pageobjectplugin.ui.support.Wait
 import com.intellij.remoterobot.RemoteRobot
 import com.intellij.remoterobot.data.RemoteComponent
 import com.intellij.remoterobot.fixtures.CommonContainerFixture
@@ -39,7 +40,14 @@ class PageMirrorToolWindowFixture(robot: RemoteRobot, component: RemoteComponent
      */
     fun selectSnapshot(partialName: String) {
         comboBox.click()
-        Thread.sleep(500)
+        // Wait for the popup to actually appear instead of a fixed sleep.
+        Wait.pollUntilTrue(
+            timeout = Duration.ofSeconds(3),
+            interval = Duration.ofMillis(50),
+            message = { "combo popup never opened" },
+        ) {
+            comboBox.callJs("component.isPopupVisible()", runInEdt = true)
+        }
         // Use callJs to iterate items and select the matching one
         comboBox.callJs<Boolean>("""
             var model = component.getModel()
@@ -52,7 +60,14 @@ class PageMirrorToolWindowFixture(robot: RemoteRobot, component: RemoteComponent
             }
             true
         """, runInEdt = true)
-        Thread.sleep(500)
+        // Wait for the selection to actually take effect.
+        Wait.pollUntilTrue(
+            timeout = Duration.ofSeconds(3),
+            interval = Duration.ofMillis(50),
+            message = { "selected snapshot never contained '$partialName'" },
+        ) {
+            selectedSnapshotName().contains(partialName)
+        }
     }
 
     /** Returns all snapshot names from the combo box model. */

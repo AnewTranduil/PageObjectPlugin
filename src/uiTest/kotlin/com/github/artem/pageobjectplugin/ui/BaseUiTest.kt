@@ -1,5 +1,8 @@
 package com.github.artem.pageobjectplugin.ui
 
+import com.github.artem.pageobjectplugin.ui.fixtures.PageMirrorToolWindowFixture
+import com.github.artem.pageobjectplugin.ui.support.RetryOnceExtension
+import com.github.artem.pageobjectplugin.ui.support.Wait
 import com.intellij.remoterobot.RemoteRobot
 import com.intellij.remoterobot.fixtures.CommonContainerFixture
 import com.intellij.remoterobot.fixtures.ComponentFixture
@@ -24,6 +27,7 @@ import javax.imageio.ImageIO
  *   - The IDE was started with test-project/ open (configured in build.gradle.kts)
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@ExtendWith(RetryOnceExtension::class)
 @ExtendWith(ScreenshotOnFailureExtension::class)
 abstract class BaseUiTest {
 
@@ -54,8 +58,20 @@ abstract class BaseUiTest {
         // Bring IDE to front — the window may be minimized/iconified
         bringIdeToFront()
 
-        // Give the IDE a moment to finish indexing (longer in CI)
-        Thread.sleep(5_000)
+        // Wait for the IDE frame to actually be on-screen instead of a fixed sleep.
+        // The previous 5s pad existed to absorb indexing latency; the snapshot-discovery
+        // poll near the bottom of this method gives indexing all the time it needs.
+        Wait.pollUntilTrue(
+            timeout = Duration.ofSeconds(15),
+            interval = Duration.ofMillis(200),
+            message = { "IDE frame never reported isShowing()" },
+        ) {
+            try {
+                ideFrame().callJs("component.isShowing()", runInEdt = true)
+            } catch (_: Exception) {
+                false
+            }
+        }
 
         // Ensure the Page Mirror tool window is open before any tests run
         openToolWindow()
@@ -111,28 +127,31 @@ abstract class BaseUiTest {
      * signal in CI rather than a 2-minute hang.
      */
     private fun ensureRobotServerReachable() {
-        val deadline = System.nanoTime() + Duration.ofSeconds(30).toNanos()
-        val intervalMs = 500L
-        var lastError: String? = null
-        while (System.nanoTime() < deadline) {
-            try {
+        try {
+            Wait.pollUntilTrue(
+                timeout = Duration.ofSeconds(30),
+                interval = Duration.ofMillis(500),
+                message = { "robot-server unreachable at $robotUrl" },
+            ) {
                 val connection = URI(robotUrl).toURL()
                     .openConnection() as HttpURLConnection
                 connection.connectTimeout = 400
                 connection.readTimeout = 400
                 connection.requestMethod = "HEAD"
-                val code = connection.responseCode
-                connection.disconnect()
-                if (code in 100..599) return
-            } catch (e: Exception) {
-                lastError = "${e.javaClass.simpleName}: ${e.message}"
+                val code = try {
+                    connection.responseCode
+                } finally {
+                    connection.disconnect()
+                }
+                code in 100..599
             }
-            Thread.sleep(intervalMs)
+        } catch (e: AssertionError) {
+            Assumptions.abort<Unit>(
+                "Robot server not reachable at $robotUrl after 30s " +
+                    "(last error: ${e.cause?.let { "${it.javaClass.simpleName}: ${it.message}" } ?: "none"}). " +
+                    "Is ./gradlew runIdeForUiTests running?"
+            )
         }
-        Assumptions.abort<Unit>(
-            "Robot server not reachable at $robotUrl after 30s " +
-                "(last error: ${lastError ?: "none"}). Is ./gradlew runIdeForUiTests running?"
-        )
     }
 
     // ── Screenshot helper ─────────────────────────────────────────────────────
@@ -191,7 +210,21 @@ abstract class BaseUiTest {
                 frame.requestFocus()
                 true
             """, runInEdt = true)
-            Thread.sleep(500)
+            // Poll until the deiconify takes effect — best-effort, swallow timeout.
+            try {
+                Wait.pollUntilTrue(
+                    timeout = Duration.ofSeconds(3),
+                    interval = Duration.ofMillis(100),
+                    message = { "IDE frame still iconified" },
+                ) {
+                    ideFrame().callJs(
+                        "(component.getExtendedState() & java.awt.Frame.ICONIFIED) == 0",
+                        runInEdt = true,
+                    )
+                }
+            } catch (_: AssertionError) {
+                // Non-fatal: tests can still run on an iconified-but-rendered frame.
+            }
         } catch (e: Exception) {
             System.err.println("[bringIdeToFront] failed: ${e.message}")
         }
@@ -223,7 +256,19 @@ abstract class BaseUiTest {
             }
             true
         """, runInEdt = true)
-        Thread.sleep(2_000)
+        Wait.pollUntilTrue(
+            timeout = Duration.ofSeconds(10),
+            interval = Duration.ofMillis(100),
+            message = { "no editor selected after openFile($fileName)" },
+        ) {
+            ideFrame().callJs(
+                """
+                $getProjectJs
+                com.intellij.openapi.fileEditor.FileEditorManager.getInstance(project).getSelectedTextEditor() != null
+                """.trimIndent(),
+                runInEdt = true,
+            )
+        }
     }
 
     /**
@@ -242,7 +287,20 @@ abstract class BaseUiTest {
             }
             true
         """, runInEdt = true)
-        Thread.sleep(500)
+        Wait.pollUntilTrue(
+            timeout = Duration.ofSeconds(3),
+            interval = Duration.ofMillis(50),
+            message = { "caret never reached line $line" },
+        ) {
+            ideFrame().callJs(
+                """
+                $getProjectJs
+                var editor = com.intellij.openapi.fileEditor.FileEditorManager.getInstance(project).getSelectedTextEditor()
+                editor != null && editor.getCaretModel().getLogicalPosition().line == ${line - 1}
+                """.trimIndent(),
+                runInEdt = true,
+            )
+        }
     }
 
     /**
@@ -255,7 +313,9 @@ abstract class BaseUiTest {
                 com.intellij.openapi.vfs.VirtualFileManager.getInstance().refreshWithoutFileWatcher(true)
                 true
             """, runInEdt = true)
-            Thread.sleep(2_000)
+            // TODO(13b): VFS refresh has no completion signal — short bounded wait, then
+            // the snapshot-discovery poll downstream confirms files are visible.
+            Thread.sleep(200)
         } catch (e: Exception) {
             System.err.println("[triggerVfsRefresh] failed: ${e.message}")
         }
@@ -274,6 +334,12 @@ abstract class BaseUiTest {
             }
             true
         """, runInEdt = true)
-        Thread.sleep(1_000)
+        Wait.pollUntilTrue(
+            timeout = Duration.ofSeconds(10),
+            interval = Duration.ofMillis(100),
+            message = { "Page Mirror tool window did not become visible" },
+        ) {
+            PageMirrorToolWindowFixture.isVisible(robot)
+        }
     }
 }

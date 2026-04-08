@@ -1,5 +1,6 @@
 package com.github.artem.pageobjectplugin.ui.fixtures
 
+import com.github.artem.pageobjectplugin.ui.support.Wait
 import com.intellij.remoterobot.RemoteRobot
 import com.intellij.remoterobot.data.RemoteComponent
 import com.intellij.remoterobot.fixtures.CommonContainerFixture
@@ -117,7 +118,21 @@ class PageMirrorSettingsFixture(robot: RemoteRobot, component: RemoteComponent) 
             waitFor(Duration.ofSeconds(15)) {
                 robot.findAll<CommonContainerFixture>(byXpath(SETTINGS_DIALOG_XPATH)).isNotEmpty()
             }
-            Thread.sleep(2_000)
+            // Poll until at least one inner control (a JSpinner is present on Page Mirror)
+            // is findable instead of a fixed sleep that papers over slow dialog rendering.
+            Wait.pollUntilTrue(
+                timeout = Duration.ofSeconds(5),
+                interval = Duration.ofMillis(100),
+                message = { "settings dialog body never rendered" },
+            ) {
+                try {
+                    robot.findAll<ComponentFixture>(
+                        byXpath("$SETTINGS_DIALOG_XPATH//div[@class='JSpinner']")
+                    ).isNotEmpty()
+                } catch (_: Exception) {
+                    false
+                }
+            }
 
             // Find the settings panel — try Page Mirror panel first, then dialog root
             return try {
@@ -138,11 +153,21 @@ class PageMirrorSettingsFixture(robot: RemoteRobot, component: RemoteComponent) 
                     try {
                         dialog.findAll<ComponentFixture>(byXpath(".//div[@text='Cancel']"))
                             .firstOrNull()?.click()
-                        Thread.sleep(300)
                     } catch (_: Exception) {}
                 }
             } catch (_: Exception) {}
-            Thread.sleep(300)
+            // Wait until no DialogRootPane remains so the next dialog opens cleanly.
+            try {
+                Wait.pollUntilTrue(
+                    timeout = Duration.ofSeconds(3),
+                    interval = Duration.ofMillis(100),
+                    message = { "stale dialogs failed to close" },
+                ) {
+                    robot.findAll<CommonContainerFixture>(byXpath(SETTINGS_DIALOG_XPATH)).isEmpty()
+                }
+            } catch (_: AssertionError) {
+                // Best-effort cleanup; let the caller fail if a stale dialog matters.
+            }
         }
 
         /** Clicks the OK button to apply and close the settings dialog. */
@@ -150,7 +175,13 @@ class PageMirrorSettingsFixture(robot: RemoteRobot, component: RemoteComponent) 
             robot.findAll<ComponentFixture>(
                 byXpath("//div[@class='DialogRootPane']//div[@text='OK']")
             ).firstOrNull()?.click()
-            Thread.sleep(500)
+            Wait.pollUntilTrue(
+                timeout = Duration.ofSeconds(3),
+                interval = Duration.ofMillis(50),
+                message = { "settings dialog still open after OK" },
+            ) {
+                robot.findAll<CommonContainerFixture>(byXpath(SETTINGS_DIALOG_XPATH)).isEmpty()
+            }
         }
 
         /** Clicks the Apply button (keeps dialog open). */
@@ -158,7 +189,9 @@ class PageMirrorSettingsFixture(robot: RemoteRobot, component: RemoteComponent) 
             robot.findAll<ComponentFixture>(
                 byXpath("//div[@class='DialogRootPane']//div[@text='Apply']")
             ).firstOrNull()?.click()
-            Thread.sleep(500)
+            // TODO(13b): Apply intentionally does not close the dialog and there is no
+            // observable completion signal — short bounded wait covers the apply round-trip.
+            Thread.sleep(300)
         }
 
         /** Clicks the Cancel button. */
@@ -166,7 +199,13 @@ class PageMirrorSettingsFixture(robot: RemoteRobot, component: RemoteComponent) 
             robot.findAll<ComponentFixture>(
                 byXpath("//div[@class='DialogRootPane']//div[@text='Cancel']")
             ).firstOrNull()?.click()
-            Thread.sleep(500)
+            Wait.pollUntilTrue(
+                timeout = Duration.ofSeconds(3),
+                interval = Duration.ofMillis(50),
+                message = { "settings dialog still open after Cancel" },
+            ) {
+                robot.findAll<CommonContainerFixture>(byXpath(SETTINGS_DIALOG_XPATH)).isEmpty()
+            }
         }
     }
 }
