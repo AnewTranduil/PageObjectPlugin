@@ -5,6 +5,7 @@ import com.github.artem.pageobjectplugin.ui.fixtures.PageMirrorToolWindowFixture
 import com.github.artem.pageobjectplugin.ui.fixtures.SnapshotBrowserFixture
 import com.github.artem.pageobjectplugin.ui.pages.EditorPage
 import com.github.artem.pageobjectplugin.ui.pages.PluginToolWindowPage
+import com.github.artem.pageobjectplugin.ui.support.Wait
 import com.intellij.remoterobot.utils.keyboard
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -76,22 +77,38 @@ class HighlightBridgeUiTest : BaseUiTest() {
      */
     @Test
     fun `caret on non locator line clears highlight`() {
-        // First activate a highlight
+        val browser = SnapshotBrowserFixture.findInsideToolWindow(
+            PageMirrorToolWindowFixture.find(robot),
+        )
+
+        // First activate a highlight. The caret listener has a ~150ms debounce;
+        // poll until the browser reports a visible highlight so we're not racing
+        // the debounce.
         editor.goToLine(LOCATOR_USERNAME_LINE)
-        Thread.sleep(1_000)
+        Wait.pollUntilTrue(
+            timeout = Duration.ofSeconds(3),
+            interval = Duration.ofMillis(100),
+            message = { "highlight never appeared for locator line" },
+        ) {
+            browser.isHighlightVisible()
+        }
 
-        // Move caret to a non-locator line
+        // Move caret to a non-locator line and poll for the highlight to clear.
+        // The fixed 1s sleep was borderline — the debounce + JCEF round-trip can
+        // push clear past that window under Xvfb, producing a flaky failure.
         editor.goToLine(BLANK_LINE)
-        Thread.sleep(1_000)
-
+        Wait.pollUntilTrue(
+            timeout = Duration.ofSeconds(3),
+            interval = Duration.ofMillis(100),
+            message = { "highlight never cleared after moving off locator line" },
+        ) {
+            !browser.isHighlightVisible()
+        }
         takeScreenshot("after-goto-blank-line")
 
-        val browser = SnapshotBrowserFixture.findInsideToolWindow(
-            PageMirrorToolWindowFixture.find(robot)
-        )
         assertFalse(
             browser.isHighlightVisible(),
-            "Highlight should be cleared when caret moves off a locator line"
+            "Highlight should be cleared when caret moves off a locator line",
         )
     }
 
