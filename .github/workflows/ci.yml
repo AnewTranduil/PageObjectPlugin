@@ -104,6 +104,28 @@ jobs:
       - name: Run UI tests
         run: ./gradlew uiTest --info
 
+      - name: Dump trace bundles to log (diagnostic)
+        if: failure()
+        run: |
+          # Print the failure message + stack for every failed trace bundle.
+          # Makes CI logs self-diagnosing without needing to download the
+          # GH Actions artifact or query the report dashboard.
+          ./gradlew generateTraceIndex --quiet || true
+          if [ ! -d build/reports/uiTest/traces ]; then
+            echo "::warning::no trace bundles produced"
+            exit 0
+          fi
+          sudo apt-get install -y --no-install-recommends jq
+          find build/reports/uiTest/traces -maxdepth 2 -name 'trace.json' | sort | while read -r f; do
+            status=$(jq -r '.status // "?"' "$f")
+            name=$(jq -r '(.test.className // "?") + "." + (.test.method // "?")' "$f")
+            echo "::group::[$status] $name"
+            jq -r '.failure // empty | "message: " + .message + "\n" + (.stack // "" | .[0:1800])' "$f"
+            # Last 8 steps with error markers
+            jq -r '(.steps // [])[-8:] | .[] | "  \(.index // "?") [\(.durationMs // "?")ms] \(.label // "")\(if .error then "  !! " + .error else "" end)"' "$f"
+            echo "::endgroup::"
+          done
+
       - name: Upload UI test reports
         if: success() || failure()
         uses: actions/upload-artifact@v4
