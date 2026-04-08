@@ -1,7 +1,5 @@
 package com.github.artem.pageobjectplugin.buildtools
 
-import kotlinx.serialization.Serializable
-
 /**
  * Schema v1 of `build/reports/claude-summary.json`. Documented in
  * `docs/tasks/task-14-ci-test-reporting.md`. Consumed by Claude Code
@@ -11,8 +9,13 @@ import kotlinx.serialization.Serializable
  * No `quarantined` field: Task 13b never shipped `@Quarantine`, so the
  * Task 14 schema drops the field rather than carrying a perpetually-empty
  * placeholder.
+ *
+ * The model classes are NOT `@Serializable`: buildSrc cannot apply the
+ * `kotlinx.serialization` Gradle plugin without conflicting with
+ * `kotlin-dsl`'s embedded Kotlin compiler (see `buildSrc/build.gradle.kts`
+ * comment). JSON output is built manually via `buildJsonObject {}` in
+ * [ClaudeSummaryGenerator], which only needs the runtime library.
  */
-@Serializable
 data class ClaudeSummary(
     val version: Int = 1,
     val generatedAt: String,
@@ -20,7 +23,6 @@ data class ClaudeSummary(
     val suites: List<Suite>,
 )
 
-@Serializable
 data class Totals(
     val passed: Int,
     val failed: Int,
@@ -29,14 +31,12 @@ data class Totals(
     val durationMs: Long,
 )
 
-@Serializable
 data class Suite(
     /** "unit" | "uiTest" | "npm:playwright-snapshot-saver" | ... */
     val suite: String,
     val tests: List<TestEntry>,
 )
 
-@Serializable
 data class TestEntry(
     /** Fully-qualified `ClassName.testName` (or Playwright `file > test`). */
     val name: String,
