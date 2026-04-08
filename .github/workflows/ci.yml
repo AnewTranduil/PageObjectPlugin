@@ -130,6 +130,29 @@ jobs:
           git_ref=${{ github.ref_name }}&\
           git_sha=${{ github.sha }}"
 
+      - name: Upload UI trace bundles to dashboard
+        if: success() || failure()
+        run: |
+          # `finalizedBy("generateTraceIndex")` already wrote the index on the
+          # Gradle side; make doubly sure it exists before zipping so the
+          # dashboard suite URL always resolves to a landing page.
+          ./gradlew generateTraceIndex --quiet || true
+          if [ -d build/reports/uiTest/traces ] && [ -n "$(ls -A build/reports/uiTest/traces 2>/dev/null)" ]; then
+            cd build/reports/uiTest/traces && zip -r ../../../../ui-test-traces.zip . && cd ../../../..
+            curl -X POST \
+              -H "Authorization: Bearer ${{ secrets.RD_TOKEN }}" \
+              -F "report=@ui-test-traces.zip" \
+              "https://reports.artemon.cloud/api/v1/upload?\
+            suite=ui-test-traces&\
+            run_id=${{ github.run_id }}&\
+            run_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}&\
+            job_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}&\
+            git_ref=${{ github.ref_name }}&\
+            git_sha=${{ github.sha }}"
+          else
+            echo "No trace bundles produced — skipping ui-test-traces upload."
+          fi
+
   playwright-tests:
     name: Playwright Snapshot Saver Tests
     runs-on: ubuntu-latest

@@ -209,43 +209,63 @@ class TraceBundleExtension :
     }
 
     /**
-     * Dumps the Swing component tree under the Page Mirror tool window into
-     * `dom.html` (wrapped in `<pre>`). Not the full JCEF iframe HTML — that
-     * requires a CDP `Runtime.evaluate` round-trip and is a follow-up. The
-     * Swing dump is still strictly more than what `ScreenshotOnFailureExtension`
-     * captured (nothing).
+     * Dumps the Swing component tree of whichever containers are most useful
+     * for diagnosing the current failure. Tries in order: any open
+     * `DialogRootPane` (dialog failures), the Page Mirror tool window, and
+     * finally the whole `IdeFrameImpl`. Each captured container becomes a
+     * `<section>` in `dom.html`. Walks the tree printing class name +
+     * accessible name + visible text for each component, which is enough to
+     * rewrite XPath locators.
      */
     private fun dumpDom(bundleDir: Path, robot: RemoteRobot?): String? {
         if (robot == null) return null
-        return try {
-            val tw = robot.find<CommonContainerFixture>(
-                byXpath("//div[@class='InternalDecoratorImpl' and contains(@accessiblename, 'Page Mirror')]"),
-                Duration.ofSeconds(2),
-            )
-            val dump: String = tw.callJs(
-                """
-                var sb = new java.lang.StringBuilder()
-                function walk(c, depth) {
-                    var indent = ''
-                    for (var i = 0; i < depth; i++) indent += '  '
-                    var name = c.getClass().getSimpleName()
-                    var an = c.getAccessibleContext() != null ? c.getAccessibleContext().getAccessibleName() : null
-                    sb.append(indent).append(name)
-                    if (an != null) sb.append(" [\"").append(an).append("\"]")
-                    sb.append('\n')
-                    if (c.getComponents) {
-                        var kids = c.getComponents()
-                        for (var k = 0; k < kids.length; k++) walk(kids[k], depth + 1)
-                    }
+        val walkJs = """
+            var sb = new java.lang.StringBuilder()
+            function walk(c, depth) {
+                var indent = ''
+                for (var i = 0; i < depth; i++) indent += '  '
+                var name = c.getClass().getSimpleName()
+                var an = c.getAccessibleContext() != null ? c.getAccessibleContext().getAccessibleName() : null
+                var txt = null
+                try { if (c.getText) txt = c.getText() } catch (e) {}
+                sb.append(indent).append(name)
+                if (an != null) sb.append(' ["').append(an).append('"]')
+                if (txt != null && txt != '' && txt.length < 80) sb.append(' text="').append(txt).append('"')
+                sb.append('\n')
+                if (c.getComponents) {
+                    var kids = c.getComponents()
+                    for (var k = 0; k < kids.length; k++) walk(kids[k], depth + 1)
                 }
-                walk(component, 0)
-                sb.toString()
-                """.trimIndent(),
-                runInEdt = true,
-            )
+            }
+            walk(component, 0)
+            sb.toString()
+        """.trimIndent()
+
+        val targets = listOf(
+            "dialog" to byXpath("//div[@class='DialogRootPane' or @class='MyDialog']"),
+            "toolwindow" to byXpath("//div[@class='InternalDecoratorImpl' and contains(@accessiblename, 'Page Mirror')]"),
+            "ideframe" to byXpath("//div[@class='IdeFrameImpl']"),
+        )
+
+        val sections = StringBuilder()
+        var captured = 0
+        for ((label, locator) in targets) {
+            try {
+                val container = robot.find<CommonContainerFixture>(locator, Duration.ofMillis(500))
+                val dump: String = container.callJs(walkJs, runInEdt = true)
+                sections.append("<h3>").append(label).append("</h3>\n<pre>")
+                    .append(dump.replace("&", "&amp;").replace("<", "&lt;"))
+                    .append("</pre>\n")
+                captured++
+            } catch (_: Throwable) {
+                // section not present — skip
+            }
+        }
+        if (captured == 0) return null
+        return try {
             Files.writeString(
                 bundleDir.resolve("dom.html"),
-                "<pre>${dump.replace("&", "&amp;").replace("<", "&lt;")}</pre>",
+                "<!doctype html><meta charset=\"utf-8\"><title>UI dump</title>\n$sections",
             )
             "dom.html"
         } catch (_: Throwable) {

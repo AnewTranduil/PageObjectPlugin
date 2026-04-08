@@ -170,5 +170,27 @@ tasks {
             "ui.test.sandbox.dir",
             layout.buildDirectory.dir("idea-sandbox").get().asFile.absolutePath,
         )
+        // Keep the trace index in sync with every uiTest run. `finalizedBy`
+        // so the index is regenerated even on test failure.
+        finalizedBy("generateTraceIndex")
+    }
+
+    /**
+     * Scans `build/reports/uiTest/traces/<Class>__<method>/` and produces a
+     * centralized `index.html` tabulating every trace bundle with links into
+     * each bundle's artifacts (trace.json, idea.log, dom.html, jcef-console,
+     * threads.txt). Runs via the `uiTest` source set classpath so it reuses
+     * the existing kotlinx-serialization setup.
+     */
+    register<JavaExec>("generateTraceIndex") {
+        description = "Generates build/reports/uiTest/traces/index.html from trace.json bundles."
+        group = "verification"
+        classpath = sourceSets["uiTest"].runtimeClasspath
+        mainClass.set("com.github.artem.pageobjectplugin.ui.support.TraceIndexGeneratorKt")
+        args = listOf(
+            layout.buildDirectory.dir("reports/uiTest/traces").get().asFile.absolutePath,
+        )
+        // Never fail the build just because the index couldn't render.
+        isIgnoreExitValue = true
     }
 }
