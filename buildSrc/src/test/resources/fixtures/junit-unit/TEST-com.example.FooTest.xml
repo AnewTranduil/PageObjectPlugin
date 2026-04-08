@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.example.FooTest" tests="3" skipped="0" failures="1" errors="0" timestamp="2026-04-08T12:00:00" hostname="ci" time="0.456">
+  <testcase name="passes" classname="com.example.FooTest" time="0.123"/>
+  <testcase name="failsWithStack" classname="com.example.FooTest" time="0.234">
+    <failure message="expected:&lt;1&gt; but was:&lt;2&gt;" type="org.junit.ComparisonFailure">org.junit.ComparisonFailure: expected:&lt;1&gt; but was:&lt;2&gt;
+	at com.example.FooTest.failsWithStack(FooTest.kt:42)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+</failure>
+  </testcase>
+  <testcase name="isSkipped" classname="com.example.FooTest" time="0.000">
+    <skipped/>
+  </testcase>
+</testsuite>

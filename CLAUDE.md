@@ -135,6 +135,67 @@ Tasks MUST be completed in order. Each task is in `docs/tasks/`.
 
 When investigating Gradle plugin APIs or build tooling, prefer reading project docs and running `./gradlew` commands (`help --task`, `dependencies`, `buildEnvironment`, etc.) over exploring files outside the project directory (e.g., `.gradle/caches/`, `.intellijPlatform/`). Stay within the project boundary.
 
+## Test Loop
+
+Tests run on **CI**, not locally. The plugin's test surface (Xvfb-driven
+UI tests, npm/Playwright integration tests, JCEF, sandboxed IDE) is
+expensive and platform-sensitive enough that the canonical "did my change
+break anything?" signal is the CI run for your branch — not `./gradlew test`
+in a developer terminal. The loop is:
+
+1. Push your branch.
+2. Wait for the `test-report` job in `.github/workflows/ci.yml` to
+   complete. It depends on `unit-tests`, `ui-tests`, and `playwright-tests`
+   and runs the buildSrc aggregator (`./gradlew aggregateTestReport`) on
+   their combined raw output.
+3. Read `claude-summary.md` from the `claude-summary` suite on
+   `reports.artemon.cloud` (see "Report Dashboard Access" below for the
+   token + read endpoints):
+
+   ```bash
+   BASE="${REPORT_DASHBOARD_URL:-https://reports.artemon.cloud}"
+   AUTH="Authorization: Bearer $REPORT_DASHBOARD_TOKEN"
+   RUN_ID=$(curl -sH "$AUTH" "$BASE/api/v1/external/runs" \
+              | jq -r '.data[0].run_id')
+   curl -sH "$AUTH" \
+     "$BASE/api/v1/external/runs/$RUN_ID/claude-summary/claude-summary.md"
+   ```
+
+4. The Markdown lists every failing test with `file:line` and (for UI
+   tests) the path to its trace bundle inside the same dashboard suite
+   (`/api/v1/external/runs/$RUN_ID/claude-summary/traces/<Class>__<method>/`).
+5. Fix locally. Push. Repeat from step 2.
+
+The aggregated `claude-summary.json` schema is documented in
+`docs/tasks/task-14-ci-test-reporting.md`. The same bundle is also
+uploaded as the GitHub Actions artifact `test-report-<sha>` for ad-hoc
+download, but the dashboard is the **primary** read path because it does
+not require GitHub auth and survives across sessions.
+
+`./gradlew testReport` exists as a developer-debugging side-tool that
+runs every suite locally and produces the same `claude-summary.{json,md}`
+under `build/reports/`. Use it when iterating on a single suite, but do
+not treat its output as the source of truth — only the CI run for your
+branch is authoritative.
+
+**Redlines** (non-negotiable):
+
+- **Never remove, disable, or `continue-on-error` the "Upload
+  claude-summary bundle to reports.artemon.cloud" step in
+  `.github/workflows/ci.yml`.** That upload is the main step of the
+  Test Loop; if it stops running the loop is broken even when every
+  test passes, because the remote dashboard endpoint is how this and
+  any future Claude Code session sees CI results. If the upload step
+  is flaky, fix the root cause — do not bypass it.
+- **Never delete a failing test to turn CI green.**
+- **Never add `@Ignore` / `@Disabled` without a ticket** linked in the
+  same commit; bare skips are banned.
+- **After a fix, always push and wait for the `test-report` CI job to
+  complete** before declaring green. Never cherry-pick a single local
+  test run as proof.
+- **Never use `node -e` or inline scripts for verification** — add a
+  real test (unit or integration).
+
 ## Workflow Rules
 
 - **Never use `node -e` for ad-hoc verification.** Always create a proper test (unit or integration) instead of running inline scripts. Tests are reusable, documented, and run in CI.
