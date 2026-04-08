@@ -193,4 +193,86 @@ tasks {
         // Never fail the build just because the index couldn't render.
         isIgnoreExitValue = true
     }
+
+    // ── Task 14: CI test reporting + Claude inner loop ────────────────────
+    //
+    // Runs the Playwright suite from the snapshot-saver package. The JSON
+    // reporter (configured in `packages/playwright-snapshot-saver/playwright.config.ts`)
+    // writes machine-readable results to `test-results/results.json`, which
+    // the aggregator below consumes.
+    register<Exec>("playwrightTest") {
+        description = "Runs Playwright tests under packages/playwright-snapshot-saver."
+        group = "verification"
+        workingDir = rootDir.resolve("packages/playwright-snapshot-saver")
+        commandLine("npx", "playwright", "test")
+    }
+
+    /**
+     * Parses every test surface (unit, uiTest, playwright) and writes
+     * `build/reports/claude-summary.{json,md}`. Lives in `buildSrc/` so it
+     * has zero dependency on the IntelliJ Platform classpath and can run
+     * even when no test source set has compiled. See
+     * `docs/tasks/task-14-ci-test-reporting.md` for the schema and the
+     * "Test Loop" section in `CLAUDE.md` for how it's consumed.
+     */
+    register("aggregateTestReport") {
+        description = "Aggregates test results into build/reports/claude-summary.{json,md}."
+        group = "verification"
+        val rootDirFile = rootDir
+        val buildDirFile = layout.buildDirectory.get().asFile
+        doLast {
+            val gitSha: String? = System.getenv("GITHUB_SHA")?.takeIf { it.isNotBlank() }
+                ?: runCatching {
+                    ProcessBuilder("git", "rev-parse", "HEAD")
+                        .directory(rootDirFile)
+                        .redirectErrorStream(true)
+                        .start()
+                        .inputStream.bufferedReader().readText().trim().ifEmpty { null }
+                }.getOrNull()
+            val summary = com.github.artem.pageobjectplugin.buildtools.ClaudeSummaryGenerator.run(
+                rootDir = rootDirFile,
+                buildDir = buildDirFile,
+                gitSha = gitSha,
+            )
+            logger.lifecycle(
+                "claude-summary: ${summary.totals.passed} passed, ${summary.totals.failed} failed, " +
+                    "${summary.totals.skipped} skipped, ${summary.totals.flaky} flaky " +
+                    "→ build/reports/claude-summary.{json,md}",
+            )
+            if (summary.totals.failed > 0) {
+                throw GradleException(
+                    "${summary.totals.failed} test(s) failed — see build/reports/claude-summary.md",
+                )
+            }
+        }
+    }
+
+    /**
+     * Developer entry point. Runs every test surface and then aggregates.
+     * The `whenReady` hook below makes the per-suite tasks tolerate
+     * failures so the aggregator always runs and emits the summary, while
+     * `aggregateTestReport` itself fails the build if any test failed.
+     *
+     * The canonical "did my change break anything?" loop is the CI run for
+     * the branch (see CLAUDE.md "Test Loop"). This task is only for
+     * iterating on a single suite locally.
+     */
+    register("testReport") {
+        description = "Runs all tests and emits build/reports/claude-summary.{json,md}."
+        group = "verification"
+        dependsOn("test", "uiTest", "playwrightTest")
+        finalizedBy("aggregateTestReport")
+    }
+}
+
+// When `testReport` is the entry point, let every per-suite task complete
+// (even on failure) so the aggregator gets to read all three sets of XML
+// / JSON outputs. Standalone `./gradlew test` (or `uiTest`, etc.) is
+// unaffected and still fails loudly.
+gradle.taskGraph.whenReady {
+    if (hasTask(":testReport")) {
+        tasks.named<Test>("test") { ignoreFailures = true }
+        tasks.named<Test>("uiTest") { ignoreFailures = true }
+        tasks.named<Exec>("playwrightTest") { isIgnoreExitValue = true }
+    }
 }

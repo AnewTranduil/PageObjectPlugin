@@ -35,6 +35,14 @@ jobs:
           name: unit-test-reports
           path: build/reports/tests/test/
 
+      # Raw JUnit XML — consumed by the test-report aggregator job below.
+      - name: Upload raw unit-test XML (for aggregator)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-raw
+          path: build/test-results/test/
+
       - name: Upload test report to dashboard
         if: success() || failure()
         run: |
@@ -137,6 +145,18 @@ jobs:
             build/screenshots/uiTest/
             build/idea-sandbox/system/log/
 
+      # Raw JUnit XML + per-test trace bundles — consumed by the
+      # test-report aggregator job below. Path layout matches what the
+      # aggregator expects under `build/`.
+      - name: Upload raw uiTest results (for aggregator)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-test-raw
+          path: |
+            build/test-results/uiTest/
+            build/reports/uiTest/traces/
+
       - name: Upload UI test report to dashboard
         if: success() || failure()
         run: |
@@ -196,13 +216,26 @@ jobs:
 
       - name: Run Playwright tests
         working-directory: packages/playwright-snapshot-saver
-        run: npx playwright test --reporter=list,html
+        # Reporter set is configured in playwright.config.ts (list + html + json).
+        # The json reporter writes test-results/results.json, which the
+        # test-report job feeds into the buildSrc aggregator (Task 14).
+        run: npx playwright test
 
       - name: Upload Playwright reports
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-test-reports
+          path: packages/playwright-snapshot-saver/test-results/
+
+      # Raw Playwright JSON reporter output — consumed by the test-report
+      # aggregator job below. results.json is written by the `json`
+      # reporter declared in playwright.config.ts.
+      - name: Upload raw Playwright JSON (for aggregator)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-raw
           path: packages/playwright-snapshot-saver/test-results/
 
       - name: Upload Playwright report to dashboard
@@ -219,3 +252,141 @@ jobs:
           job_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}&\
           git_ref=${{ github.ref_name }}&\
           git_sha=${{ github.sha }}"
+
+  # ── Task 14: Claude Inner Loop ──────────────────────────────────────────
+  #
+  # Downloads the raw test outputs from each parallel job, runs the
+  # buildSrc aggregator (`./gradlew aggregateTestReport`), and uploads
+  # the resulting `claude-summary.{json,md}` bundle to:
+  #   1. The `test-report-<sha>` GitHub Actions artifact (for ad-hoc
+  #      manual download).
+  #   2. The `claude-summary` suite on reports.artemon.cloud (the MAIN
+  #      step — this is how remote Claude Code sessions consume CI test
+  #      results via /api/v1/external/runs without needing GitHub auth).
+  #
+  # See CLAUDE.md "Test Loop" for the loop redlines, including the
+  # non-negotiable rule that this job's dashboard upload step must not
+  # be removed, disabled, or marked `continue-on-error`.
+  test-report:
+    name: Aggregate Claude Test Report
+    needs: [unit-tests, ui-tests, playwright-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Download every raw test surface. continue-on-error so a single
+      # missing artifact (e.g. a job that didn't run because an upstream
+      # one failed early) does not block aggregation.
+      - name: Download raw unit-test XML
+        uses: actions/download-artifact@v4
+        with:
+          name: unit-test-raw
+          path: build/test-results/test/
+        continue-on-error: true
+
+      - name: Download raw uiTest results
+        uses: actions/download-artifact@v4
+        with:
+          name: ui-test-raw
+          path: build/
+        continue-on-error: true
+
+      - name: Download raw Playwright JSON
+        uses: actions/download-artifact@v4
+        with:
+          name: playwright-test-raw
+          path: packages/playwright-snapshot-saver/test-results/
+        continue-on-error: true
+
+      # Aggregator runs even if some downloads were missing — it tolerates
+      # empty inputs by emitting an empty suite. continue-on-error so a
+      # non-zero exit (failed tests) still lets the upload steps run.
+      - name: Generate Claude summary
+        id: aggregate
+        run: ./gradlew aggregateTestReport
+        continue-on-error: true
+
+      - name: Upload combined test report bundle (GH artifact)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report-${{ github.sha }}
+          path: |
+            build/reports/claude-summary.json
+            build/reports/claude-summary.md
+            build/reports/uiTest/traces/
+
+      # ── MAIN STEP: enables the remote Claude inner loop. ──
+      # Intentionally NO `continue-on-error` and an explicit HTTP-code
+      # check: a non-2xx response turns this job red even when every test
+      # passed. A green test-report job without a dashboard artifact
+      # means remote Claude sessions cannot read CI results, which is the
+      # whole point of the loop. Removing or disabling this step is a
+      # CLAUDE.md redline (see "Test Loop" → Redlines).
+      - name: Upload claude-summary bundle to reports.artemon.cloud
+        if: always()
+        env:
+          RD_TOKEN: ${{ secrets.RD_TOKEN }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GIT_REF: ${{ github.ref_name }}
+          GIT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [ ! -f build/reports/claude-summary.json ]; then
+            echo "::error::claude-summary.json missing — aggregator did not run"
+            exit 1
+          fi
+          mkdir -p claude-summary-bundle
+          cp build/reports/claude-summary.json build/reports/claude-summary.md claude-summary-bundle/
+          if [ -d build/reports/uiTest/traces ]; then
+            cp -r build/reports/uiTest/traces claude-summary-bundle/traces
+          fi
+          (cd claude-summary-bundle && zip -r ../claude-summary-bundle.zip .)
+          URL="https://reports.artemon.cloud/api/v1/upload?suite=claude-summary&run_id=${RUN_ID}&run_url=${RUN_URL}&job_url=${RUN_URL}&git_ref=${GIT_REF}&git_sha=${GIT_SHA}"
+          HTTP_CODE=$(curl -sS -o /tmp/rd-response.txt -w '%{http_code}' -X POST \
+            -H "Authorization: Bearer ${RD_TOKEN}" \
+            -F "report=@claude-summary-bundle.zip" "$URL")
+          echo "Dashboard response: $HTTP_CODE"
+          cat /tmp/rd-response.txt || true
+          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
+            echo "::error::claude-summary dashboard upload failed (HTTP $HTTP_CODE) — the remote Claude loop is broken"
+            exit 1
+          fi
+
+      # Best-effort housekeeping — a failed finalize is a warning, not a
+      # build failure, because the dashboard tolerates re-finalizes.
+      - name: Finalize run on dashboard
+        if: always()
+        env:
+          RD_TOKEN: ${{ secrets.RD_TOKEN }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          curl -sS -X POST \
+            -H "Authorization: Bearer ${RD_TOKEN}" \
+            "https://reports.artemon.cloud/api/v1/executions/${RUN_ID}/finalize" \
+            || echo "::warning::finalize call failed — non-fatal"
+
+      # Final gate: propagate test failure to the job exit code, but only
+      # AFTER both the GH artifact and the dashboard bundle are already up.
+      - name: Fail the job if any test failed
+        run: |
+          if [ ! -f build/reports/claude-summary.json ]; then
+            echo "::error::claude-summary.json missing — see aggregate step logs"
+            exit 1
+          fi
+          sudo apt-get install -y --no-install-recommends jq >/dev/null 2>&1 || true
+          FAILED=$(jq -r '.totals.failed // 0' build/reports/claude-summary.json)
+          if [ "$FAILED" -gt 0 ]; then
+            echo "::error::$FAILED test(s) failed — see claude-summary.md (GH artifact test-report-${{ github.sha }} or dashboard suite 'claude-summary')"
+            exit 1
+          fi

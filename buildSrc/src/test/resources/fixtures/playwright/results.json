@@ -1,0 +1,48 @@
+{
+  "config": {},
+  "suites": [
+    {
+      "title": "login.spec.ts",
+      "file": "tests/login.spec.ts",
+      "specs": [
+        {
+          "title": "logs in with valid creds",
+          "line": 12,
+          "tests": [
+            {
+              "results": [
+                { "status": "passed", "duration": 1234 }
+              ]
+            }
+          ]
+        },
+        {
+          "title": "rejects empty password",
+          "line": 30,
+          "tests": [
+            {
+              "results": [
+                {
+                  "status": "failed",
+                  "duration": 567,
+                  "error": { "message": "expected toast to be visible" }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "title": "is intentionally skipped",
+          "line": 50,
+          "tests": [
+            {
+              "results": [
+                { "status": "skipped", "duration": 0 }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
