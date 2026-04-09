@@ -2,6 +2,7 @@ package com.github.artem.pageobjectplugin.ui
 
 import com.github.artem.pageobjectplugin.ui.flows.SnapshotLoadFlow
 import com.github.artem.pageobjectplugin.ui.locators.IntelliJLocators
+import com.github.artem.pageobjectplugin.ui.support.FeatureTagListener
 import com.github.artem.pageobjectplugin.ui.support.RetryOnceExtension
 import com.github.artem.pageobjectplugin.ui.support.StepRecorder
 import com.github.artem.pageobjectplugin.ui.support.TraceBundleExtension
@@ -25,6 +26,7 @@ import java.time.Duration
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @ExtendWith(RetryOnceExtension::class)
 @ExtendWith(TraceBundleExtension::class)
+@ExtendWith(FeatureTagListener::class)
 abstract class BaseUiTest {
 
     protected val robot: RemoteRobot by lazy { RemoteRobot(robotUrl) }
