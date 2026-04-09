@@ -149,6 +149,7 @@ class TraceBundleExtension :
                     className = context.testClass.map { it.name }.orElse("Unknown"),
                     method = method,
                     displayName = context.displayName,
+                    feature = FeatureTagListener.readTag(context),
                 ),
                 startedAt = startedAt.toString(),
                 durationMs = durationMs,
