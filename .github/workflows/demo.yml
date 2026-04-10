@@ -8,9 +8,12 @@ jobs:
   demo-report:
     if: github.event.label.name == 'demo'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       pull-requests: write
+    env:
+      DISPLAY: ':99'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -48,6 +51,22 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install Xvfb and display dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libxrender1 libxtst6 libxi6 \
+            libxrandr2 libxcomposite1 libxcursor1 libxdamage1 \
+            libxfixes3 libatk1.0-0 libatk-bridge2.0-0 libgtk-3-0 \
+            libnss3 libnspr4 libasound2t64 libgbm1 libdrm2 \
+            libcups2 libpango-1.0-0 libcairo2 fonts-liberation
+
+      - name: Start Xvfb
+        run: |
+          Xvfb :99 -screen 0 1920x1080x24 -ac +extension GLX &
+          sleep 2
+
       - name: Compute changed files
         id: changed
         env:
@@ -58,6 +77,27 @@ jobs:
           FILES=$(git diff --name-only "origin/$BASE_REF...HEAD" | paste -sd, -)
           echo "files=$FILES" >> "$GITHUB_OUTPUT"
 
+      - name: Start IDE for UI tests
+        run: |
+          ./gradlew runIdeForUiTests &
+          echo "IDE starting in background..."
+
+      - name: Wait for robot-server
+        run: |
+          echo "Waiting for robot-server on port 8082..."
+          timeout=300
+          elapsed=0
+          while [ $elapsed -lt $timeout ]; do
+            if curl -sf http://localhost:8082 > /dev/null 2>&1; then
+              echo "Robot server is ready (after ${elapsed}s)"
+              exit 0
+            fi
+            sleep 5
+            elapsed=$((elapsed + 5))
+          done
+          echo "ERROR: Robot server not ready after ${timeout}s"
+          exit 1
+
       - name: Run demoReport
         env:
           DEMO_BASE_REF: origin/${{ github.base_ref }}
@@ -66,21 +106,62 @@ jobs:
             -PfeatureName=${{ steps.tag.outputs.tag }} \
             -PchangedFiles="${{ steps.changed.outputs.files }}"
 
-      - name: Upload demo report
+      - name: Upload demo report artifact
         id: upload
         uses: actions/upload-artifact@v4
         with:
           name: demo-report-${{ github.event.pull_request.head.sha }}
           path: build/reports/demo/**
 
+      - name: Upload demo report to dashboard
+        env:
+          RD_DEMO_TOKEN: ${{ secrets.RD_DEMO_TOKEN }}
+          FEATURE_TAG: ${{ steps.tag.outputs.tag }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GIT_REF: ${{ github.ref_name }}
+          GIT_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          DEMO_DIR="build/reports/demo/${FEATURE_TAG}"
+          if [ ! -d "$DEMO_DIR" ]; then
+            echo "::warning::Demo report directory not found — skipping dashboard upload."
+            exit 0
+          fi
+          (cd "$DEMO_DIR" && zip -r ../../../../demo-report.zip .)
+          curl -fsS -X POST \
+            -H "Authorization: Bearer ${RD_DEMO_TOKEN}" \
+            -F "report=@demo-report.zip" \
+            "https://reports.artemon.cloud/api/v1/upload?\
+          suite=demo&\
+          run_id=${RUN_ID}&\
+          run_url=${RUN_URL}&\
+          job_url=${RUN_URL}&\
+          git_ref=${GIT_REF}&\
+          git_sha=${GIT_SHA}"
+
+      - name: Finalize run on dashboard
+        if: always()
+        env:
+          RD_DEMO_TOKEN: ${{ secrets.RD_DEMO_TOKEN }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          curl -sS -X POST \
+            -H "Authorization: Bearer ${RD_DEMO_TOKEN}" \
+            "https://reports.artemon.cloud/api/v1/executions/${RUN_ID}/finalize" \
+            || echo "::warning::finalize call failed — non-fatal"
+
       - name: Comment artifact link
         uses: actions/github-script@v7
         with:
           script: |
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const dashboardUrl = `https://reports.artemon.cloud/api/v1/external/runs/${context.runId}/demo/index.html`;
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: `Demo report for \`${{ steps.tag.outputs.tag }}\` uploaded — download artifact \`demo-report-${{ github.event.pull_request.head.sha }}\` from [this workflow run](${runUrl}). Re-add the \`demo\` label to regenerate.`,
+              body: `Demo report for \`${{ steps.tag.outputs.tag }}\` uploaded.\n\n` +
+                `- **Dashboard:** [View report](${dashboardUrl})\n` +
+                `- **Artifact:** \`demo-report-${{ github.event.pull_request.head.sha }}\` from [this workflow run](${runUrl})\n\n` +
+                `Re-add the \`demo\` label to regenerate.`,
             });
