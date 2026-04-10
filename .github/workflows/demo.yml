@@ -11,39 +11,11 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: read
-      pull-requests: write
     env:
       DISPLAY: ':99'
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Parse feature tag from PR title
-        id: tag
-        env:
-          PR_TITLE: ${{ github.event.pull_request.title }}
-        run: |
-          set -euo pipefail
-          if [[ "$PR_TITLE" =~ ^\[demo:([a-z0-9-]+)\] ]]; then
-            echo "tag=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
-          else
-            echo "tag=" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Fail if tag missing
-        if: steps.tag.outputs.tag == ''
-        uses: actions/github-script@v8
-        with:
-          script: |
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: 'demo-report: the `demo` label requires the PR title to start with `[demo:<tag>]` (e.g. `[demo:highlight-all] ...`). Re-add the label after fixing the title.',
-            });
-            core.setFailed('Missing [demo:<tag>] prefix in PR title.');
 
       - name: Set up JDK 21
         uses: actions/setup-java@v5
@@ -66,16 +38,6 @@ jobs:
         run: |
           Xvfb :99 -screen 0 1920x1080x24 -ac +extension GLX &
           sleep 2
-
-      - name: Compute changed files
-        id: changed
-        env:
-          BASE_REF: ${{ github.base_ref }}
-        run: |
-          set -euo pipefail
-          git fetch origin "$BASE_REF" --depth=1
-          FILES=$(git diff --name-only "origin/$BASE_REF...HEAD" | paste -sd, -)
-          echo "files=$FILES" >> "$GITHUB_OUTPUT"
 
       - name: Start IDE for UI tests
         run: |
@@ -100,30 +62,18 @@ jobs:
 
       - name: Run demoReport
         id: demo
-        env:
-          DEMO_BASE_REF: origin/${{ github.base_ref }}
-        run: |
-          ./gradlew demoReport \
-            -PfeatureName=${{ steps.tag.outputs.tag }} \
-            -PchangedFiles="${{ steps.changed.outputs.files }}"
-
-      - name: Upload demo report artifact
-        id: upload
-        uses: actions/upload-artifact@v5
-        with:
-          name: demo-report-${{ github.event.pull_request.head.sha }}
-          path: build/reports/demo/**
+        run: ./gradlew demoReport -PfeatureName=all
 
       - name: Upload demo report to dashboard
+        if: success() || failure()
         env:
           RD_DEMO_TOKEN: ${{ secrets.RD_DEMO_TOKEN }}
-          FEATURE_TAG: ${{ steps.tag.outputs.tag }}
           RUN_ID: ${{ github.run_id }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GIT_REF: ${{ github.ref_name }}
           GIT_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          DEMO_DIR="build/reports/demo/${FEATURE_TAG}"
+          DEMO_DIR="build/reports/demo/all"
           if [ ! -d "$DEMO_DIR" ]; then
             echo "::warning::Demo report directory not found — skipping dashboard upload."
             exit 0
@@ -155,19 +105,3 @@ jobs:
             -H "Authorization: Bearer ${RD_DEMO_TOKEN}" \
             "https://reports.artemon.cloud/api/v1/executions/${RUN_ID}/finalize" \
             || echo "::warning::finalize call failed — non-fatal"
-
-      - name: Comment artifact link
-        uses: actions/github-script@v8
-        with:
-          script: |
-            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            const dashboardUrl = `https://reports.artemon.cloud/api/v1/external/runs/${context.runId}/demo/index.html`;
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: `Demo report for \`${{ steps.tag.outputs.tag }}\` uploaded.\n\n` +
-                `- **Dashboard:** [View report](${dashboardUrl})\n` +
-                `- **Artifact:** \`demo-report-${{ github.event.pull_request.head.sha }}\` from [this workflow run](${runUrl})\n\n` +
-                `Re-add the \`demo\` label to regenerate.`,
-            });
