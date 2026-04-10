@@ -16,21 +16,22 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v5
 
       - name: Run unit tests
+        id: tests
         run: ./gradlew test
 
       - name: Upload test reports
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: unit-test-reports
           path: build/reports/tests/test/
@@ -38,7 +39,7 @@ jobs:
       # Raw JUnit XML — consumed by the test-report aggregator job below.
       - name: Upload raw unit-test XML (for aggregator)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: unit-test-raw
           path: build/test-results/test/
@@ -48,6 +49,8 @@ jobs:
         run: |
           cd build/reports/tests/test && zip -r ../../../../unit-test-report.zip . && cd ../../../..
           curl -X POST \
+            --connect-timeout 10 --max-time 120 \
+            --retry 3 --retry-connrefused --retry-delay 2 \
             -H "Authorization: Bearer ${{ secrets.RD_TOKEN }}" \
             -F "report=@unit-test-report.zip" \
             "https://reports.artemon.cloud/api/v1/upload?\
@@ -56,7 +59,8 @@ jobs:
           run_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}&\
           job_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}&\
           git_ref=${{ github.ref_name }}&\
-          git_sha=${{ github.sha }}"
+          git_sha=${{ github.sha }}&\
+          status=${{ steps.tests.outcome == 'success' && 'passed' || 'failed' }}"
 
   ui-tests:
     name: UI E2E Tests
@@ -65,14 +69,14 @@ jobs:
     env:
       DISPLAY: ':99'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v5
 
       - name: Install Xvfb and display dependencies
         run: |
@@ -110,6 +114,7 @@ jobs:
           exit 1
 
       - name: Run UI tests
+        id: tests
         run: ./gradlew uiTest --info
 
       - name: Dump trace bundles to log (diagnostic)
@@ -136,7 +141,7 @@ jobs:
 
       - name: Upload UI test reports
         if: success() || failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ui-test-reports
           path: |
@@ -150,7 +155,7 @@ jobs:
       # aggregator expects under `build/`.
       - name: Upload raw uiTest results (for aggregator)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ui-test-raw
           path: |
@@ -162,6 +167,8 @@ jobs:
         run: |
           cd build/reports/tests/uiTest && zip -r ../../../../ui-test-report.zip . && cd ../../../..
           curl -X POST \
+            --connect-timeout 10 --max-time 120 \
+            --retry 3 --retry-connrefused --retry-delay 2 \
             -H "Authorization: Bearer ${{ secrets.RD_TOKEN }}" \
             -F "report=@ui-test-report.zip" \
             "https://reports.artemon.cloud/api/v1/upload?\
@@ -170,7 +177,8 @@ jobs:
           run_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}&\
           job_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}&\
           git_ref=${{ github.ref_name }}&\
-          git_sha=${{ github.sha }}"
+          git_sha=${{ github.sha }}&\
+          status=${{ steps.tests.outcome == 'success' && 'passed' || 'failed' }}"
 
       - name: Upload UI trace bundles to dashboard
         if: success() || failure()
@@ -190,17 +198,22 @@ jobs:
             exit 0
           fi
           (cd build/reports/uiTest/traces && zip -r ../../../../ui-test-traces.zip .)
-          URL="https://reports.artemon.cloud/api/v1/upload?suite=ui-test-traces&run_id=${RUN_ID}&run_url=${RUN_URL}&job_url=${RUN_URL}&git_ref=${GIT_REF}&git_sha=${GIT_SHA}"
-          curl -X POST -H "Authorization: Bearer ${RD_TOKEN}" -F "report=@ui-test-traces.zip" "$URL"
+          STATUS="${{ steps.tests.outcome == 'success' && 'passed' || 'failed' }}"
+          URL="https://reports.artemon.cloud/api/v1/upload?suite=ui-test-traces&run_id=${RUN_ID}&run_url=${RUN_URL}&job_url=${RUN_URL}&git_ref=${GIT_REF}&git_sha=${GIT_SHA}&status=${STATUS}"
+          curl -X POST \
+            --connect-timeout 10 --max-time 120 \
+            --retry 3 --retry-connrefused --retry-delay 2 \
+            -H "Authorization: Bearer ${RD_TOKEN}" \
+            -F "report=@ui-test-traces.zip" "$URL"
 
   playwright-tests:
     name: Playwright Snapshot Saver Tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '24'
           cache: npm
@@ -215,6 +228,7 @@ jobs:
         run: npx playwright install chromium --with-deps
 
       - name: Run Playwright tests
+        id: tests
         working-directory: packages/playwright-snapshot-saver
         # Reporter set is configured in playwright.config.ts (list + html + json).
         # The json reporter writes test-results/results.json, which the
@@ -223,7 +237,7 @@ jobs:
 
       - name: Upload Playwright reports
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: playwright-test-reports
           path: packages/playwright-snapshot-saver/test-results/
@@ -233,7 +247,7 @@ jobs:
       # reporter declared in playwright.config.ts.
       - name: Upload raw Playwright JSON (for aggregator)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: playwright-test-raw
           path: packages/playwright-snapshot-saver/test-results/
@@ -243,6 +257,8 @@ jobs:
         run: |
           cd packages/playwright-snapshot-saver/playwright-report && zip -r ../../../playwright-report.zip . && cd ../../..
           curl -X POST \
+            --connect-timeout 10 --max-time 120 \
+            --retry 3 --retry-connrefused --retry-delay 2 \
             -H "Authorization: Bearer ${{ secrets.RD_TOKEN }}" \
             -F "report=@playwright-report.zip" \
             "https://reports.artemon.cloud/api/v1/upload?\
@@ -251,7 +267,8 @@ jobs:
           run_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}&\
           job_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}&\
           git_ref=${{ github.ref_name }}&\
-          git_sha=${{ github.sha }}"
+          git_sha=${{ github.sha }}&\
+          status=${{ steps.tests.outcome == 'success' && 'passed' || 'failed' }}"
 
   # ── Task 14: Claude Inner Loop ──────────────────────────────────────────
   #
@@ -274,34 +291,34 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v5
 
       # Download every raw test surface. continue-on-error so a single
       # missing artifact (e.g. a job that didn't run because an upstream
       # one failed early) does not block aggregation.
       - name: Download raw unit-test XML
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: unit-test-raw
           path: build/test-results/test/
         continue-on-error: true
 
       - name: Download raw uiTest results
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: ui-test-raw
           path: build/
         continue-on-error: true
 
       - name: Download raw Playwright JSON
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: playwright-test-raw
           path: packages/playwright-snapshot-saver/test-results/
@@ -317,7 +334,7 @@ jobs:
 
       - name: Upload combined test report bundle (GH artifact)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: test-report-${{ github.sha }}
           path: |
@@ -352,8 +369,11 @@ jobs:
             cp -r build/reports/uiTest/traces claude-summary-bundle/traces
           fi
           (cd claude-summary-bundle && zip -r ../claude-summary-bundle.zip .)
-          URL="https://reports.artemon.cloud/api/v1/upload?suite=claude-summary&run_id=${RUN_ID}&run_url=${RUN_URL}&job_url=${RUN_URL}&git_ref=${GIT_REF}&git_sha=${GIT_SHA}"
+          STATUS="${{ steps.aggregate.outcome == 'success' && 'passed' || 'failed' }}"
+          URL="https://reports.artemon.cloud/api/v1/upload?suite=claude-summary&run_id=${RUN_ID}&run_url=${RUN_URL}&job_url=${RUN_URL}&git_ref=${GIT_REF}&git_sha=${GIT_SHA}&status=${STATUS}"
           HTTP_CODE=$(curl -sS -o /tmp/rd-response.txt -w '%{http_code}' -X POST \
+            --connect-timeout 10 --max-time 120 \
+            --retry 3 --retry-connrefused --retry-delay 2 \
             -H "Authorization: Bearer ${RD_TOKEN}" \
             -F "report=@claude-summary-bundle.zip" "$URL")
           echo "Dashboard response: $HTTP_CODE"
@@ -372,6 +392,8 @@ jobs:
           RUN_ID: ${{ github.run_id }}
         run: |
           curl -sS -X POST \
+            --connect-timeout 10 --max-time 30 \
+            --retry 3 --retry-connrefused --retry-delay 2 \
             -H "Authorization: Bearer ${RD_TOKEN}" \
             "https://reports.artemon.cloud/api/v1/executions/${RUN_ID}/finalize" \
             || echo "::warning::finalize call failed — non-fatal"
