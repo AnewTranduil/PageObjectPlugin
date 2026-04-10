@@ -1,5 +1,6 @@
 import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+import java.nio.file.Files as NioFiles
 
 plugins {
     id("org.jetbrains.kotlin.jvm") version "2.1.0"
@@ -263,6 +264,84 @@ tasks {
         dependsOn("test", "uiTest", "playwrightTest")
         finalizedBy("aggregateTestReport")
     }
+
+    register("demoReport") {
+        group = "verification"
+        description = "Run selected UI tests and render a self-contained feature-demo HTML trace viewer."
+
+        val featureNameProp = providers.gradleProperty("featureName")
+        val changedFilesProp = providers.gradleProperty("changedFiles")
+        val projectDirFile = projectDir
+        val buildDirFile = layout.buildDirectory.get().asFile
+        val templateDirFile = rootProject.file("src/main/resources/demo-viewer")
+
+        doLast {
+            val featureName = featureNameProp.orNull
+                ?: error("demoReport requires -PfeatureName=<tag>")
+
+            val changedFiles: List<String> = changedFilesProp.orNull?.let { prop ->
+                prop.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+            } ?: gitDiffChangedFiles(projectDirFile)
+
+            val selection = com.github.artem.pageobjectplugin.buildtools
+                .DemoTestSelector.select(
+                    projectDir = projectDirFile.toPath(),
+                    featureTag = featureName,
+                    changedFiles = changedFiles,
+                )
+            val selectedTests = selection.selected
+            val taggedCount = selection.taggedCount
+
+            if (taggedCount < 2) {
+                error(
+                    "demoReport requires at least 2 scenarios tagged @Feature(\"$featureName\") " +
+                        "(found $taggedCount). Add a happy-path AND a negative-case test."
+                )
+            }
+
+            val gradlew = if (System.getProperty("os.name").startsWith("Windows")) "gradlew.bat" else "./gradlew"
+            val cmd = mutableListOf(gradlew, "uiTest", "-PcaptureAllTraces=true")
+            selectedTests.forEach { cmd += listOf("--tests", it) }
+            val exitCode = ProcessBuilder(cmd)
+                .directory(projectDirFile)
+                .inheritIO()
+                .start()
+                .waitFor()
+            if (exitCode != 0) error("uiTest sub-build failed with exit code $exitCode")
+
+            val traceRoot = buildDirFile.resolve("reports/uiTest/traces").toPath()
+            val bundles = NioFiles.list(traceRoot).use { stream ->
+                stream.filter { NioFiles.isDirectory(it) }.toList()
+            }
+
+            val gitSha = ProcessBuilder("git", "rev-parse", "HEAD")
+                .directory(projectDirFile)
+                .redirectErrorStream(true)
+                .start()
+                .inputStream.bufferedReader().readText().trim()
+
+            val outDir = buildDirFile.resolve("reports/demo/$featureName").toPath()
+            com.github.artem.pageobjectplugin.buildtools.DemoReportRenderer.render(
+                bundles = bundles,
+                outputDir = outDir,
+                featureTag = featureName,
+                gitSha = gitSha,
+                templateDir = templateDirFile.toPath(),
+            )
+
+            logger.lifecycle("demoReport: wrote $outDir/index.html")
+        }
+    }
+}
+
+fun gitDiffChangedFiles(projectDir: java.io.File): List<String> {
+    val baseRef = System.getenv("DEMO_BASE_REF") ?: "origin/main"
+    return ProcessBuilder("git", "diff", "--name-only", "$baseRef...HEAD")
+        .directory(projectDir)
+        .redirectErrorStream(true)
+        .start()
+        .inputStream.bufferedReader().readText()
+        .lines().map { it.trim() }.filter { it.isNotEmpty() }
 }
 
 // When `testReport` is the entry point, let every per-suite task complete
