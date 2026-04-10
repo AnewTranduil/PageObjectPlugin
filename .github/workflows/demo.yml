@@ -8,9 +8,12 @@ jobs:
   demo-report:
     if: github.event.label.name == 'demo'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       pull-requests: write
+    env:
+      DISPLAY: ':99'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -48,6 +51,22 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install Xvfb and display dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libxrender1 libxtst6 libxi6 \
+            libxrandr2 libxcomposite1 libxcursor1 libxdamage1 \
+            libxfixes3 libatk1.0-0 libatk-bridge2.0-0 libgtk-3-0 \
+            libnss3 libnspr4 libasound2t64 libgbm1 libdrm2 \
+            libcups2 libpango-1.0-0 libcairo2 fonts-liberation
+
+      - name: Start Xvfb
+        run: |
+          Xvfb :99 -screen 0 1920x1080x24 -ac +extension GLX &
+          sleep 2
+
       - name: Compute changed files
         id: changed
         env:
@@ -57,6 +76,27 @@ jobs:
           git fetch origin "$BASE_REF" --depth=1
           FILES=$(git diff --name-only "origin/$BASE_REF...HEAD" | paste -sd, -)
           echo "files=$FILES" >> "$GITHUB_OUTPUT"
+
+      - name: Start IDE for UI tests
+        run: |
+          ./gradlew runIdeForUiTests &
+          echo "IDE starting in background..."
+
+      - name: Wait for robot-server
+        run: |
+          echo "Waiting for robot-server on port 8082..."
+          timeout=300
+          elapsed=0
+          while [ $elapsed -lt $timeout ]; do
+            if curl -sf http://localhost:8082 > /dev/null 2>&1; then
+              echo "Robot server is ready (after ${elapsed}s)"
+              exit 0
+            fi
+            sleep 5
+            elapsed=$((elapsed + 5))
+          done
+          echo "ERROR: Robot server not ready after ${timeout}s"
+          exit 1
 
       - name: Run demoReport
         env:
