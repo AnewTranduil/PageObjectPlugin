@@ -28,10 +28,25 @@ object SnapshotFixtures {
         }
     """.trimIndent()
 
-    /** Creates a temp snapshot dir with MINIMAL_HTML and returns the bundle. */
+    /**
+     * Minimal v2-compatible manifest.json for test fixtures. Keeps
+     * SnapshotBundle.fromDirectory's version check happy without
+     * claiming driver metadata the fixture doesn't have.
+     */
+    private val MINIMAL_MANIFEST_V2 = """
+        {
+          "version": 2,
+          "url": "about:blank",
+          "viewport": { "width": 1280, "height": 720 },
+          "timestamp": "2026-04-11T00:00:00Z"
+        }
+    """.trimIndent()
+
+    /** Creates a temp v2 snapshot dir with MINIMAL_HTML and returns the bundle. */
     fun createMinimalSnapshotDir(): SnapshotBundle {
         val dir = Files.createTempDirectory("pm-test-")
         dir.resolve("index.html").writeText(MINIMAL_HTML)
+        dir.resolve("manifest.json").writeText(MINIMAL_MANIFEST_V2)
         return SnapshotBundle.fromDirectory(dir)!!
     }
 

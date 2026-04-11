@@ -1,8 +1,11 @@
 package com.github.artem.pageobjectplugin.integration
 
 import com.github.artem.pageobjectplugin.fixtures.SnapshotFixtures
+import com.github.artem.pageobjectplugin.model.SnapshotBundle
 import com.github.artem.pageobjectplugin.services.SnapshotService
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import java.nio.file.Files
+import kotlin.io.path.writeText
 
 class SnapshotServiceTest : BasePlatformTestCase() {
 
@@ -117,5 +120,56 @@ class SnapshotServiceTest : BasePlatformTestCase() {
         service.loadSnapshot(bundle)
 
         assertNotNull(documentAtNotification)
+    }
+
+    fun `test loadSnapshot inlines v2 sidecar CSS before rendering`() {
+        // Hand-build a v2 bundle with an external stylesheet reference
+        // and a matching resources/<sha1>.css sidecar, then load it
+        // through SnapshotService and verify the JS that would be sent
+        // to JCEF contains the inlined style text.
+        val dir = Files.createTempDirectory("pm-v2-sidecar-")
+        val resources = Files.createDirectory(dir.resolve("resources"))
+        val css = ".login-button { background: tomato; }"
+        resources.resolve("abc123.css").writeText(css)
+        dir.resolve("index.html").writeText(
+            """
+            <!DOCTYPE html>
+            <html><head><link rel="stylesheet" href="resources/abc123.css"></head>
+            <body><button class="login-button">Login</button></body></html>
+            """.trimIndent()
+        )
+        dir.resolve("manifest.json").writeText(
+            """
+            {
+              "version": 2,
+              "url": "about:blank",
+              "viewport": { "width": 1280, "height": 720 },
+              "timestamp": "2026-04-11T00:00:00Z"
+            }
+            """.trimIndent()
+        )
+        val bundle = SnapshotBundle.fromDirectory(dir)
+        assertNotNull("fromDirectory should accept the v2 bundle", bundle)
+
+        service.loadSnapshot(bundle!!)
+
+        val loadCall = capturedJs.last { it.startsWith("window.loadSnapshot(") }
+        assertTrue("sidecar CSS should be inlined: $loadCall", loadCall.contains("login-button"))
+        assertTrue(loadCall.contains("background"))
+        // The link tag's href should be gone from the rendered payload.
+        assertFalse(
+            "original <link> should have been replaced: $loadCall",
+            loadCall.contains("resources/abc123.css"),
+        )
+    }
+
+    fun `test fromDirectory rejects v1 bundles`() {
+        val dir = Files.createTempDirectory("pm-v1-reject-")
+        dir.resolve("index.html").writeText("<html><body/></html>")
+        dir.resolve("manifest.json").writeText("""{"version": 1, "url": ""}""")
+
+        val bundle = SnapshotBundle.fromDirectory(dir)
+
+        assertNull("v1 bundles must be refused", bundle)
     }
 }
