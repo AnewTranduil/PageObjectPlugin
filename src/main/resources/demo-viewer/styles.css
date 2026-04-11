@@ -59,6 +59,7 @@ section#details {
 .screenshot-pane img {
   max-width: 100%; height: auto;
   border: 1px solid #8884; border-radius: 4px;
+  cursor: zoom-in;
 }
 .pane-divider {
   flex: 0 0 6px; cursor: row-resize;
@@ -81,4 +82,33 @@ section#details {
 }
 .pane-empty {
   opacity: 0.5; font-style: italic; padding: 16px; text-align: center;
+}
+
+/* Lightbox for full-resolution screenshot viewing */
+.lightbox-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000;
+  overflow: auto;
+}
+.lightbox-img.fit {
+  max-width: 95vw; max-height: 90vh;
+  width: auto; height: auto;
+  cursor: zoom-in;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+}
+.lightbox-img.actual {
+  max-width: none; max-height: none;
+  width: auto; height: auto;
+  cursor: zoom-out;
+  margin: 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+}
+.lightbox-hint {
+  position: fixed; left: 50%; bottom: 16px;
+  transform: translateX(-50%);
+  padding: 6px 12px; border-radius: 4px;
+  background: rgba(0, 0, 0, 0.6); color: #fff;
+  font-size: 0.85em; pointer-events: none;
 }

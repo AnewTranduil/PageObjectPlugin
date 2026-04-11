@@ -118,6 +118,8 @@
       var img = document.createElement('img');
       img.src = step.screenshotDataUri;
       img.alt = 'step screenshot';
+      img.title = 'Click to view at full resolution';
+      img.onclick = function () { openLightbox(step.screenshotDataUri); };
       screenshotPane.appendChild(img);
     } else {
       var empty = document.createElement('div');
@@ -175,6 +177,50 @@
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', onUp);
     });
+  }
+
+  // Lightbox for full-resolution screenshot viewing.
+  // The underlying PNG is the full IDE desktop (e.g. 1920x1080) even though
+  // the side panel CSS-scales it down to fit. Clicking opens a modal that
+  // starts at "fit-to-viewport" and toggles to "100% native pixels" on click.
+  function openLightbox(dataUri) {
+    var overlay = document.createElement('div');
+    overlay.className = 'lightbox-overlay';
+
+    var img = document.createElement('img');
+    img.className = 'lightbox-img fit';
+    img.src = dataUri;
+    img.alt = 'screenshot';
+    overlay.appendChild(img);
+
+    var hint = document.createElement('div');
+    hint.className = 'lightbox-hint';
+    hint.textContent = 'Click image to toggle 100% · Esc or click background to close';
+    overlay.appendChild(hint);
+
+    function close() {
+      document.removeEventListener('keydown', onKey);
+      overlay.remove();
+    }
+    function onKey(e) { if (e.key === 'Escape') close(); }
+
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay) close();
+    });
+    img.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (img.classList.contains('fit')) {
+        img.classList.remove('fit');
+        img.classList.add('actual');
+        hint.textContent = '100% (native pixels) · Click image to fit · Esc to close';
+      } else {
+        img.classList.remove('actual');
+        img.classList.add('fit');
+        hint.textContent = 'Fit to viewport · Click image for 100% · Esc to close';
+      }
+    });
+    document.addEventListener('keydown', onKey);
+    document.body.appendChild(overlay);
   }
 
   function escapeHtml(s) {
