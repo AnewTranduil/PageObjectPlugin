@@ -16,6 +16,42 @@ import { saveSnapshot } from '../src/index';
 
 const tmpDir = path.join(__dirname, '..', '.test-output-live');
 
+/**
+ * Prints a diagnostic view of a snapshot directory to stdout, so that
+ * any assertion failure in CI has enough context to debug without
+ * downloading the Playwright HTML report. Playwright's json reporter
+ * captures stdout alongside each test.
+ */
+function dumpBundle(outDir: string, label: string): void {
+  if (!fs.existsSync(outDir)) {
+    console.log(`[${label}] outputDir does not exist: ${outDir}`);
+    return;
+  }
+  const topLevel = fs.readdirSync(outDir).sort();
+  console.log(`[${label}] outputDir=${outDir}`);
+  console.log(`[${label}] topLevel=${JSON.stringify(topLevel)}`);
+  const resourcesDir = path.join(outDir, 'resources');
+  if (fs.existsSync(resourcesDir)) {
+    const resourceFiles = fs.readdirSync(resourcesDir).sort();
+    const sizes = resourceFiles.map((f) => `${f}(${fs.statSync(path.join(resourcesDir, f)).size}b)`);
+    console.log(`[${label}] resources/=${JSON.stringify(sizes)}`);
+  } else {
+    console.log(`[${label}] resources/ missing`);
+  }
+  const htmlPath = path.join(outDir, 'index.html');
+  if (fs.existsSync(htmlPath)) {
+    const html = fs.readFileSync(htmlPath, 'utf-8');
+    const linkMatches = Array.from(html.matchAll(/<link[^>]*rel=["']stylesheet["'][^>]*>/g)).map((m) => m[0]);
+    console.log(`[${label}] <link rel=stylesheet> count=${linkMatches.length}`);
+    for (const lm of linkMatches) console.log(`[${label}]   ${lm}`);
+  }
+  const manifestPath = path.join(outDir, 'manifest.json');
+  if (fs.existsSync(manifestPath)) {
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+    console.log(`[${label}] manifest.version=${manifest.version} url=${manifest.url}`);
+  }
+}
+
 test.beforeEach(() => {
   fs.rmSync(tmpDir, { recursive: true, force: true });
 });
@@ -34,32 +70,42 @@ test.describe('live capture via PlaywrightAdapter', () => {
       name: 'initial',
     });
 
+    dumpBundle(result.outputDir, 'initial');
+
     // --- layout checks --------------------------------------------------
-    expect(result.outputDir).toBe(path.join(tmpDir, 'dashboard', 'initial'));
-    expect(fs.existsSync(result.files.html)).toBe(true);
-    expect(fs.existsSync(result.files.manifest!)).toBe(true);
+    expect(result.outputDir, 'outputDir should match group/name path').toBe(
+      path.join(tmpDir, 'dashboard', 'initial'),
+    );
+    expect(fs.existsSync(result.files.html), 'index.html must exist on disk').toBe(true);
+    expect(fs.existsSync(result.files.manifest!), 'manifest.json must exist on disk').toBe(true);
 
     const topLevel = fs.readdirSync(result.outputDir).sort();
-    expect(topLevel).toContain('index.html');
-    expect(topLevel).toContain('manifest.json');
-    expect(topLevel).toContain('resources');
+    expect(topLevel, 'topLevel must contain index.html').toContain('index.html');
+    expect(topLevel, 'topLevel must contain manifest.json').toContain('manifest.json');
+    expect(topLevel, 'topLevel must contain resources/').toContain('resources');
 
     // v2 MUST NOT write screenshot.* at the top level.
-    expect(topLevel.some((f) => f.startsWith('screenshot.'))).toBe(false);
+    expect(
+      topLevel.some((f) => f.startsWith('screenshot.')),
+      'v2 forbids top-level screenshot.*',
+    ).toBe(false);
 
     // --- resources dir --------------------------------------------------
     const resourcesDir = path.join(result.outputDir, 'resources');
     const resourceFiles = fs.readdirSync(resourcesDir);
 
     // PlaywrightAdapter writes screenshot.png by default.
-    expect(resourceFiles).toContain('screenshot.png');
+    expect(resourceFiles, 'resources/ must contain screenshot.png').toContain('screenshot.png');
 
     // app.html links four external stylesheets: reset, theme, layout,
     // components. Inline stylesheets collected by the browser collector
     // may add more — but we expect AT LEAST the four linked ones as
     // distinct sidecars, named <sha1-16>.css.
     const cssSidecars = resourceFiles.filter((f) => /^[a-f0-9]{16}\.css$/.test(f));
-    expect(cssSidecars.length).toBeGreaterThanOrEqual(4);
+    expect(
+      cssSidecars.length,
+      `expected >=4 CSS sidecars, got ${cssSidecars.length}: ${JSON.stringify(resourceFiles)}`,
+    ).toBeGreaterThanOrEqual(4);
 
     // Every sidecar should have non-empty content.
     for (const name of cssSidecars) {
@@ -106,6 +152,7 @@ test.describe('live capture via PlaywrightAdapter', () => {
       group: 'dashboard',
       name: 'cache',
     });
+    const htmlFirst = fs.readFileSync(first.files.html, 'utf-8');
     const htmlMtime1 = fs.statSync(first.files.html).mtimeMs;
 
     // Give the filesystem enough resolution that a real rewrite would bump mtime.
@@ -116,9 +163,30 @@ test.describe('live capture via PlaywrightAdapter', () => {
       group: 'dashboard',
       name: 'cache',
     });
+    const htmlSecond = fs.readFileSync(second.files.html, 'utf-8');
     const htmlMtime2 = fs.statSync(second.files.html).mtimeMs;
 
-    expect(htmlMtime2).toBe(htmlMtime1);
+    if (htmlMtime2 !== htmlMtime1 || htmlFirst !== htmlSecond) {
+      // Non-deterministic assembled HTML — find the first differing char so
+      // the CI log surfaces which part of the serialization isn't stable.
+      let firstDiff = -1;
+      const min = Math.min(htmlFirst.length, htmlSecond.length);
+      for (let i = 0; i < min; i++) {
+        if (htmlFirst.charCodeAt(i) !== htmlSecond.charCodeAt(i)) {
+          firstDiff = i;
+          break;
+        }
+      }
+      console.log(`htmlFirst.length=${htmlFirst.length} htmlSecond.length=${htmlSecond.length} firstDiff=${firstDiff}`);
+      if (firstDiff >= 0) {
+        const around = (s: string) => s.slice(Math.max(0, firstDiff - 60), firstDiff + 60);
+        console.log(`first : ${JSON.stringify(around(htmlFirst))}`);
+        console.log(`second: ${JSON.stringify(around(htmlSecond))}`);
+      }
+    }
+
+    expect(htmlSecond, 'assembled HTML should be byte-identical between runs').toBe(htmlFirst);
+    expect(htmlMtime2, 'mtime should be preserved when content is unchanged').toBe(htmlMtime1);
     expect(second.files.resources.length).toBe(first.files.resources.length);
   });
 

@@ -26,15 +26,30 @@ export class PlaywrightAdapter implements PageAdapter {
     const page = this.page;
 
     // 1. Run the framework-agnostic collector inside the page.
-    const collectorFn = new Function(
-      'opts',
-      `return (${collectorSource})(opts)`,
-    ) as (opts: CaptureRequest) => Promise<CollectedPayload>;
-    const payload: CollectedPayload = await page.evaluate(collectorFn, {
+    //    The collector source is passed as a string (not a `new Function`
+    //    object), wrapped in a small arrow function Playwright accepts.
+    //    `new Function(...)` produces an anonymous function whose
+    //    `.toString()` Playwright's serializer mangles — empirically it
+    //    returned an empty `stylesheets: []` for pages with 4 links.
+    //    Evaluating the source via `eval` inside the page keeps the
+    //    implementation identical across language adapters (they all
+    //    stringify the same `collectorSource`).
+    const collectorOpts = {
       extraSelectors: request.extraSelectors,
       excludeSelectors: request.excludeSelectors,
       extraAttributes: request.extraAttributes,
-    });
+    };
+    const payload: CollectedPayload = await page.evaluate(
+      async ({ src, opts }) => {
+        // eslint-disable-next-line no-eval
+        const fn = eval(`(${src})`) as (o: unknown) => Promise<unknown>;
+        return (await fn(opts)) as unknown as {
+          html: string;
+          stylesheets: Array<{ href?: string; source: string }>;
+        };
+      },
+      { src: collectorSource, opts: collectorOpts },
+    );
 
     // 2. Driver-specific metadata.
     const viewportSize = page.viewportSize() ?? { width: 1280, height: 720 };
