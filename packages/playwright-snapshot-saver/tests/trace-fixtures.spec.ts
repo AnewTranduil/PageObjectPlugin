@@ -179,7 +179,8 @@ test.describe('trace fixtures - extractor', () => {
         expect(fs.existsSync(snap.files.manifest!)).toBe(true);
 
         const manifest = JSON.parse(fs.readFileSync(snap.files.manifest!, 'utf-8'));
-        expect(manifest.version).toBe(1);
+        // Bundle format schema version (see docs/snapshot-bundle-spec.md).
+        expect(manifest.version).toBe(2);
         expect(manifest.viewport).toBeDefined();
         expect(manifest.viewport.width).toBeGreaterThan(0);
       }
@@ -246,23 +247,23 @@ test.describe('trace fixtures - extractor', () => {
     }
   });
 
-  test('manifest version increments when HTML content changes', async () => {
+  test('manifest version is fixed at 2 (schema version, not a counter)', async () => {
+    // v2 redesign (task 15) dropped the per-write increment behavior Task
+    // 11 originally introduced — `version` is now strictly the bundle
+    // format schema version. Re-extracting the same trace always writes
+    // the same value.
     const { dir, cleanup } = makeTmpDir();
     try {
-      // First extraction
       await extractSnapshots({ source: SAMPLE_TRACE, outputDir: dir });
-
       const manifestPath = path.join(dir, 'login', 'main', 'manifest.json');
       const manifest1 = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
-      expect(manifest1.version).toBe(1);
+      expect(manifest1.version).toBe(2);
 
-      // Tamper with the HTML to simulate a content change
+      // Tamper with the HTML so the extractor rewrites on the second run.
       const htmlPath = path.join(dir, 'login', 'main', 'index.html');
       fs.writeFileSync(htmlPath, '<html>modified</html>', 'utf-8');
 
-      // Re-extract — content differs from what extractor produces, so it should write
       await extractSnapshots({ source: SAMPLE_TRACE, outputDir: dir });
-
       const manifest2 = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
       expect(manifest2.version).toBe(2);
     } finally {

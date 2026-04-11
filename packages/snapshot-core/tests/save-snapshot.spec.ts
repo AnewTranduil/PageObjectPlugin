@@ -71,7 +71,7 @@ describe('saveSnapshot', () => {
     expect(result.files.resources.every((p) => fs.existsSync(p))).toBe(true);
 
     const names = result.files.resources.map((p) => path.basename(p)).sort();
-    expect(names).toEqual(expect.arrayContaining(['screenshot.webp']));
+    expect(names).toEqual(expect.arrayContaining(['screenshot.png']));
     expect(names.some((n) => /^[a-f0-9]{16}\.css$/.test(n))).toBe(true);
   });
 

@@ -12,7 +12,12 @@ import {
   ScreenshotOptions,
 } from './types';
 
-const DEFAULT_SCREENSHOT: ScreenshotOptions = { format: 'webp', fullPage: false };
+// Default screenshot format: 'png' is the most portable live-capture
+// format — Playwright's `page.screenshot()` produces png or jpeg, never
+// webp. The trace-extraction path (`extractor.ts`) writes real webp
+// bytes pulled from the Playwright screencast; that path sets its own
+// filename and doesn't go through `saveSnapshot`.
+const DEFAULT_SCREENSHOT: ScreenshotOptions = { format: 'png', fullPage: false };
 
 /**
  * Framework-agnostic snapshot save. Takes a driver adapter, asks it to
