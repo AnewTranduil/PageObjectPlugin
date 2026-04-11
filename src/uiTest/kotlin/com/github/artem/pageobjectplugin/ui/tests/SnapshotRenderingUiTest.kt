@@ -1,6 +1,7 @@
 package com.github.artem.pageobjectplugin.ui.tests
 
 import com.github.artem.pageobjectplugin.ui.BaseUiTest
+import com.github.artem.pageobjectplugin.ui.annotations.Feature
 import com.github.artem.pageobjectplugin.ui.fixtures.PageMirrorToolWindowFixture
 import com.github.artem.pageobjectplugin.ui.fixtures.SnapshotBrowserFixture
 import com.github.artem.pageobjectplugin.ui.pages.EditorPage
@@ -17,6 +18,7 @@ import java.time.Duration
  *   - IDE started with test-project/ open (runIdeForUiTests task)
  *   - test-project/.snapshots/login/initial/ contains a valid snapshot bundle
  */
+@Feature("snapshot-rendering")
 class SnapshotRenderingUiTest : BaseUiTest() {
 
     private val editor by lazy { EditorPage(robot) }

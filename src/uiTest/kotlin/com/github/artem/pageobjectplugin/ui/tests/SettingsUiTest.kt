@@ -1,6 +1,7 @@
 package com.github.artem.pageobjectplugin.ui.tests
 
 import com.github.artem.pageobjectplugin.ui.BaseUiTest
+import com.github.artem.pageobjectplugin.ui.annotations.Feature
 import com.github.artem.pageobjectplugin.ui.flows.SettingsChangeFlow
 import com.github.artem.pageobjectplugin.ui.pages.EditorPage
 import org.junit.jupiter.api.AfterEach
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.Test
  * rewritten to match those accessible names instead of relying on UI DSL
  * class-name quirks (JBIntSpinner vs JSpinner, etc.).
  */
+@Feature("settings")
 class SettingsUiTest : BaseUiTest() {
 
     private val editor by lazy { EditorPage(robot) }

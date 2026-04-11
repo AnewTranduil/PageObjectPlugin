@@ -1,6 +1,7 @@
 package com.github.artem.pageobjectplugin.ui.tests
 
 import com.github.artem.pageobjectplugin.ui.BaseUiTest
+import com.github.artem.pageobjectplugin.ui.annotations.Feature
 import com.github.artem.pageobjectplugin.ui.fixtures.PageMirrorToolWindowFixture
 import com.github.artem.pageobjectplugin.ui.pages.EditorPage
 import com.github.artem.pageobjectplugin.ui.pages.PluginToolWindowPage
@@ -22,6 +23,7 @@ import java.time.Duration
  * state on the Kotlin side — the SnapshotService.applyTheme() is triggered
  * by LafManagerListener and uses the isDark flag to set the CSS class.
  */
+@Feature("theme")
 class ThemeUiTest : BaseUiTest() {
 
     private var originalThemeName: String = "IntelliJ Light"

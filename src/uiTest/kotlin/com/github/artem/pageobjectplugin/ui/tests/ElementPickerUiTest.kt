@@ -1,6 +1,7 @@
 package com.github.artem.pageobjectplugin.ui.tests
 
 import com.github.artem.pageobjectplugin.ui.BaseUiTest
+import com.github.artem.pageobjectplugin.ui.annotations.Feature
 import com.github.artem.pageobjectplugin.ui.fixtures.PageMirrorToolWindowFixture
 import com.github.artem.pageobjectplugin.ui.fixtures.SnapshotBrowserFixture
 import com.github.artem.pageobjectplugin.ui.pages.EditorPage
@@ -18,6 +19,7 @@ import java.time.Duration
  * elements in the JCEF snapshot shows green boxes; clicking an element sends
  * its JSON back to the IDE and inserts a Playwright locator into the editor.
  */
+@Feature("element-picker")
 class ElementPickerUiTest : BaseUiTest() {
 
     private val editor by lazy { EditorPage(robot) }

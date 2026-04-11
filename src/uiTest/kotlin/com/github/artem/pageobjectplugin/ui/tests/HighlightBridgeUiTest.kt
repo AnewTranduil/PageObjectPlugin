@@ -1,6 +1,7 @@
 package com.github.artem.pageobjectplugin.ui.tests
 
 import com.github.artem.pageobjectplugin.ui.BaseUiTest
+import com.github.artem.pageobjectplugin.ui.annotations.Feature
 import com.github.artem.pageobjectplugin.ui.fixtures.PageMirrorToolWindowFixture
 import com.github.artem.pageobjectplugin.ui.fixtures.SnapshotBrowserFixture
 import com.github.artem.pageobjectplugin.ui.pages.EditorPage
@@ -27,6 +28,7 @@ import java.time.Duration
  *
  * Note: exact line numbers may differ; adjust constants below if needed.
  */
+@Feature("highlight-bridge")
 class HighlightBridgeUiTest : BaseUiTest() {
 
     // Actual line numbers in test-project/page-objects/login.page.ts (constructor body)
