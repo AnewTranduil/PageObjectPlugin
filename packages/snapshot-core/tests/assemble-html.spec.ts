@@ -98,6 +98,29 @@ describe('assembleHtml', () => {
     expect(html).toContain('<html><body>plain</body></html>');
   });
 
+  it('strips empty style="" attributes (Chromium form-control drift)', () => {
+    // Chromium injects style="" on form inputs between captures. Without
+    // stripping, two back-to-back captures of the same page produce
+    // different HTML, which defeats the skip-write-if-unchanged cache.
+    const { html } = assembleHtml(
+      fakeCaptured({
+        html: '<html><body><input type="text" placeholder="x" style=""><textarea style=""></textarea></body></html>',
+      }),
+    );
+    expect(html).not.toContain('style=""');
+    expect(html).toContain('<input type="text" placeholder="x">');
+    expect(html).toContain('<textarea></textarea>');
+  });
+
+  it('preserves non-empty style attributes', () => {
+    const { html } = assembleHtml(
+      fakeCaptured({
+        html: '<html><body><p style="margin: 16px;">hi</p></body></html>',
+      }),
+    );
+    expect(html).toContain('style="margin: 16px;"');
+  });
+
   it('emits deterministic sidecar filenames for identical CSS', () => {
     const a = assembleHtml(
       fakeCaptured({

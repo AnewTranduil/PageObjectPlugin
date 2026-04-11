@@ -135,7 +135,12 @@ test.describe('live capture via PlaywrightAdapter', () => {
     // --- manifest -------------------------------------------------------
     const manifest = JSON.parse(fs.readFileSync(result.files.manifest!, 'utf-8'));
     expect(manifest.version).toBe(2);
-    expect(manifest.url).toContain('app.html');
+    // `npx serve` strips the .html extension via its default cleanUrls
+    // rewrite, so page.url() returns "http://localhost:8089/app" after
+    // the navigation. Assert the host + path prefix instead of a literal
+    // 'app.html' suffix.
+    expect(manifest.url, `manifest.url=${manifest.url}`).toContain('localhost:8089');
+    expect(manifest.url).toMatch(/\/app(\.html)?$/);
     expect(manifest.viewport).toEqual({ width: 1280, height: 720 });
     expect(manifest.playwright).toBeTruthy();
     expect(manifest.userAgent).toBeTruthy();

@@ -55,10 +55,28 @@ export function assembleHtml(captured: CapturedPage): AssembleResult {
 
   let html = rewriteLinkTags(captured.html, hrefToFilename);
   html = injectInlineReplacements(html, inlineStylesheets);
+  html = normalizeHtml(html);
   if (!/^\s*<!DOCTYPE/i.test(html)) {
     html = '<!DOCTYPE html>\n' + html;
   }
   return { html, cssResources };
+}
+
+/**
+ * Strip cosmetic non-determinism from the captured HTML so two
+ * back-to-back captures of the same page produce byte-identical output.
+ *
+ * Known sources of drift observed on Chromium:
+ *   - Empty `style=""` attributes appear on form inputs (input,
+ *     textarea, select) on any capture after the first, as a side
+ *     effect of Chromium touching the element's inline style declaration
+ *     when the collector clones the document. The attribute carries no
+ *     information — it always coalesces to empty string — so dropping
+ *     it both solves the determinism problem and makes the output
+ *     smaller.
+ */
+function normalizeHtml(html: string): string {
+  return html.replace(/\s+style=""/g, '');
 }
 
 /**
