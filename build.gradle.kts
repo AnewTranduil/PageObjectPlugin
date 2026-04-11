@@ -267,7 +267,7 @@ tasks {
 
     register("demoReport") {
         group = "verification"
-        description = "Run selected UI tests and render a self-contained feature-demo HTML trace viewer."
+        description = "Run UI tests and render a self-contained demo HTML trace viewer."
 
         val featureNameProp = providers.gradleProperty("featureName")
         val changedFilesProp = providers.gradleProperty("changedFiles")
@@ -276,32 +276,32 @@ tasks {
         val templateDirFile = rootProject.file("src/main/resources/demo-viewer")
 
         doLast {
-            val featureName = featureNameProp.orNull
-                ?: error("demoReport requires -PfeatureName=<tag>")
-
-            val changedFiles: List<String> = changedFilesProp.orNull?.let { prop ->
-                prop.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-            } ?: gitDiffChangedFiles(projectDirFile)
-
-            val selection = com.github.artem.pageobjectplugin.buildtools
-                .DemoTestSelector.select(
-                    projectDir = projectDirFile.toPath(),
-                    featureTag = featureName,
-                    changedFiles = changedFiles,
-                )
-            val selectedTests = selection.selected
-            val taggedCount = selection.taggedCount
-
-            if (taggedCount < 2) {
-                error(
-                    "demoReport requires at least 2 scenarios tagged @Feature(\"$featureName\") " +
-                        "(found $taggedCount). Add a happy-path AND a negative-case test."
-                )
-            }
+            val featureName = featureNameProp.orNull ?: "all"
 
             val gradlew = if (System.getProperty("os.name").startsWith("Windows")) "gradlew.bat" else "./gradlew"
             val cmd = mutableListOf(gradlew, "uiTest", "-PcaptureAllTraces=true")
-            selectedTests.forEach { cmd += listOf("--tests", it) }
+
+            if (featureName != "all") {
+                val changedFiles: List<String> = changedFilesProp.orNull?.let { prop ->
+                    prop.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                } ?: gitDiffChangedFiles(projectDirFile)
+
+                val selection = com.github.artem.pageobjectplugin.buildtools
+                    .DemoTestSelector.select(
+                        projectDir = projectDirFile.toPath(),
+                        featureTag = featureName,
+                        changedFiles = changedFiles,
+                    )
+
+                if (selection.taggedCount < 2) {
+                    error(
+                        "demoReport requires at least 2 scenarios tagged @Feature(\"$featureName\") " +
+                            "(found ${selection.taggedCount}). Add a happy-path AND a negative-case test."
+                    )
+                }
+                selection.selected.forEach { cmd += listOf("--tests", it) }
+            }
+
             val exitCode = ProcessBuilder(cmd)
                 .directory(projectDirFile)
                 .inheritIO()
