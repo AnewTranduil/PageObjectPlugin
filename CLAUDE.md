@@ -24,22 +24,30 @@ An IntelliJ plugin that renders Playwright page snapshots inside a docked Tool W
 - **JBCefJSQuery for communication.** Use `JBCefJSQuery` for Kotlin↔JS messaging. Do NOT use `CefRequestHandler` or custom scheme handlers.
 - **Jsoup for server-side DOM queries.** Gutter validation runs `querySelectorAll` via Jsoup on the Kotlin side, not in JCEF (too slow for real-time annotation).
 
-## Snapshot Bundle Format
+## Snapshot Bundle Format (v2)
 
 Each snapshot is a directory containing:
 
 ```
 <snapshot-name>/
-  index.html       # Sanitized DOM with CSS inlined (REQUIRED)
-  screenshot.webp  # Visual reference (optional)
-  manifest.json    # Metadata (optional)
+  index.html              # Sanitized DOM referencing resources/ (REQUIRED)
+  manifest.json           # Metadata, manifest.version = 2 (REQUIRED)
+  resources/
+    screenshot.webp       # Visual reference (or .png) (optional)
+    <sha1>.css            # Stylesheet sidecars referenced by <link> tags
 ```
+
+`index.html` references every resource via a relative `resources/<filename>`
+path. The plugin inlines sidecar CSS before passing the HTML to JCEF
+because `<iframe srcdoc>` has no base URL and cannot resolve relative
+paths on its own. See `docs/snapshot-bundle-spec.md` for the authoritative
+spec and v1 → v2 migration notes.
 
 ### manifest.json Schema
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "url": "https://example.com/login",
   "viewport": { "width": 1280, "height": 720 },
   "timestamp": "2025-01-15T10:30:00Z",
@@ -47,6 +55,9 @@ Each snapshot is a directory containing:
   "userAgent": "Mozilla/5.0 ..."
 }
 ```
+
+The plugin reads `manifest.version` and refuses to load unknown versions
+with a user-visible error.
 
 ## Plugin Source Layout
 
@@ -96,8 +107,8 @@ test-project/
   tests/login.spec.ts
   utils/save-state.ts
   .snapshots/login/
-    initial/      {index.html, screenshot.webp, manifest.json}
-    error-state/  {index.html, screenshot.webp, manifest.json}
+    initial/      {index.html, manifest.json, resources/}
+    error-state/  {index.html, manifest.json, resources/}
 ```
 
 ## Task Sequence
@@ -119,17 +130,32 @@ Tasks MUST be completed in order. Each task is in `docs/tasks/`.
 
 ## Current State
 
-**Tasks 0–9 are complete.** All plugin features and the snapshot saver npm package are implemented. Unit/integration tests pass.
+**Tasks 0–14 and 19 are complete.** All plugin features ship, the snapshot
+saver npm package is published, the UI test suite runs under a layered
+Page Object structure, CI aggregates test results into a single
+`claude-summary.{json,md}` bundle, and a Playwright-style trace viewer is
+auto-generated on PRs tagged `demo`.
 
-- **Task 8a (JS refactor):** Complete. JS split into 5 modules under `resources/html/js/`, assembled at runtime by `PageMirrorToolWindowFactory.assemblePageMirrorHtml()`.
-- **Task 8b (Highlight All):** Complete. "Show All" toolbar button, color-coded multi-highlight, duplicate/overlap detection with visual badges, caret suppression, integration tests. One gap: JS-only overlap detection logic has no standalone unit test.
-- **Task 9 (Snapshot saver npm package):** Complete. `packages/snapshot-saver/` with `saveSnapshot()` API, configurable options (group, screenshot format, manifest toggle, extraSelectors, excludeSelectors, extraAttributes). 10 Playwright integration tests pass. `test-project/` migrated to use the package via `file:` dependency.
+- **Tasks 0–9:** Plugin shell, snapshot loading, file watcher, highlight
+  bridge, element picker, gutter validation, polish, JS refactor,
+  Highlight All, and the `playwright-snapshot-saver` npm package.
+- **Task 10 (Trace extraction & reporter):** `packages/playwright-snapshot-saver/src/{extractor.ts, reporter.ts, snapshot-marker.ts, trace/, sources/}` ship the reporter + extractor API.
+- **Task 11 (Manifest fixes):** timestamp, change detection, version increment.
+- **Task 12 (Settings UI DSL v2):** `PageMirrorConfigurable.kt` rewritten on Kotlin UI DSL v2.
+- **Task 13a (UI test unblock):** resolved via the `intellijPlatformTesting.runIde.register("runIdeForUiTests")` DSL at `build.gradle.kts:112-144`, which sidesteps the `splitMode` issue entirely.
+- **Task 13b (UI test reliability):** `ui/support/Wait.kt` and `RetryOnceExtension.kt` provide polling + retry-once. **Gap:** no `@Quarantine` annotation was created (only tracked as a reporting field in `ClaudeSummaryModel.kt`).
+- **Task 13c (UI test diagnostics):** `ui/support/{TraceBundleExtension, TraceBundle, StepRecorder, TraceIndexGenerator, CdpConsoleCollector}.kt` capture full trace bundles on failure.
+- **Task 13d (Page object refactor):** `ui/{locators, pages, flows, tests}/` provide the layered UI test structure; `ui/tests/ToolWindowUiTest.kt` is the reference example.
+- **Task 14 (CI test reporting):** `build.gradle.kts` registers `aggregateTestReport` (`:219`) and `testReport` (`:261`); `buildSrc/.../buildtools/` contains `ClaudeSummaryGenerator`, `JUnitXmlParser`, `PlaywrightJsonParser`, `MarkdownEmitter`, `TraceJsonAugmenter` with unit tests.
+- **Task 19 (Feature demo trace viewer):** `ui/annotations/Feature.kt`, `FeatureTagListener`, `buildSrc/.../DemoReportRenderer.kt` + `DemoTestSelector.kt`, `src/main/resources/demo-viewer/`, and `.github/workflows/demo.yml` together render a self-contained trace viewer per PR.
 
-**UI tests (30 scenarios) are BLOCKED** — see `docs/UI_tests/diagnostic-report.md` for full details. Summary:
-- `./gradlew runIdeForUiTests` fails due to missing `splitMode` property (IPG 2.13.1 requirement) and configuration cache incompatibility
-- The custom `RunIdeTask` registration at `build.gradle.kts:108` needs `splitMode.set(false)` and `splitModeTarget` configured
-- `BaseUiTest` needs a fast-fail health check instead of a 2-minute blind timeout
-- CI/CD pipeline is not yet configured
+**Task 15 (Extract `@pagemirror/snapshot-core`)** is **in progress** on
+branch `claude/check-task-statuses-C7rh9`. This bumps the snapshot bundle
+format to v2: `screenshot.<ext>` moves under `resources/`, CSS is written
+as `resources/<sha1>.css` sidecars referenced by `<link>`, and the plugin
+inlines sidecar CSS on read (since `srcdoc` iframes can't resolve relative
+URLs). v1 bundles are refused with a clear error message — regenerate via
+`npx playwright test` in `packages/test-project/`.
 
 ## Working with the Build
 
