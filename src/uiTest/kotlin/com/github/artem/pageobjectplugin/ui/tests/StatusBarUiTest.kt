@@ -1,6 +1,7 @@
 package com.github.artem.pageobjectplugin.ui.tests
 
 import com.github.artem.pageobjectplugin.ui.BaseUiTest
+import com.github.artem.pageobjectplugin.ui.annotations.Feature
 import com.github.artem.pageobjectplugin.ui.fixtures.PageMirrorToolWindowFixture
 import com.github.artem.pageobjectplugin.ui.fixtures.StatusBarFixture
 import com.github.artem.pageobjectplugin.ui.pages.EditorPage
@@ -17,6 +18,7 @@ import java.time.Duration
  *   - "Page Mirror: No snapshot"  when no snapshot is loaded
  *   - "Page Mirror: {name}"       when a snapshot is loaded
  */
+@Feature("status-bar")
 class StatusBarUiTest : BaseUiTest() {
 
     private val editor by lazy { EditorPage(robot) }

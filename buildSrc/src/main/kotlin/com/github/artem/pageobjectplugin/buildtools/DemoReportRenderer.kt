@@ -66,6 +66,7 @@ object DemoReportRenderer {
         val className = (testObj?.get("className") as? JsonPrimitive)?.content ?: "Unknown"
         val method = (testObj?.get("method") as? JsonPrimitive)?.content ?: "unknown"
         val displayName = (testObj?.get("displayName") as? JsonPrimitive)?.content ?: method
+        val feature = (testObj?.get("feature") as? JsonPrimitive)?.contentOrNull()
         val status = (trace["status"] as? JsonPrimitive)?.content ?: "unknown"
 
         val stepsIn = (trace["steps"] as? JsonArray) ?: emptyList()
@@ -101,6 +102,7 @@ object DemoReportRenderer {
             put("method", method)
             put("displayName", displayName)
             put("status", status)
+            if (feature != null) put("feature", feature)
             put("steps", stepsOut)
             if (failureEl != null) put("failure", failureEl)
             if (domDataUri != null) put("domHtmlDataUri", domDataUri)

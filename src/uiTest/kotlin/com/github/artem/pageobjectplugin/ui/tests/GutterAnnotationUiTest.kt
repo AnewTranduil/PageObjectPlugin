@@ -1,6 +1,7 @@
 package com.github.artem.pageobjectplugin.ui.tests
 
 import com.github.artem.pageobjectplugin.ui.BaseUiTest
+import com.github.artem.pageobjectplugin.ui.annotations.Feature
 import com.github.artem.pageobjectplugin.ui.fixtures.GutterFixture
 import com.github.artem.pageobjectplugin.ui.fixtures.PageMirrorToolWindowFixture
 import com.github.artem.pageobjectplugin.ui.pages.EditorPage
@@ -22,6 +23,7 @@ import java.time.Duration
  *   getByRole('button')            → 1 match  (login-button has role=button)
  *   getByText('Bad credentials')   → 0 matches (not in snapshot)
  */
+@Feature("gutter-validation")
 class GutterAnnotationUiTest : BaseUiTest() {
 
     private val editor by lazy { EditorPage(robot) }

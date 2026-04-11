@@ -1,6 +1,7 @@
 package com.github.artem.pageobjectplugin.ui.tests
 
 import com.github.artem.pageobjectplugin.ui.BaseUiTest
+import com.github.artem.pageobjectplugin.ui.annotations.Feature
 import com.github.artem.pageobjectplugin.ui.flows.SnapshotLoadFlow
 import com.github.artem.pageobjectplugin.ui.pages.PluginToolWindowPage
 import com.github.artem.pageobjectplugin.ui.support.Wait
@@ -17,6 +18,7 @@ import java.time.Duration
  * test classes should follow this pattern: construct a Flow in @BeforeEach,
  * then talk to Pages in the test bodies. No raw fixture access.
  */
+@Feature("tool-window")
 class ToolWindowUiTest : BaseUiTest() {
 
     private val toolWindow by lazy { PluginToolWindowPage(robot) }
