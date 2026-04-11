@@ -1,0 +1,25 @@
+{
+  "name": "@pagemirror/snapshot-core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Framework-agnostic core for Page Mirror snapshot bundles: browser collector, HTML assembler, manifest builder, save orchestration.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "typescript": "^5.3.0",
+    "vitest": "^2.1.0"
+  },
+  "license": "MIT"
+}
