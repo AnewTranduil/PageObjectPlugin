@@ -60,6 +60,40 @@ class PickerResultHandler(private val project: Project) {
             .showInBestPositionFor(editor)
     }
 
+    /**
+     * Test-only entry point that bypasses the interactive popup and inserts a
+     * locator into the active editor. Mirrors [handlePickerResult] end-to-end
+     * (state sync, JSON parse, locator + field-name generation, write-action
+     * insertion) but chooses the style without prompting the user.
+     *
+     * Required because under Xvfb the real JCEF inspect-click is unreliable —
+     * this entry point lets UI tests exercise the whole pipeline by supplying
+     * the ElementData JSON directly.
+     *
+     * @param jsonString same schema as [handlePickerResult]
+     * @param styleOverride "Property" or "Variable", or null to use settings
+     * @return the text that was inserted, or null if insertion was skipped
+     */
+    @VisibleForTesting
+    fun insertLocatorForTest(jsonString: String, styleOverride: String? = null): String? {
+        SnapshotService.getInstance(project).isInspectModeActive = false
+
+        val element = parseElementJson(jsonString) ?: return null
+        val locatorCode = generateLocator(element)
+        val fieldName = generateFieldName(element)
+
+        val editor = FileEditorManager.getInstance(project).selectedTextEditor ?: return null
+
+        val style = styleOverride ?: PageMirrorSettings.getInstance(project).state.codeGenStyle
+        val code = if (style == "Variable") {
+            "const $fieldName = page.${locatorCode};"
+        } else {
+            "readonly $fieldName = page.${locatorCode};"
+        }
+        insertAtCaret(editor, code)
+        return code
+    }
+
     private fun insertAtCaret(editor: Editor, text: String) {
         WriteCommandAction.runWriteCommandAction(project) {
             val offset = editor.caretModel.offset

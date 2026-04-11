@@ -1,11 +1,11 @@
 package com.github.artem.pageobjectplugin.ui.tests
 
 import com.github.artem.pageobjectplugin.ui.BaseUiTest
-import com.github.artem.pageobjectplugin.ui.fixtures.PageMirrorToolWindowFixture
-import com.intellij.remoterobot.fixtures.ComponentFixture
-import com.intellij.remoterobot.search.locators.byXpath
+import com.github.artem.pageobjectplugin.ui.annotations.Feature
+import com.github.artem.pageobjectplugin.ui.flows.SnapshotLoadFlow
+import com.github.artem.pageobjectplugin.ui.pages.PluginToolWindowPage
+import com.github.artem.pageobjectplugin.ui.support.Wait
 import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -14,22 +14,21 @@ import java.time.Duration
 /**
  * UI tests: UT-01 to UT-05 — Tool Window structure and snapshot discovery.
  *
- * Prerequisites:
- *   - IDE started with test-project/ open (runIdeForUiTests task)
- *   - test-project/.snapshots/login/initial/ exists with valid snapshot files
+ * Reference example for the Page/Flow layering introduced in Task 13d. New
+ * test classes should follow this pattern: construct a Flow in @BeforeEach,
+ * then talk to Pages in the test bodies. No raw fixture access.
  */
+@Feature("tool-window")
 class ToolWindowUiTest : BaseUiTest() {
 
+    private val toolWindow by lazy { PluginToolWindowPage(robot) }
+
     @BeforeEach
-    fun ensureToolWindowOpen() {
-        // Open a .ts file so snapshot discovery triggers automatically
-        openFileInEditor("login.page.ts")
-        Thread.sleep(2_000)
-        // The tool window must be explicitly opened
-        if (!PageMirrorToolWindowFixture.isVisible(robot)) {
-            openToolWindow()
-            Thread.sleep(1_000)
-        }
+    fun ensureSnapshotLoaded() {
+        // Idempotent: BaseUiTest.waitForIde already loaded the default snapshot,
+        // but per-test isolation may have closed the tool window or selected
+        // a different file. Re-running the flow guarantees a known-good state.
+        SnapshotLoadFlow(robot).loadDefaultLoginSnapshot()
     }
 
     /**
@@ -38,8 +37,7 @@ class ToolWindowUiTest : BaseUiTest() {
     @Test
     fun `tool window is visible`() {
         takeScreenshot("tool-window-visible")
-        val visible = PageMirrorToolWindowFixture.isVisible(robot)
-        assertTrue(visible, "Page Mirror tool window should be visible")
+        assertTrue(toolWindow.isVisible(), "Page Mirror tool window should be visible")
     }
 
     /**
@@ -47,15 +45,7 @@ class ToolWindowUiTest : BaseUiTest() {
      */
     @Test
     fun `opening ts file auto discovers snapshot`() {
-        waitFor(Duration.ofSeconds(10)) {
-            try {
-                val tw = PageMirrorToolWindowFixture.find(robot)
-                val selected = tw.selectedSnapshotName()
-                selected.isNotBlank() && !selected.contains("No snapshots")
-            } catch (_: Exception) { false }
-        }
-
-        val toolWindow = PageMirrorToolWindowFixture.find(robot)
+        toolWindow.waitForSnapshotDiscovery(Duration.ofSeconds(10))
         val selected = toolWindow.selectedSnapshotName()
         assertTrue(
             selected.contains("login") || selected.contains("initial"),
@@ -68,19 +58,15 @@ class ToolWindowUiTest : BaseUiTest() {
      */
     @Test
     fun `combo box lists discovered snapshots`() {
-        waitFor(Duration.ofSeconds(10)) {
-            try {
-                PageMirrorToolWindowFixture.find(robot).selectedSnapshotName().isNotBlank()
-            } catch (_: Exception) { false }
-        }
-
-        val toolWindow = PageMirrorToolWindowFixture.find(robot)
-        // At minimum one snapshot (login/initial) must appear
+        toolWindow.waitForSnapshotDiscovery(Duration.ofSeconds(10))
         val allNames = toolWindow.allSnapshotNames()
-        assertTrue(allNames.isNotEmpty(), "Combo box should list at least one snapshot, got: $allNames")
+        assertTrue(
+            allNames.isNotEmpty(),
+            "Combo box should list at least one snapshot, got: $allNames",
+        )
         assertTrue(
             allNames.any { it.contains("login") || it.contains("initial") },
-            "Expected 'login/initial' in snapshot list, got: $allNames"
+            "Expected 'login/initial' in snapshot list, got: $allNames",
         )
     }
 
@@ -90,22 +76,16 @@ class ToolWindowUiTest : BaseUiTest() {
      */
     @Test
     fun `selecting snapshot from combo box loads it`() {
-        waitFor(Duration.ofSeconds(10)) {
-            try { PageMirrorToolWindowFixture.find(robot).selectedSnapshotName().isNotBlank() }
-            catch (_: Exception) { false }
-        }
-
-        val toolWindow = PageMirrorToolWindowFixture.find(robot)
+        toolWindow.waitForSnapshotDiscovery(Duration.ofSeconds(10))
         val before = toolWindow.selectedSnapshotName()
 
         // Re-select the same item (exercises the action listener path)
         toolWindow.selectSnapshot("initial")
-        Thread.sleep(1_000)
 
         val after = toolWindow.selectedSnapshotName()
         assertTrue(
             after.contains("initial") || after == before,
-            "After selection, combo should show 'initial', was: '$after'"
+            "After selection, combo should show 'initial', was: '$after'",
         )
     }
 
@@ -115,24 +95,26 @@ class ToolWindowUiTest : BaseUiTest() {
      */
     @Test
     fun `refresh button re scans snapshots`() {
-        waitFor(Duration.ofSeconds(10)) {
-            try { PageMirrorToolWindowFixture.find(robot).selectedSnapshotName().isNotBlank() }
-            catch (_: Exception) { false }
-        }
-
-        val toolWindow = PageMirrorToolWindowFixture.find(robot)
+        toolWindow.waitForSnapshotDiscovery(Duration.ofSeconds(10))
         val beforeRefresh = toolWindow.selectedSnapshotName()
 
-        toolWindow.refreshButton.click()
-        Thread.sleep(2_000)
+        toolWindow.refresh()
 
-        // After refresh, combo box should still have a valid entry
-        val afterRefresh = PageMirrorToolWindowFixture.find(robot).selectedSnapshotName()
+        // After refresh, the combo box should re-populate; poll for non-blank.
+        Wait.pollUntilTrue(
+            timeout = Duration.ofSeconds(5),
+            interval = Duration.ofMillis(100),
+            message = { "combo blank after refresh" },
+        ) {
+            toolWindow.selectedSnapshotName().isNotBlank()
+        }
+        val afterRefresh = toolWindow.selectedSnapshotName()
         assertFalse(afterRefresh.isBlank(), "After refresh, combo box should still have a selection")
-        // Existing snapshot should still be present
         assertTrue(
-            afterRefresh.contains("login") || afterRefresh.contains("initial") || afterRefresh == beforeRefresh,
-            "After refresh, snapshot should still be discoverable, was: '$afterRefresh'"
+            afterRefresh.contains("login") ||
+                afterRefresh.contains("initial") ||
+                afterRefresh == beforeRefresh,
+            "After refresh, snapshot should still be discoverable, was: '$afterRefresh'",
         )
     }
 }

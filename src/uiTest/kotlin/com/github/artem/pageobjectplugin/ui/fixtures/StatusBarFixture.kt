@@ -1,10 +1,10 @@
 package com.github.artem.pageobjectplugin.ui.fixtures
 
+import com.github.artem.pageobjectplugin.ui.locators.PageMirrorLocators
 import com.intellij.remoterobot.RemoteRobot
 import com.intellij.remoterobot.data.RemoteComponent
 import com.intellij.remoterobot.fixtures.CommonContainerFixture
-import com.intellij.remoterobot.fixtures.ComponentFixture
-import com.intellij.remoterobot.search.locators.byXpath
+import com.intellij.remoterobot.search.locators.Locator
 import java.time.Duration
 
 /**
@@ -27,13 +27,13 @@ class StatusBarFixture(robot: RemoteRobot, component: RemoteComponent) :
          * inside the IDE status bar whose accessible name or text starts with "Page Mirror".
          */
         fun find(robot: RemoteRobot): StatusBarFixture {
-            // Try ID-based lookup first
-            val byId = "//div[@class='IdeStatusBarImpl']//div[@id='PageMirrorStatus']"
-            val byText = "//div[@class='IdeStatusBarImpl']//div[contains(@text, 'Page Mirror')]"
-
-            for (xpath in listOf(byId, byText)) {
+            val candidates: List<Locator> = listOf(
+                PageMirrorLocators.statusBarWidgetById,
+                PageMirrorLocators.statusBarWidgetByText,
+            )
+            for (locator in candidates) {
                 try {
-                    return robot.find(byXpath(xpath), Duration.ofSeconds(5))
+                    return robot.find(locator, Duration.ofSeconds(5))
                 } catch (_: Exception) { /* try next */ }
             }
             throw AssertionError(

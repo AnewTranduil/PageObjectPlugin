@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "test": {
+    "className": "com.example.BarUiTest",
+    "method": "clickRetried",
+    "displayName": "click retried"
+  },
+  "startedAt": "2026-04-08T12:00:00Z",
+  "durationMs": 2000,
+  "status": "failed",
+  "flaky": true,
+  "failure": {
+    "message": "Element not found",
+    "stack": "java.lang.AssertionError: Element not found\n\tat com.example.BarUiTest.clickRetried(BarUiTest.kt:88)\n",
+    "file": "src/uiTest/kotlin/com/example/BarUiTest.kt",
+    "line": 88
+  },
+  "steps": [],
+  "artifacts": {
+    "ideaLog": "idea.log",
+    "dom": "dom.html"
+  }
+}

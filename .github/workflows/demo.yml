@@ -1,0 +1,107 @@
+name: demo-report
+
+on:
+  pull_request:
+    types: [labeled]
+
+jobs:
+  demo-report:
+    if: github.event.label.name == 'demo'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      DISPLAY: ':99'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v5
+
+      - name: Install Xvfb and display dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libxrender1 libxtst6 libxi6 \
+            libxrandr2 libxcomposite1 libxcursor1 libxdamage1 \
+            libxfixes3 libatk1.0-0 libatk-bridge2.0-0 libgtk-3-0 \
+            libnss3 libnspr4 libasound2t64 libgbm1 libdrm2 \
+            libcups2 libpango-1.0-0 libcairo2 fonts-liberation
+
+      - name: Start Xvfb
+        run: |
+          Xvfb :99 -screen 0 1920x1080x24 -ac +extension GLX &
+          sleep 2
+
+      - name: Start IDE for UI tests
+        run: |
+          ./gradlew runIdeForUiTests &
+          echo "IDE starting in background..."
+
+      - name: Wait for robot-server
+        run: |
+          echo "Waiting for robot-server on port 8082..."
+          timeout=300
+          elapsed=0
+          while [ $elapsed -lt $timeout ]; do
+            if curl -sf http://localhost:8082 > /dev/null 2>&1; then
+              echo "Robot server is ready (after ${elapsed}s)"
+              exit 0
+            fi
+            sleep 5
+            elapsed=$((elapsed + 5))
+          done
+          echo "ERROR: Robot server not ready after ${timeout}s"
+          exit 1
+
+      - name: Run demoReport
+        id: demo
+        run: ./gradlew demoReport -PfeatureName=all
+
+      - name: Upload demo report to dashboard
+        if: success() || failure()
+        env:
+          RD_DEMO_TOKEN: ${{ secrets.RD_DEMO_TOKEN }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GIT_REF: ${{ github.ref_name }}
+          GIT_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          DEMO_DIR="build/reports/demo/all"
+          if [ ! -d "$DEMO_DIR" ]; then
+            echo "::warning::Demo report directory not found — skipping dashboard upload."
+            exit 0
+          fi
+          (cd "$DEMO_DIR" && zip -r ../../../../demo-report.zip .)
+          curl -fsS -X POST \
+            --connect-timeout 10 --max-time 120 \
+            --retry 3 --retry-connrefused --retry-delay 2 \
+            -H "Authorization: Bearer ${RD_DEMO_TOKEN}" \
+            -F "report=@demo-report.zip" \
+            "https://reports.artemon.cloud/api/v1/upload?\
+          suite=demo&\
+          run_id=${RUN_ID}&\
+          run_url=${RUN_URL}&\
+          job_url=${RUN_URL}&\
+          git_ref=${GIT_REF}&\
+          git_sha=${GIT_SHA}&\
+          status=${{ steps.demo.outcome == 'success' && 'passed' || 'failed' }}"
+
+      - name: Finalize run on dashboard
+        if: always()
+        env:
+          RD_DEMO_TOKEN: ${{ secrets.RD_DEMO_TOKEN }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          curl -sS -X POST \
+            --connect-timeout 10 --max-time 30 \
+            --retry 3 --retry-connrefused --retry-delay 2 \
+            -H "Authorization: Bearer ${RD_DEMO_TOKEN}" \
+            "https://reports.artemon.cloud/api/v1/executions/${RUN_ID}/finalize" \
+            || echo "::warning::finalize call failed — non-fatal"

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.example.BarUiTest" tests="2" skipped="0" failures="1" errors="0" timestamp="2026-04-08T12:00:00" hostname="ci" time="3.5">
+  <testcase name="opensToolWindow" classname="com.example.BarUiTest" time="1.5"/>
+  <testcase name="clickRetried" classname="com.example.BarUiTest" time="2.0">
+    <failure message="Element not found" type="java.lang.AssertionError">java.lang.AssertionError: Element not found
+	at com.example.BarUiTest.clickRetried(BarUiTest.kt:88)
+</failure>
+  </testcase>
+</testsuite>

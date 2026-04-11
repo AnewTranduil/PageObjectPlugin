@@ -6,7 +6,17 @@ export default defineConfig({
   expect: { timeout: 10000 },
   retries: 0,
   workers: 1,
-  reporter: 'list',
+  // Three reporters in parallel:
+  //   list   — human-readable console output (CI logs + local dev)
+  //   html   — `playwright-report/index.html`, uploaded to the per-suite
+  //            dashboard slot
+  //   json   — `test-results/results.json`, consumed by buildSrc's
+  //            ClaudeSummaryGenerator (Task 14)
+  reporter: [
+    ['list'],
+    ['html', { open: 'never' }],
+    ['json', { outputFile: 'test-results/results.json' }],
+  ],
   use: {
     viewport: { width: 1280, height: 720 },
     screenshot: 'off',

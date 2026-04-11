@@ -1,7 +1,10 @@
 package com.github.artem.pageobjectplugin.ui.tests
 
 import com.github.artem.pageobjectplugin.ui.BaseUiTest
+import com.github.artem.pageobjectplugin.ui.annotations.Feature
 import com.github.artem.pageobjectplugin.ui.fixtures.PageMirrorToolWindowFixture
+import com.github.artem.pageobjectplugin.ui.pages.EditorPage
+import com.github.artem.pageobjectplugin.ui.pages.PluginToolWindowPage
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -20,24 +23,22 @@ import java.time.Duration
  * state on the Kotlin side — the SnapshotService.applyTheme() is triggered
  * by LafManagerListener and uses the isDark flag to set the CSS class.
  */
+@Feature("theme")
 class ThemeUiTest : BaseUiTest() {
 
     private var originalThemeName: String = "IntelliJ Light"
 
+    private val editor by lazy { EditorPage(robot) }
+    private val toolWindow by lazy { PluginToolWindowPage(robot) }
+
     @BeforeEach
     fun loadSnapshot() {
-        openFileInEditor("login.page.ts")
-        Thread.sleep(1_000)
+        editor.openFileInEditor("login.page.ts")
         if (!PageMirrorToolWindowFixture.isVisible(robot)) {
-            openToolWindow()
+            toolWindow.open()
         }
-        waitFor(Duration.ofSeconds(15)) {
-            try {
-                val name = PageMirrorToolWindowFixture.find(robot).selectedSnapshotName()
-                name.isNotBlank() && !name.contains("No snapshot")
-            } catch (_: Exception) { false }
-        }
-        Thread.sleep(2_000)
+        toolWindow.waitForSnapshotDiscovery(Duration.ofSeconds(15))
+        Thread.sleep(2_000)  // JCEF page first paint — no observable signal
         originalThemeName = detectCurrentThemeName()
     }
 

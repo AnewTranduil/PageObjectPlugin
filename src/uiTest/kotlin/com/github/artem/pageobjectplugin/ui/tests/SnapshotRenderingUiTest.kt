@@ -1,8 +1,11 @@
 package com.github.artem.pageobjectplugin.ui.tests
 
 import com.github.artem.pageobjectplugin.ui.BaseUiTest
+import com.github.artem.pageobjectplugin.ui.annotations.Feature
 import com.github.artem.pageobjectplugin.ui.fixtures.PageMirrorToolWindowFixture
 import com.github.artem.pageobjectplugin.ui.fixtures.SnapshotBrowserFixture
+import com.github.artem.pageobjectplugin.ui.pages.EditorPage
+import com.github.artem.pageobjectplugin.ui.pages.PluginToolWindowPage
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -15,23 +18,19 @@ import java.time.Duration
  *   - IDE started with test-project/ open (runIdeForUiTests task)
  *   - test-project/.snapshots/login/initial/ contains a valid snapshot bundle
  */
+@Feature("snapshot-rendering")
 class SnapshotRenderingUiTest : BaseUiTest() {
+
+    private val editor by lazy { EditorPage(robot) }
+    private val toolWindow by lazy { PluginToolWindowPage(robot) }
 
     @BeforeEach
     fun loadSnapshot() {
-        openFileInEditor("login.page.ts")
-        Thread.sleep(1_000)
+        editor.openFileInEditor("login.page.ts")
         if (!PageMirrorToolWindowFixture.isVisible(robot)) {
-            openToolWindow()
+            toolWindow.open()
         }
-        // Wait for auto-discovery and snapshot load
-        waitFor(Duration.ofSeconds(15)) {
-            try {
-                val tw = PageMirrorToolWindowFixture.find(robot)
-                val name = tw.selectedSnapshotName()
-                name.isNotBlank() && !name.contains("No snapshot")
-            } catch (_: Exception) { false }
-        }
+        toolWindow.waitForSnapshotDiscovery(Duration.ofSeconds(15))
     }
 
     /**
