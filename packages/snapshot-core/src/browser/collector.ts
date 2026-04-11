@@ -29,6 +29,14 @@ export async function collectPage(options: CollectorOptions = {}): Promise<Colle
 
   // 1. Resolve every <link rel="stylesheet">: prefer same-origin cssRules
   //    (no network), fall back to fetch() for cross-origin.
+  //
+  //    The stored `href` is deliberately the RAW attribute value as it
+  //    appears in the DOM (e.g. "styles/app.css"), not the resolved URL
+  //    (e.g. "http://localhost/styles/app.css"). `document.documentElement
+  //    .outerHTML` preserves raw attributes, and the Node-side assembler
+  //    matches `<link href="X">` tags in that serialized HTML by this
+  //    exact key. Using `link.href` (the resolved property) would break
+  //    the match and leave sidecars orphaned.
   const links = Array.from(document.querySelectorAll('link[rel="stylesheet"]')) as HTMLLinkElement[];
   for (const link of links) {
     try {
@@ -49,7 +57,8 @@ export async function collectPage(options: CollectorOptions = {}): Promise<Colle
         cssText = await resp.text();
       }
       if (cssText) {
-        stylesheets.push({ href: link.href, source: cssText });
+        const rawHref = link.getAttribute('href') ?? link.href;
+        stylesheets.push({ href: rawHref, source: cssText });
       }
     } catch {
       // Skip unresolvable stylesheets; the assembler leaves them in place.
