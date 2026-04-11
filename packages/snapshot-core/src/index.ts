@@ -21,3 +21,5 @@ export type { AssembleResult } from './assemble-html';
 
 export { collectPage, collectorSource } from './browser/collector';
 export type { CollectedPayload } from './browser/collector';
+
+export { saveSnapshot } from './save-snapshot';
