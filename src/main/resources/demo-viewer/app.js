@@ -5,21 +5,24 @@
     return;
   }
 
-  var header = document.getElementById('summary');
-  var totalSteps = data.tests.reduce(function (acc, t) { return acc + (t.steps || []).length; }, 0);
-  var failures = data.tests.filter(function (t) { return t.status === 'failed'; }).length;
-  header.innerHTML =
-    '<span class="tag">' + escapeHtml(data.feature) + '</span>' +
-    '<span>' + data.tests.length + ' tests</span>' +
-    '<span>' + totalSteps + ' steps</span>' +
-    '<span>' + failures + ' failures</span>' +
-    '<span class="sha">' + escapeHtml(data.gitSha || '') + '</span>';
+  // ── DOM refs ─────────────────────────────────────────────
+  var headerEl = document.getElementById('summary');
+  var testListEl = document.getElementById('test-list');
+  var screenshotPaneEl = document.getElementById('screenshot-pane');
+  var dividerEl = document.getElementById('pane-divider');
+  var tabsEl = document.getElementById('tabs');
+  var tabListEl = document.getElementById('tab-list');
+  var tabBodyEl = document.getElementById('tab-body');
+  var stepListEl = document.getElementById('step-list');
 
-  var listEl = document.getElementById('test-list');
-  var timelineEl = document.getElementById('timeline');
-  var detailsEl = document.getElementById('details');
+  // ── State ────────────────────────────────────────────────
+  var selectedTestIdx = 0;
+  var selectedStepIdx = 0;
+  var selectedTab = 'dom';          // 'dom' | 'failure'
+  var bottomPaneHeight = 260;       // px, controlled by the divider drag
+  var expandedGroups = {};
 
-  // Group tests by feature, preserving the order in which features first appear.
+  // ── Feature grouping ─────────────────────────────────────
   var groups = [];
   var groupIndexByName = {};
   data.tests.forEach(function (t, i) {
@@ -31,41 +34,49 @@
     groups[groupIndexByName[name]].tests.push({ test: t, index: i });
   });
 
-  var selectedTestIdx = 0;
-  var selectedStepIdx = 0;
-
-  // Collapsed by default; auto-expand the group containing the initial selection.
-  var expandedGroups = {};
-  var initialGroup = groupNameForTestIdx(selectedTestIdx);
-  if (initialGroup != null) expandedGroups[initialGroup] = true;
-
-  // Resizer state for the screenshot pane (px). Persisted in-memory only.
-  var screenshotPaneHeight = 320;
-
   function groupNameForTestIdx(idx) {
     var t = data.tests[idx];
     if (!t) return null;
     return t.feature || data.feature || 'Ungrouped';
   }
 
-  function render() {
-    listEl.innerHTML = '';
+  // Collapse everything by default; expand the group containing the initial test.
+  var initialGroup = groupNameForTestIdx(selectedTestIdx);
+  if (initialGroup != null) expandedGroups[initialGroup] = true;
+
+  // ── Header ───────────────────────────────────────────────
+  function renderHeader() {
+    var totalSteps = data.tests.reduce(function (acc, t) {
+      return acc + (t.steps || []).length;
+    }, 0);
+    var failures = data.tests.filter(function (t) { return t.status === 'failed'; }).length;
+    headerEl.innerHTML =
+      '<span class="tag">' + escapeHtml(data.feature) + '</span>' +
+      '<span>' + data.tests.length + ' tests</span>' +
+      '<span>' + totalSteps + ' steps</span>' +
+      '<span>' + failures + ' failures</span>' +
+      '<span class="sha">' + escapeHtml(data.gitSha || '') + '</span>';
+  }
+
+  // ── Left sidebar: test list grouped by feature ──────────
+  function renderTestList() {
+    testListEl.innerHTML = '';
     groups.forEach(function (g) {
       var groupEl = document.createElement('div');
       var collapsed = !expandedGroups[g.name];
       groupEl.className = 'feature-group' + (collapsed ? ' collapsed' : '');
 
-      var headerEl = document.createElement('div');
-      headerEl.className = 'feature-header';
-      headerEl.innerHTML =
+      var gHeader = document.createElement('div');
+      gHeader.className = 'feature-header';
+      gHeader.innerHTML =
         '<span class="caret">' + (collapsed ? '\u25B6' : '\u25BC') + '</span>' +
         '<span class="name">' + escapeHtml(g.name) + '</span>' +
         '<span class="count">' + g.tests.length + '</span>';
-      headerEl.onclick = function () {
+      gHeader.onclick = function () {
         expandedGroups[g.name] = !expandedGroups[g.name];
-        render();
+        renderTestList();
       };
-      groupEl.appendChild(headerEl);
+      groupEl.appendChild(gHeader);
 
       var testsEl = document.createElement('div');
       testsEl.className = 'feature-tests';
@@ -76,113 +87,143 @@
         el.className = 'test-item' + (i === selectedTestIdx ? ' selected' : '');
         el.innerHTML =
           '<span class="status ' + t.status + '"></span>' +
-          escapeHtml(t.displayName || t.method);
+          '<span class="test-name">' + escapeHtml(t.displayName || t.method) + '</span>';
         el.onclick = function (ev) {
           ev.stopPropagation();
           selectedTestIdx = i;
           selectedStepIdx = 0;
-          // Make sure the group containing the selected test stays expanded.
           expandedGroups[g.name] = true;
-          render();
+          selectedTab = pickDefaultTab(data.tests[selectedTestIdx]);
+          renderAll();
         };
         testsEl.appendChild(el);
       });
       groupEl.appendChild(testsEl);
-
-      listEl.appendChild(groupEl);
+      testListEl.appendChild(groupEl);
     });
-
-    var test = data.tests[selectedTestIdx];
-    timelineEl.innerHTML = '';
-    (test.steps || []).forEach(function (s, i) {
-      var el = document.createElement('div');
-      el.className = 'step' + (i === selectedStepIdx ? ' selected' : '') + (s.error ? ' has-error' : '');
-      el.innerHTML =
-        '<span class="label">' + escapeHtml(s.label) + '</span>' +
-        '<span class="dur">' + s.durationMs + 'ms</span>';
-      el.onclick = function () { selectedStepIdx = i; render(); };
-      timelineEl.appendChild(el);
-    });
-
-    renderDetails(test);
   }
 
-  function renderDetails(test) {
-    detailsEl.innerHTML = '';
-    var step = (test.steps || [])[selectedStepIdx];
+  // ── Right sidebar: step timeline ────────────────────────
+  function renderStepList() {
+    stepListEl.innerHTML = '';
+    var test = data.tests[selectedTestIdx];
+    var steps = test.steps || [];
 
-    var screenshotPane = document.createElement('div');
-    screenshotPane.className = 'screenshot-pane';
-    screenshotPane.style.height = screenshotPaneHeight + 'px';
+    var heading = document.createElement('div');
+    heading.className = 'step-list-heading';
+    heading.textContent = 'Steps (' + steps.length + ')';
+    stepListEl.appendChild(heading);
+
+    if (steps.length === 0) {
+      var empty = document.createElement('div');
+      empty.className = 'pane-empty';
+      empty.textContent = 'No steps recorded.';
+      stepListEl.appendChild(empty);
+      return;
+    }
+
+    steps.forEach(function (s, i) {
+      var el = document.createElement('div');
+      el.className = 'step' +
+        (i === selectedStepIdx ? ' selected' : '') +
+        (s.error ? ' has-error' : '');
+      el.innerHTML =
+        '<div class="step-index">' + (s.index || (i + 1)) + '</div>' +
+        '<div class="step-body">' +
+          '<div class="label">' + escapeHtml(s.label) + '</div>' +
+          '<div class="dur">' + s.durationMs + 'ms</div>' +
+        '</div>';
+      el.onclick = function () {
+        selectedStepIdx = i;
+        renderStepList();
+        renderScreenshot();
+      };
+      stepListEl.appendChild(el);
+    });
+  }
+
+  // ── Center top: screenshot pane ─────────────────────────
+  function renderScreenshot() {
+    var test = data.tests[selectedTestIdx];
+    var step = (test.steps || [])[selectedStepIdx];
+    screenshotPaneEl.innerHTML = '';
+
     if (step && step.screenshotDataUri) {
       var img = document.createElement('img');
       img.src = step.screenshotDataUri;
       img.alt = 'step screenshot';
       img.title = 'Click to view at full resolution';
       img.onclick = function () { openLightbox(step.screenshotDataUri); };
-      screenshotPane.appendChild(img);
+      screenshotPaneEl.appendChild(img);
     } else {
       var empty = document.createElement('div');
       empty.className = 'pane-empty';
-      empty.textContent = 'No screenshot for this step.';
-      screenshotPane.appendChild(empty);
+      empty.textContent = step
+        ? 'No screenshot recorded for this step.'
+        : 'No step selected.';
+      screenshotPaneEl.appendChild(empty);
     }
-    detailsEl.appendChild(screenshotPane);
+  }
 
-    var divider = document.createElement('div');
-    divider.className = 'pane-divider';
-    divider.title = 'Drag to resize screenshot';
-    attachResizer(divider, screenshotPane);
-    detailsEl.appendChild(divider);
+  // ── Center bottom: tabs (DOM snapshot / Failure) ───────
+  function pickDefaultTab(test) {
+    if (test && test.failure) return 'failure';
+    if (test && test.domHtmlDataUri) return 'dom';
+    return 'dom';
+  }
 
-    var domPane = document.createElement('div');
-    domPane.className = 'dom-pane';
-    if (test.failure) {
-      var pre = document.createElement('pre');
-      pre.textContent = test.failure.stack;
-      domPane.appendChild(pre);
+  function renderTabs() {
+    var test = data.tests[selectedTestIdx];
+    var hasDom = !!test.domHtmlDataUri;
+    var hasFailure = !!test.failure;
+
+    // If neither tab has anything, hide the entire bottom section.
+    if (!hasDom && !hasFailure) {
+      tabsEl.classList.add('hidden');
+      dividerEl.classList.add('hidden');
+      return;
     }
-    if (test.domHtmlDataUri) {
+    tabsEl.classList.remove('hidden');
+    dividerEl.classList.remove('hidden');
+    tabsEl.style.height = bottomPaneHeight + 'px';
+
+    // Fall back to an enabled tab if the current one is empty for this test.
+    if (selectedTab === 'dom' && !hasDom) selectedTab = hasFailure ? 'failure' : 'dom';
+    if (selectedTab === 'failure' && !hasFailure) selectedTab = hasDom ? 'dom' : 'failure';
+
+    var specs = [
+      { id: 'dom', label: 'DOM Snapshot', enabled: hasDom },
+      { id: 'failure', label: 'Failure', enabled: hasFailure },
+    ];
+
+    tabListEl.innerHTML = '';
+    specs.forEach(function (spec) {
+      var btn = document.createElement('button');
+      btn.className = 'tab-button' + (spec.id === selectedTab ? ' active' : '');
+      btn.textContent = spec.label;
+      btn.disabled = !spec.enabled;
+      btn.onclick = function () {
+        if (!spec.enabled) return;
+        selectedTab = spec.id;
+        renderTabs();
+      };
+      tabListEl.appendChild(btn);
+    });
+
+    tabBodyEl.innerHTML = '';
+    if (selectedTab === 'dom' && hasDom) {
       var iframe = document.createElement('iframe');
       iframe.src = test.domHtmlDataUri;
       iframe.setAttribute('sandbox', '');
-      domPane.appendChild(iframe);
-    } else if (!test.failure) {
-      var emptyDom = document.createElement('div');
-      emptyDom.className = 'pane-empty';
-      emptyDom.textContent = 'No DOM snapshot for this test.';
-      domPane.appendChild(emptyDom);
+      tabBodyEl.appendChild(iframe);
+    } else if (selectedTab === 'failure' && hasFailure) {
+      var pre = document.createElement('pre');
+      pre.textContent = test.failure.stack;
+      tabBodyEl.appendChild(pre);
     }
-    detailsEl.appendChild(domPane);
   }
 
-  function attachResizer(handle, screenshotPane) {
-    handle.addEventListener('mousedown', function (e) {
-      e.preventDefault();
-      var startY = e.clientY;
-      var startHeight = screenshotPane.getBoundingClientRect().height;
-      document.body.classList.add('resizing-vert');
-
-      function onMove(ev) {
-        var delta = ev.clientY - startY;
-        var next = Math.max(80, Math.min(2000, startHeight + delta));
-        screenshotPaneHeight = next;
-        screenshotPane.style.height = next + 'px';
-      }
-      function onUp() {
-        document.removeEventListener('mousemove', onMove);
-        document.removeEventListener('mouseup', onUp);
-        document.body.classList.remove('resizing-vert');
-      }
-      document.addEventListener('mousemove', onMove);
-      document.addEventListener('mouseup', onUp);
-    });
-  }
-
-  // Lightbox for full-resolution screenshot viewing.
-  // The underlying PNG is the full IDE desktop (e.g. 1920x1080) even though
-  // the side panel CSS-scales it down to fit. Clicking opens a modal that
-  // starts at "fit-to-viewport" and toggles to "100% native pixels" on click.
+  // ── Lightbox (full-resolution zoom) ─────────────────────
   function openLightbox(dataUri) {
     var overlay = document.createElement('div');
     overlay.className = 'lightbox-overlay';
@@ -195,7 +236,7 @@
 
     var hint = document.createElement('div');
     hint.className = 'lightbox-hint';
-    hint.textContent = 'Click image to toggle 100% · Esc or click background to close';
+    hint.textContent = 'Fit to viewport · Click image for 100% · Esc to close';
     overlay.appendChild(hint);
 
     function close() {
@@ -223,10 +264,47 @@
     document.body.appendChild(overlay);
   }
 
+  // ── Divider resize ─────────────────────────────────────
+  // Dragging the handle UP shrinks the tabs pane (grows the screenshot),
+  // dragging DOWN grows the tabs pane.
+  function attachResizer() {
+    dividerEl.addEventListener('mousedown', function (e) {
+      e.preventDefault();
+      var startY = e.clientY;
+      var startHeight = tabsEl.getBoundingClientRect().height;
+      document.body.classList.add('resizing-vert');
+
+      function onMove(ev) {
+        var delta = startY - ev.clientY;
+        var next = Math.max(40, Math.min(1500, startHeight + delta));
+        bottomPaneHeight = next;
+        tabsEl.style.height = next + 'px';
+      }
+      function onUp() {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        document.body.classList.remove('resizing-vert');
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  }
+
+  function renderAll() {
+    renderTestList();
+    renderStepList();
+    renderScreenshot();
+    renderTabs();
+  }
+
   function escapeHtml(s) {
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
-  render();
+  // ── Init ───────────────────────────────────────────────
+  selectedTab = pickDefaultTab(data.tests[selectedTestIdx]);
+  renderHeader();
+  attachResizer();
+  renderAll();
 })();
