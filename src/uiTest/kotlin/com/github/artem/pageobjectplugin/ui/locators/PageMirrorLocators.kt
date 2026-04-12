@@ -24,7 +24,7 @@ object PageMirrorLocators {
         byXpath(".//div[@class='JButton' and @text='Refresh']")
 
     val toolWindowShowAllButton: Locator =
-        byXpath(".//div[@class='JButton' and @text='Show All']")
+        byXpath(".//div[@class='JButton' and contains(@text, 'Show All')]")
 
     // ── JCEF browser candidates ──────────────────────────────────────────────
     // Tried in order; the first match wins. Different IntelliJ versions and
