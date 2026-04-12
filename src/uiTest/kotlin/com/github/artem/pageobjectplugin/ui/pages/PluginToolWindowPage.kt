@@ -109,4 +109,17 @@ class PluginToolWindowPage(private val robot: RemoteRobot) {
     /** Returns the JCEF browser fixture inside this tool window. */
     fun browser(): SnapshotBrowserFixture =
         SnapshotBrowserFixture.findInsideToolWindow(fixture())
+
+    /**
+     * Clicks the "Show All" toolbar button. Toggles highlight-all mode
+     * (on first click: highlights every locator in the active page
+     * object; second click: clears all highlights).
+     */
+    fun clickShowAll(): PluginToolWindowPage = StepRecorder.step(
+        label = "clickShowAll",
+        robot = robot,
+    ) {
+        fixture().showAllButton.click()
+        this
+    }
 }

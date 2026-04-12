@@ -135,6 +135,29 @@ class DashboardV2UiTest : BaseUiTest() {
         )
     }
 
+    /**
+     * Highlight-all: clicking "Show All" highlights all locators from
+     * dashboard.page.ts in the rendered v2 snapshot simultaneously.
+     */
+    @Test
+    fun `show all highlights every dashboard locator in v2 snapshot`() {
+        toolWindow.clickShowAll()
+        Thread.sleep(1_000)
+
+        takeScreenshot("dashboard-show-all-highlights")
+
+        val tw = PageMirrorToolWindowFixture.find(robot)
+        val browser = SnapshotBrowserFixture.findInsideToolWindow(tw)
+        assertTrue(
+            browser.isHighlightAllActive(),
+            "Highlight-all should be active after clicking Show All on dashboard snapshot",
+        )
+        assertTrue(
+            browser.isHighlightVisible(),
+            "At least one highlight should be visible in highlight-all mode",
+        )
+    }
+
     // ── helpers (mirrors GutterAnnotationUiTest) ────────────────────────
 
     private fun restartAnnotations() {
