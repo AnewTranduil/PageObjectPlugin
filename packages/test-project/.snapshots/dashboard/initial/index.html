@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Orbital — Dashboard</title>
+  <link rel="stylesheet" href="resources/56500f6926892da0.css">
+  <link rel="stylesheet" href="resources/ce98ebcb04261cec.css">
+  <link rel="stylesheet" href="resources/f576d589de63500c.css">
+  <link rel="stylesheet" href="resources/73141a4b889df451.css">
+</head>
+<body>
+  <div class="app-shell">
+
+    <header class="topbar" data-testid="topbar">
+      <div class="topbar__brand">
+        <div class="topbar__brand-mark" aria-hidden="true"></div>
+        <span>Orbital</span>
+      </div>
+      <div class="topbar__user">
+        <button type="button" class="btn btn--ghost" data-testid="invite-teammate">
+          Invite teammate
+        </button>
+        <div class="avatar" data-testid="current-user-avatar" aria-label="Amelia Park">AP</div>
+      </div>
+    </header>
+
+    <aside class="sidebar" aria-label="Primary navigation">
+      <nav aria-label="Workspace">
+        <div class="sidebar__section-label">Workspace</div>
+        <ul>
+          <li><a class="sidebar__link sidebar__link--active" href="#" data-testid="nav-dashboard">
+            Dashboard
+          </a></li>
+          <li><a class="sidebar__link" href="#" data-testid="nav-projects">
+            Projects
+          </a></li>
+          <li><a class="sidebar__link" href="#" data-testid="nav-reports">
+            Reports
+          </a></li>
+          <li><a class="sidebar__link" href="#" data-testid="nav-team">
+            Team
+          </a></li>
+        </ul>
+      </nav>
+
+      <nav aria-label="Account">
+        <div class="sidebar__section-label">Account</div>
+        <ul>
+          <li><a class="sidebar__link" href="#" data-testid="nav-billing">
+            Billing
+          </a></li>
+          <li><a class="sidebar__link" href="#" data-testid="nav-settings">
+            Settings
+          </a></li>
+        </ul>
+      </nav>
+    </aside>
+
+    <main class="main" id="main">
+      <section class="page-header">
+        <div class="page-header__meta">
+          <h4 class="muted">Dashboard</h4>
+          <h1>Welcome back, Amelia</h1>
+          <p class="muted">Here's what's happening in your workspace today.</p>
+        </div>
+        <div class="page-header__actions">
+          <button type="button" class="btn btn--ghost" data-testid="export-button">
+            Export
+          </button>
+          <button type="button" class="btn btn--primary" data-testid="new-project-button">
+            New project
+          </button>
+        </div>
+      </section>
+
+      <section class="card-grid" aria-label="Stats">
+        <div class="card" data-testid="stat-active-users">
+          <div class="card__title">Active users</div>
+          <div class="card__value">2,481</div>
+          <span class="card__delta card__delta--up">+12.4%</span>
+        </div>
+        <div class="card" data-testid="stat-conversion">
+          <div class="card__title">Conversion</div>
+          <div class="card__value">4.7%</div>
+          <span class="card__delta card__delta--up">+0.6 pts</span>
+        </div>
+        <div class="card" data-testid="stat-revenue">
+          <div class="card__title">Revenue</div>
+          <div class="card__value">$28,904</div>
+          <span class="card__delta card__delta--down">-2.1%</span>
+        </div>
+        <div class="card" data-testid="stat-open-tickets">
+          <div class="card__title">Open tickets</div>
+          <div class="card__value">17</div>
+          <span class="card__delta card__delta--up">+3</span>
+        </div>
+      </section>
+
+      <section class="two-col">
+        <article class="card" aria-labelledby="projects-heading">
+          <h2 id="projects-heading">Recent projects</h2>
+          <p class="muted" style="margin-bottom: 16px;">Updated in the last 7 days.</p>
+          <table class="table" data-testid="projects-table">
+            <thead>
+              <tr>
+                <th scope="col">Project</th>
+                <th scope="col">Owner</th>
+                <th scope="col">Status</th>
+                <th scope="col">Last update</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr data-testid="project-row-apollo">
+                <td>Apollo API</td>
+                <td>Jin Park</td>
+                <td><span class="badge badge--success">Shipped</span></td>
+                <td>2 hours ago</td>
+              </tr>
+              <tr data-testid="project-row-borealis">
+                <td>Borealis Mobile</td>
+                <td>Wren Hollis</td>
+                <td><span class="badge badge--warning">In review</span></td>
+                <td>Yesterday</td>
+              </tr>
+              <tr data-testid="project-row-cascade">
+                <td>Cascade Migration</td>
+                <td>Tomás Silva</td>
+                <td><span class="badge badge--danger">Blocked</span></td>
+                <td>3 days ago</td>
+              </tr>
+            </tbody>
+          </table>
+        </article>
+
+        <article class="card" aria-labelledby="new-ticket-heading">
+          <h2 id="new-ticket-heading">Open a ticket</h2>
+          <p class="muted" style="margin-bottom: 16px;">Tell us what's not working.</p>
+          <form data-testid="ticket-form">
+            <div class="form-group">
+              <label for="ticket-title">Title</label>
+              <input class="input" id="ticket-title" name="title" data-testid="ticket-title" placeholder="Short summary">
+            </div>
+            <div class="form-group">
+              <label for="ticket-priority">Priority</label>
+              <select class="select" id="ticket-priority" name="priority" data-testid="ticket-priority">
+                <option value="low">Low</option>
+                <option value="medium" selected>Medium</option>
+                <option value="high">High</option>
+                <option value="critical">Critical</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="ticket-description">Description</label>
+              <textarea class="textarea" id="ticket-description" name="description"
+                        data-testid="ticket-description"
+                        placeholder="Steps to reproduce, expected result, actual result..."></textarea>
+            </div>
+            <button type="submit" class="btn btn--primary" data-testid="ticket-submit">
+              Submit ticket
+            </button>
+          </form>
+        </article>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
