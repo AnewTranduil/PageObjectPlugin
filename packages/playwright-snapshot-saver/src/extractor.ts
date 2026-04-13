@@ -10,6 +10,7 @@ import {
 import { createBackendFromZip } from './sources/zip-source';
 import { findTraceZipsInReport, isPlaywrightReportDir } from './sources/directory-source';
 import { downloadTracesFromUrl } from './sources/url-source';
+import { getPlaywrightVersion } from './playwright-version';
 
 // ---------------------------------------------------------------------------
 // Source type detection
@@ -142,6 +143,9 @@ async function processTraceZips(
         const cleanHtml = rendered.html.replace(/ __playwright_target__="[^"]*"/g, '');
 
         const htmlPath = path.join(snapshotDir, 'index.html');
+        const resourcesDir = path.join(snapshotDir, 'resources');
+        const screenshotPath = path.join(resourcesDir, 'screenshot.webp');
+        const manifestPath = path.join(snapshotDir, 'manifest.json');
         const changed = hasHtmlChanged(htmlPath, cleanHtml);
 
         const files: ExtractResult['snapshots'][number]['files'] = { html: htmlPath };
@@ -152,17 +156,19 @@ async function processTraceZips(
           if (opts.screenshotEnabled) {
             const frame = await findScreencastFrame(loader, marker);
             if (frame) {
-              const screenshotPath = path.join(snapshotDir, 'screenshot.webp');
+              fs.mkdirSync(resourcesDir, { recursive: true });
               fs.writeFileSync(screenshotPath, frame);
               files.screenshot = screenshotPath;
             }
           }
 
           if (opts.manifestEnabled) {
-            const manifestPath = path.join(snapshotDir, 'manifest.json');
-            const existing = readExistingManifest(manifestPath);
             const manifest = {
-              version: typeof existing?.version === 'number' ? existing.version + 1 : 1,
+              // Snapshot bundle schema version. v2 moves screenshot into
+              // resources/ and writes sidecar CSS; see
+              // docs/snapshot-bundle-spec.md. Do not increment per-write
+              // — this is a *schema* version, not a counter.
+              version: 2,
               url: '',
               viewport: rendered.viewport,
               timestamp: new Date(marker.timestamp).toISOString(),
@@ -173,11 +179,9 @@ async function processTraceZips(
           }
         } else {
           // Content unchanged — preserve existing files, just populate paths
-          const screenshotPath = path.join(snapshotDir, 'screenshot.webp');
           if (opts.screenshotEnabled && fs.existsSync(screenshotPath)) {
             files.screenshot = screenshotPath;
           }
-          const manifestPath = path.join(snapshotDir, 'manifest.json');
           if (opts.manifestEnabled && fs.existsSync(manifestPath)) {
             files.manifest = manifestPath;
           }
@@ -216,28 +220,10 @@ function matchesFilter(
   return true;
 }
 
-function readExistingManifest(manifestPath: string): Record<string, unknown> | null {
-  try {
-    return JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
-  } catch {
-    return null;
-  }
-}
-
 function hasHtmlChanged(htmlPath: string, newHtml: string): boolean {
   try {
     return fs.readFileSync(htmlPath, 'utf-8') !== newHtml;
   } catch {
     return true;
-  }
-}
-
-function getPlaywrightVersion(): string {
-  try {
-    const pkgPath = require.resolve('playwright-core/package.json');
-    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
-    return pkg.version ?? 'unknown';
-  } catch {
-    return 'unknown';
   }
 }

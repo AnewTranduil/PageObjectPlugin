@@ -22,7 +22,6 @@ import org.cef.browser.CefFrame
 import org.cef.handler.CefLoadHandlerAdapter
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
-import kotlin.io.path.readText
 
 private val LOG = logger<SnapshotService>()
 
@@ -110,7 +109,11 @@ class SnapshotService(private val project: Project) {
         currentBundle = bundle
 
         try {
-            val html = bundle.htmlPath.readText()
+            // Load the v2 bundle HTML with sidecar CSS inlined. The
+            // plugin renders via `iframe.srcdoc = html`, which has an
+            // `about:srcdoc` base URL and cannot resolve relative
+            // `resources/*.css` references on its own.
+            val html = SnapshotHtmlResolver.loadResolved(bundle.htmlPath, bundle.resourcesDir)
             LOG.info("Read HTML (${html.length} chars))")
 
             // Parse HTML with Jsoup for gutter validation

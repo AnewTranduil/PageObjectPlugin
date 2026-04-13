@@ -1,8 +1,12 @@
-# Snapshot Bundle Spec (v1)
+# Snapshot Bundle Spec (v2)
 
-> **Status:** Source of truth for the on-disk `.snapshots/<name>/` bundle format consumed by the PageObjectPlugin tool window and produced by all language-specific snapshot savers (TS / Python / JVM / Selenium / Cypress / Appium).
+> **Status:** Source of truth for the on-disk `.snapshots/<name>/` bundle
+> format consumed by the PageObjectPlugin tool window and produced by all
+> language-specific snapshot savers (TS / Python / JVM / Selenium /
+> Cypress / Appium).
 >
-> This document promotes the format currently described in `CLAUDE.md` §"Snapshot Bundle Format" to a formal spec. Any change to the format MUST be accompanied by a version bump in `manifest.json.version` and a migration note below.
+> Any change to the format MUST be accompanied by a version bump in
+> `manifest.json.version` and a migration note below.
 
 ---
 
@@ -10,47 +14,115 @@
 
 ```
 <snapshot-name>/
-  index.html        # REQUIRED — sanitized DOM with CSS inlined
-  screenshot.webp   # OPTIONAL — visual reference (PNG also accepted)
-  manifest.json     # OPTIONAL but STRONGLY RECOMMENDED
+  index.html                 # REQUIRED — sanitized DOM referencing resources/
+  manifest.json              # REQUIRED — schema version 2
+  resources/                 # Everything index.html references by relative path
+    screenshot.png|webp      # Visual reference (optional)
+    <sha1>.css               # Stylesheet sidecars
+    <sha1>.woff2|png|...     # (Future — deferred to Task 15.5)
 ```
 
-The directory name is the snapshot identifier surfaced in the tool window dropdown.
+The directory name is the snapshot identifier surfaced in the tool
+window dropdown.
 
 ## `index.html` requirements
 
-- Self-contained: no external `<link rel="stylesheet">` or `<script src>`. All CSS inlined in `<style>` blocks or element `style` attributes.
-- Scripts stripped or neutralized — the plugin renders this in a `srcdoc` iframe and does not execute arbitrary JS from snapshots.
+- **Self-contained relative to the bundle directory.** Every `<link>`,
+  `<img>`, `<script src>`, and CSS `url(...)` reference points either
+  (a) at a sidecar under `resources/` (resolved at load time by the
+  plugin) or (b) at a valid absolute URL that does not need resolution.
+- Scripts stripped or neutralized — the plugin renders this in a
+  `srcdoc` iframe and does not execute arbitrary JS from snapshots.
 - UTF-8 encoded.
-- Preserves original element attributes so locators (`data-testid`, `role`, `aria-*`, `id`, `name`, classes) resolve identically to the live page.
+- Preserves original element attributes so locators (`data-testid`,
+  `role`, `aria-*`, `id`, `name`, classes) resolve identically to the
+  live page.
+- **Important rendering note:** the plugin loads snapshot HTML via
+  `iframe.srcdoc`. `srcdoc` iframes have base URL `about:srcdoc`, which
+  cannot resolve relative filesystem paths, so the plugin inlines
+  sidecar CSS into `<style>` blocks on the Kotlin side before JCEF
+  sees the HTML. Producers do NOT need to pre-inline CSS — shipping
+  sidecars is fine.
 
-## `manifest.json` schema (v1)
+## `resources/` directory
+
+- **One flat level.** No nested subdirectories under `resources/`.
+  Filenames are all that's referenced from `index.html`.
+- **CSS sidecars** are named by a 16-hex-char prefix of the
+  `sha1(css_source)` so identical stylesheets across snapshots
+  de-duplicate naturally.
+- **Screenshots** are named `screenshot.png` or `screenshot.webp`.
+  Only one screenshot per bundle is expected.
+- **Path traversal is rejected.** The plugin refuses to load any
+  resource whose resolved path escapes the bundle directory.
+
+## `manifest.json` schema (v2)
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "url": "https://example.com/login",
   "viewport": { "width": 1280, "height": 720 },
   "timestamp": "2025-01-15T10:30:00Z",
-  "playwright": "1.48.0",
-  "userAgent": "Mozilla/5.0 ..."
+  "userAgent": "Mozilla/5.0 ...",
+  "playwright": "1.58.0"
 }
 ```
 
 Fields:
-- `version` (int, required) — schema version. Current: `1`.
-- `url` (string, required) — the page URL at capture time.
-- `viewport` (object, required) — `{width, height}` in CSS pixels. Mobile adapters (B3) MAY add `{platform, deviceName}`.
+- `version` (int, required) — **schema** version. Currently `2`. This
+  is NOT a monotonic write counter (v1 briefly used it that way under
+  Task 11; v2 restores the schema-only semantics).
+- `url` (string, required) — the page URL at capture time. May be the
+  empty string for trace-extracted snapshots whose trace did not
+  record the URL.
+- `viewport` (object, required) — `{width, height}` in CSS pixels.
+  Mobile adapters (Task 20) MAY add `{platform, deviceName}`.
 - `timestamp` (string, required) — ISO-8601 UTC.
-- `playwright` / `selenium` / `cypress` / `appium` (string, optional) — driver version that captured the snapshot. Exactly one SHOULD be present.
 - `userAgent` (string, optional).
+- Driver version — exactly one of `playwright` / `selenium` / `cypress`
+  / `appium` SHOULD be present, matching the driver that produced the
+  snapshot.
 
-## Versioning
+## Versioning & Compatibility
 
-- The plugin reads `manifest.version` and refuses to render unknown future versions with a user-visible error.
-- Breaking changes bump the integer. Additive changes (new optional fields) do NOT bump the version.
+- The plugin reads `manifest.version` and **refuses to load** any
+  bundle whose version is neither `2` nor absent. An absent or
+  unparseable `version` field is treated permissively — the bundle
+  still loads, just without driver metadata.
+- Breaking changes to the layout or required fields bump the integer.
+  Additive changes (new optional fields) do NOT bump the version.
 
-## Compatibility Notes
+## Migration v1 → v2
 
-- Older `test-project/.snapshots/` bundles produced before this spec may omit `manifest.json`; the plugin treats them as v1 with unknown metadata.
-- All language savers (`packages/playwright-snapshot-saver`, `packages/playwright-snapshot-saver-python`, `packages/playwright-snapshot-saver-jvm`, and future adapters) MUST emit bundles conforming to this spec. Any divergence is a bug.
+Differences:
+
+| Aspect | v1 | v2 |
+|---|---|---|
+| Screenshot location | `<bundle>/screenshot.<ext>` (top-level) | `<bundle>/resources/screenshot.<ext>` |
+| CSS | Inlined as `<style>` inside `index.html` by the saver | Written as `resources/<sha1>.css` sidecars referenced by `<link>`; plugin inlines them on read |
+| `manifest.version` | Sometimes a schema version, sometimes a write counter (Task 11 overloaded it) | Strictly the schema version — always `2` |
+| Top-level files | `index.html`, `screenshot.*`, `manifest.json` | `index.html`, `manifest.json`, `resources/` |
+
+To migrate an existing `.snapshots/` directory:
+
+1. Re-run your snapshot saver. The TypeScript saver
+   (`@pagemirror/snapshot-core` + `playwright-snapshot-saver`)
+   produces v2 bundles out of the box after Task 15. Trace extraction
+   via `extractSnapshots` also emits v2.
+2. If you need to hand-edit a v1 bundle (e.g. a fixture for unit
+   tests): bump `manifest.version` to `2`, create a `resources/`
+   directory, move any top-level `screenshot.*` into it, and bundle
+   any external stylesheets as `resources/<sha1>.css`. CSS that was
+   already inlined in `<style>` tags stays as-is.
+
+## Language Saver Contract
+
+All language savers (`packages/playwright-snapshot-saver`, future
+`packages/playwright-snapshot-saver-python`, future
+`packages/playwright-snapshot-saver-jvm`, and every future adapter)
+MUST emit bundles conforming to this spec. Any divergence is a bug.
+
+The framework-agnostic core lives in `packages/snapshot-core` and
+provides `saveSnapshot(adapter, options)` + the `PageAdapter` interface
+— see `docs/tasks/task-15-snapshot-core-extraction.md`.

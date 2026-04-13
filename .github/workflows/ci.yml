@@ -2,8 +2,6 @@ name: CI
 
 on:
   push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
 
 concurrency:
@@ -48,9 +46,10 @@ jobs:
         if: success() || failure()
         run: |
           cd build/reports/tests/test && zip -r ../../../../unit-test-report.zip . && cd ../../../..
-          curl -X POST \
-            --connect-timeout 10 --max-time 120 \
-            --retry 3 --retry-connrefused --retry-delay 2 \
+          curl -X POST -4 \
+            --connect-timeout 10 --max-time 180 \
+            --retry 5 --retry-delay 0 --retry-max-time 180 \
+            --retry-all-errors --fail-with-body \
             -H "Authorization: Bearer ${{ secrets.RD_TOKEN }}" \
             -F "report=@unit-test-report.zip" \
             "https://reports.artemon.cloud/api/v1/upload?\
@@ -166,9 +165,10 @@ jobs:
         if: success() || failure()
         run: |
           cd build/reports/tests/uiTest && zip -r ../../../../ui-test-report.zip . && cd ../../../..
-          curl -X POST \
-            --connect-timeout 10 --max-time 120 \
-            --retry 3 --retry-connrefused --retry-delay 2 \
+          curl -X POST -4 \
+            --connect-timeout 10 --max-time 180 \
+            --retry 5 --retry-delay 0 --retry-max-time 180 \
+            --retry-all-errors --fail-with-body \
             -H "Authorization: Bearer ${{ secrets.RD_TOKEN }}" \
             -F "report=@ui-test-report.zip" \
             "https://reports.artemon.cloud/api/v1/upload?\
@@ -200,9 +200,10 @@ jobs:
           (cd build/reports/uiTest/traces && zip -r ../../../../ui-test-traces.zip .)
           STATUS="${{ steps.tests.outcome == 'success' && 'passed' || 'failed' }}"
           URL="https://reports.artemon.cloud/api/v1/upload?suite=ui-test-traces&run_id=${RUN_ID}&run_url=${RUN_URL}&job_url=${RUN_URL}&git_ref=${GIT_REF}&git_sha=${GIT_SHA}&status=${STATUS}"
-          curl -X POST \
-            --connect-timeout 10 --max-time 120 \
-            --retry 3 --retry-connrefused --retry-delay 2 \
+          curl -X POST -4 \
+            --connect-timeout 10 --max-time 180 \
+            --retry 5 --retry-delay 0 --retry-max-time 180 \
+            --retry-all-errors --fail-with-body \
             -H "Authorization: Bearer ${RD_TOKEN}" \
             -F "report=@ui-test-traces.zip" "$URL"
 
@@ -217,7 +218,20 @@ jobs:
         with:
           node-version: '24'
           cache: npm
-          cache-dependency-path: packages/playwright-snapshot-saver/package-lock.json
+          cache-dependency-path: |
+            packages/snapshot-core/package-lock.json
+            packages/playwright-snapshot-saver/package-lock.json
+
+      # snapshot-core is a file: dependency of playwright-snapshot-saver.
+      # Its `main`/`types` fields point at dist/index.{js,d.ts}, which are
+      # gitignored, so the saver's own tsc build (triggered by
+      # e2e.spec.ts:12) fails with "cannot find module '@pagemirror/
+      # snapshot-core'" unless snapshot-core's dist is prepared first.
+      - name: Install & build snapshot-core
+        working-directory: packages/snapshot-core
+        run: |
+          npm ci
+          npm run build
 
       - name: Install dependencies
         working-directory: packages/playwright-snapshot-saver
@@ -256,9 +270,10 @@ jobs:
         if: success() || failure()
         run: |
           cd packages/playwright-snapshot-saver/playwright-report && zip -r ../../../playwright-report.zip . && cd ../../..
-          curl -X POST \
-            --connect-timeout 10 --max-time 120 \
-            --retry 3 --retry-connrefused --retry-delay 2 \
+          curl -X POST -4 \
+            --connect-timeout 10 --max-time 180 \
+            --retry 5 --retry-delay 0 --retry-max-time 180 \
+            --retry-all-errors --fail-with-body \
             -H "Authorization: Bearer ${{ secrets.RD_TOKEN }}" \
             -F "report=@playwright-report.zip" \
             "https://reports.artemon.cloud/api/v1/upload?\
@@ -371,9 +386,18 @@ jobs:
           (cd claude-summary-bundle && zip -r ../claude-summary-bundle.zip .)
           STATUS="${{ steps.aggregate.outcome == 'success' && 'passed' || 'failed' }}"
           URL="https://reports.artemon.cloud/api/v1/upload?suite=claude-summary&run_id=${RUN_ID}&run_url=${RUN_URL}&job_url=${RUN_URL}&git_ref=${GIT_REF}&git_sha=${GIT_SHA}&status=${STATUS}"
-          HTTP_CODE=$(curl -sS -o /tmp/rd-response.txt -w '%{http_code}' -X POST \
-            --connect-timeout 10 --max-time 120 \
-            --retry 3 --retry-connrefused --retry-delay 2 \
+          # Notes on curl flags (see CLAUDE.md "Test Loop" redlines):
+          # --retry-all-errors retries ANY error (ETIMEDOUT, TLS, DNS),
+          # not just the narrow ECONNREFUSED+5xx set --retry-connrefused
+          # gave us. -4 forces IPv4 to sidestep IPv6 black-holing on GH
+          # Actions runners. --fail-with-body is deliberately NOT used
+          # here because the surrounding bash captures %{http_code} via
+          # -w and does its own 200/201 check; letting curl exit non-
+          # zero would abort the HTTP_CODE=$(...) assignment.
+          HTTP_CODE=$(curl -sS -o /tmp/rd-response.txt -w '%{http_code}' -X POST -4 \
+            --connect-timeout 10 --max-time 180 \
+            --retry 5 --retry-delay 0 --retry-max-time 180 \
+            --retry-all-errors \
             -H "Authorization: Bearer ${RD_TOKEN}" \
             -F "report=@claude-summary-bundle.zip" "$URL")
           echo "Dashboard response: $HTTP_CODE"
@@ -391,9 +415,10 @@ jobs:
           RD_TOKEN: ${{ secrets.RD_TOKEN }}
           RUN_ID: ${{ github.run_id }}
         run: |
-          curl -sS -X POST \
+          curl -sS -X POST -4 \
             --connect-timeout 10 --max-time 30 \
-            --retry 3 --retry-connrefused --retry-delay 2 \
+            --retry 5 --retry-delay 0 --retry-max-time 60 \
+            --retry-all-errors \
             -H "Authorization: Bearer ${RD_TOKEN}" \
             "https://reports.artemon.cloud/api/v1/executions/${RUN_ID}/finalize" \
             || echo "::warning::finalize call failed — non-fatal"
