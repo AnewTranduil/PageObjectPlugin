@@ -27,6 +27,10 @@ class PageMirrorToolWindowFixture(robot: RemoteRobot, component: RemoteComponent
     val refreshButton: ComponentFixture
         get() = find(PageMirrorLocators.toolWindowRefreshButton, Duration.ofSeconds(5))
 
+    /** The "Show All" button (toggles highlight-all mode). */
+    val showAllButton: ComponentFixture
+        get() = find(PageMirrorLocators.toolWindowShowAllButton, Duration.ofSeconds(5))
+
     /** Returns the currently displayed text in the combo box. */
     fun selectedSnapshotName(): String =
         comboBox.callJs("component.getSelectedItem() != null ? '' + component.getSelectedItem() : ''")

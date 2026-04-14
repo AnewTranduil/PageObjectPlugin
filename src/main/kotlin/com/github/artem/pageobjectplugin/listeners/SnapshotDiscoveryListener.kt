@@ -4,6 +4,7 @@ import com.github.artem.pageobjectplugin.model.SnapshotBundle
 import com.github.artem.pageobjectplugin.services.SnapshotService
 import com.github.artem.pageobjectplugin.settings.PageMirrorSettings
 import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.openapi.fileEditor.FileEditorManagerEvent
 import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
@@ -15,6 +16,22 @@ import kotlin.io.path.listDirectoryEntries
 class SnapshotDiscoveryListener(private val project: Project) : FileEditorManagerListener {
 
     override fun fileOpened(source: FileEditorManager, file: VirtualFile) {
+        discoverForFile(file)
+    }
+
+    /**
+     * Fires when the active editor tab changes (user clicks a different
+     * tab, or a test calls `openFile` on an already-open file).
+     * `fileOpened` does NOT fire for already-open tabs, so without this
+     * handler switching from `dashboard.page.ts` to `login.page.ts`
+     * would leave the dashboard snapshot loaded — a product bug.
+     */
+    override fun selectionChanged(event: FileEditorManagerEvent) {
+        val file = event.newFile ?: return
+        discoverForFile(file)
+    }
+
+    private fun discoverForFile(file: VirtualFile) {
         val settingsInstance = PageMirrorSettings.getInstance(project)
         if (!settingsInstance.isSupportedFile(file.name)) return
 

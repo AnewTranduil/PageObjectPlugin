@@ -2,8 +2,6 @@ name: CI
 
 on:
   push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
 
 concurrency:
@@ -209,7 +207,20 @@ jobs:
         with:
           node-version: '24'
           cache: npm
-          cache-dependency-path: packages/playwright-snapshot-saver/package-lock.json
+          cache-dependency-path: |
+            packages/snapshot-core/package-lock.json
+            packages/playwright-snapshot-saver/package-lock.json
+
+      # snapshot-core is a file: dependency of playwright-snapshot-saver.
+      # Its `main`/`types` fields point at dist/index.{js,d.ts}, which are
+      # gitignored, so the saver's own tsc build (triggered by
+      # e2e.spec.ts:12) fails with "cannot find module '@pagemirror/
+      # snapshot-core'" unless snapshot-core's dist is prepared first.
+      - name: Install & build snapshot-core
+        working-directory: packages/snapshot-core
+        run: |
+          npm ci
+          npm run build
 
       - name: Install dependencies
         working-directory: packages/playwright-snapshot-saver

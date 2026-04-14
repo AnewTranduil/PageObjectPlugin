@@ -216,4 +216,27 @@ class HighlightBridgeUiTest : BaseUiTest() {
             )
         }
     }
+
+    /**
+     * UT-12b: "Show All" button highlights every locator from
+     * login.page.ts simultaneously in the loaded snapshot.
+     */
+    @Test
+    fun `show all highlights every login locator`() {
+        toolWindow.clickShowAll()
+        Thread.sleep(1_000)
+
+        takeScreenshot("login-show-all-highlights")
+
+        val tw = PageMirrorToolWindowFixture.find(robot)
+        val browser = SnapshotBrowserFixture.findInsideToolWindow(tw)
+        assertTrue(
+            browser.isHighlightAllActive(),
+            "Highlight-all should be active after clicking Show All on login snapshot",
+        )
+        assertTrue(
+            browser.isHighlightVisible(),
+            "At least one highlight should be visible in highlight-all mode on login snapshot",
+        )
+    }
 }

@@ -46,6 +46,18 @@ class SnapshotBrowserFixture(robot: RemoteRobot, component: RemoteComponent) :
     } catch (_: Exception) { false }
 
     /**
+     * Returns true when the "Show All" multi-highlight mode is active.
+     * Queries SnapshotService.isHighlightAllActive (set by the "Show All"
+     * toolbar button via highlightAllLocators()).
+     */
+    fun isHighlightAllActive(): Boolean = try {
+        callJs<Boolean>("""
+            $getServiceJs
+            new java.lang.Boolean(__service.isHighlightAllActive())
+        """, runInEdt = true)
+    } catch (_: Exception) { false }
+
+    /**
      * Returns true when inspect mode is active.
      * Queries the SnapshotService Kotlin-side flag (kept in sync by ToggleInspectAction
      * and PickerResultHandler).
