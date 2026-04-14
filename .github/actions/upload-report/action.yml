@@ -1,0 +1,156 @@
+name: Upload Report to Dashboard
+description: >
+  Upload a test report zip bundle to the report dashboard with health-check
+  polling, exponential backoff, and a configurable retry budget.  Forces IPv4
+  to work around IPv6 black-holing on some GitHub Actions runners.
+
+inputs:
+  file:
+    description: Path to the zip file to upload
+    required: true
+  suite:
+    description: Suite slug (e.g. unit-tests, ui-tests, claude-summary)
+    required: true
+  token:
+    description: Bearer token for the dashboard API
+    required: true
+  status:
+    description: Test outcome — "passed" or "failed"
+    required: true
+  max-wait:
+    description: Total retry budget in seconds
+    required: false
+    default: '300'
+  dashboard-url:
+    description: Dashboard base URL
+    required: false
+    default: 'https://reports.artemon.cloud'
+
+outputs:
+  success:
+    description: '"true" if the upload succeeded, "false" otherwise'
+    value: ${{ steps.upload.outputs.success }}
+  http-code:
+    description: HTTP status code from the last upload attempt
+    value: ${{ steps.upload.outputs.http-code }}
+  attempts:
+    description: Number of upload attempts made
+    value: ${{ steps.upload.outputs.attempts }}
+
+runs:
+  using: composite
+  steps:
+    - name: Upload report with retry
+      id: upload
+      shell: bash
+      env:
+        INPUT_FILE: ${{ inputs.file }}
+        INPUT_SUITE: ${{ inputs.suite }}
+        INPUT_TOKEN: ${{ inputs.token }}
+        INPUT_STATUS: ${{ inputs.status }}
+        INPUT_MAX_WAIT: ${{ inputs.max-wait }}
+        INPUT_DASHBOARD_URL: ${{ inputs.dashboard-url }}
+        INPUT_RUN_ID: ${{ github.run_id }}
+        INPUT_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        INPUT_GIT_REF: ${{ github.ref_name }}
+        INPUT_GIT_SHA: ${{ github.sha }}
+      run: |
+        set -uo pipefail
+
+        FILE="${INPUT_FILE}"
+        SUITE="${INPUT_SUITE}"
+        TOKEN="${INPUT_TOKEN}"
+        STATUS="${INPUT_STATUS}"
+        MAX_WAIT="${INPUT_MAX_WAIT}"
+        DASHBOARD_URL="${INPUT_DASHBOARD_URL}"
+        RUN_ID="${INPUT_RUN_ID}"
+        RUN_URL="${INPUT_RUN_URL}"
+        GIT_REF="${INPUT_GIT_REF}"
+        GIT_SHA="${INPUT_GIT_SHA}"
+
+        HEALTH_URL="${DASHBOARD_URL}/health"
+        UPLOAD_URL="${DASHBOARD_URL}/api/v1/upload?suite=${SUITE}&run_id=${RUN_ID}&run_url=${RUN_URL}&job_url=${RUN_URL}&git_ref=${GIT_REF}&git_sha=${GIT_SHA}&status=${STATUS}"
+
+        # ── Pre-flight ──────────────────────────────────────────────
+        if [ ! -f "$FILE" ]; then
+          echo "::error::Upload file not found: ${FILE}"
+          echo "success=false" >> "$GITHUB_OUTPUT"
+          echo "http-code=0"   >> "$GITHUB_OUTPUT"
+          echo "attempts=0"    >> "$GITHUB_OUTPUT"
+          exit 1
+        fi
+
+        attempt=0
+        start_time=$(date +%s)
+        last_http_code=0
+
+        # ── Main retry loop ─────────────────────────────────────────
+        while true; do
+          now=$(date +%s)
+          elapsed=$((now - start_time))
+          remaining=$((MAX_WAIT - elapsed))
+
+          if [ "$remaining" -le 0 ]; then
+            echo "::error::Upload retry budget exhausted after ${elapsed}s and ${attempt} attempt(s) (suite=${SUITE})"
+            echo "success=false"            >> "$GITHUB_OUTPUT"
+            echo "http-code=${last_http_code}" >> "$GITHUB_OUTPUT"
+            echo "attempts=${attempt}"      >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+          # Phase 1 — wait for server to be reachable (health-check loop)
+          health_backoff=5
+          while true; do
+            now=$(date +%s)
+            elapsed=$((now - start_time))
+            if [ $((MAX_WAIT - elapsed)) -le 0 ]; then break 2; fi
+
+            health_code=$(curl -4 -sS -o /dev/null -w '%{http_code}' \
+              --connect-timeout 10 --max-time 15 \
+              "${HEALTH_URL}" 2>/dev/null || echo "000")
+
+            if [ "$health_code" = "200" ]; then
+              break
+            fi
+
+            echo "::warning::Dashboard health check returned ${health_code} (elapsed ${elapsed}s, suite=${SUITE}) — retrying in ${health_backoff}s"
+            sleep "$health_backoff"
+            health_backoff=$((health_backoff * 2))
+            [ "$health_backoff" -gt 60 ] && health_backoff=60
+          done
+
+          # Phase 2 — upload
+          attempt=$((attempt + 1))
+          echo "Uploading ${FILE} to suite '${SUITE}' (attempt ${attempt}, elapsed ${elapsed}s)..."
+
+          last_http_code=$(curl -4 -sS -o /tmp/rd-upload-response.txt -w '%{http_code}' \
+            -X POST \
+            --connect-timeout 15 --max-time 120 \
+            -H "Authorization: Bearer ${TOKEN}" \
+            -F "report=@${FILE}" \
+            "${UPLOAD_URL}" 2>/dev/null || echo "000")
+
+          if [ "$last_http_code" = "200" ] || [ "$last_http_code" = "201" ]; then
+            echo "Upload succeeded (HTTP ${last_http_code}) on attempt ${attempt}"
+            cat /tmp/rd-upload-response.txt 2>/dev/null || true
+            echo "success=true"                >> "$GITHUB_OUTPUT"
+            echo "http-code=${last_http_code}" >> "$GITHUB_OUTPUT"
+            echo "attempts=${attempt}"         >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "::warning::Upload attempt ${attempt} failed (HTTP ${last_http_code}, elapsed ${elapsed}s, suite=${SUITE})"
+          cat /tmp/rd-upload-response.txt 2>/dev/null || true
+
+          upload_backoff=$((10 * attempt))
+          [ "$upload_backoff" -gt 60 ] && upload_backoff=60
+          sleep "$upload_backoff"
+        done
+
+        # Budget exhausted (break 2 from inner loop)
+        elapsed=$(($(date +%s) - start_time))
+        echo "::error::Upload retry budget exhausted after ${elapsed}s and ${attempt} attempt(s) (suite=${SUITE})"
+        echo "success=false"            >> "$GITHUB_OUTPUT"
+        echo "http-code=${last_http_code}" >> "$GITHUB_OUTPUT"
+        echo "attempts=${attempt}"      >> "$GITHUB_OUTPUT"
+        exit 1

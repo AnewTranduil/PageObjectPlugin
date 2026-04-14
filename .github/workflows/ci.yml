@@ -42,24 +42,19 @@ jobs:
           name: unit-test-raw
           path: build/test-results/test/
 
+      - name: Zip unit test report
+        if: success() || failure()
+        run: cd build/reports/tests/test && zip -r ../../../../unit-test-report.zip . && cd ../../../..
+
       - name: Upload test report to dashboard
         if: success() || failure()
-        run: |
-          cd build/reports/tests/test && zip -r ../../../../unit-test-report.zip . && cd ../../../..
-          curl -X POST -4 \
-            --connect-timeout 10 --max-time 180 \
-            --retry 5 --retry-delay 0 --retry-max-time 180 \
-            --retry-all-errors --fail-with-body \
-            -H "Authorization: Bearer ${{ secrets.RD_TOKEN }}" \
-            -F "report=@unit-test-report.zip" \
-            "https://reports.artemon.cloud/api/v1/upload?\
-          suite=unit-tests&\
-          run_id=${{ github.run_id }}&\
-          run_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}&\
-          job_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}&\
-          git_ref=${{ github.ref_name }}&\
-          git_sha=${{ github.sha }}&\
-          status=${{ steps.tests.outcome == 'success' && 'passed' || 'failed' }}"
+        continue-on-error: true
+        uses: ./.github/actions/upload-report
+        with:
+          file: unit-test-report.zip
+          suite: unit-tests
+          token: ${{ secrets.RD_TOKEN }}
+          status: ${{ steps.tests.outcome == 'success' && 'passed' || 'failed' }}
 
   ui-tests:
     name: UI E2E Tests
@@ -161,33 +156,23 @@ jobs:
             build/test-results/uiTest/
             build/reports/uiTest/traces/
 
+      - name: Zip UI test report
+        if: success() || failure()
+        run: cd build/reports/tests/uiTest && zip -r ../../../../ui-test-report.zip . && cd ../../../..
+
       - name: Upload UI test report to dashboard
         if: success() || failure()
-        run: |
-          cd build/reports/tests/uiTest && zip -r ../../../../ui-test-report.zip . && cd ../../../..
-          curl -X POST -4 \
-            --connect-timeout 10 --max-time 180 \
-            --retry 5 --retry-delay 0 --retry-max-time 180 \
-            --retry-all-errors --fail-with-body \
-            -H "Authorization: Bearer ${{ secrets.RD_TOKEN }}" \
-            -F "report=@ui-test-report.zip" \
-            "https://reports.artemon.cloud/api/v1/upload?\
-          suite=ui-tests&\
-          run_id=${{ github.run_id }}&\
-          run_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}&\
-          job_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}&\
-          git_ref=${{ github.ref_name }}&\
-          git_sha=${{ github.sha }}&\
-          status=${{ steps.tests.outcome == 'success' && 'passed' || 'failed' }}"
+        continue-on-error: true
+        uses: ./.github/actions/upload-report
+        with:
+          file: ui-test-report.zip
+          suite: ui-tests
+          token: ${{ secrets.RD_TOKEN }}
+          status: ${{ steps.tests.outcome == 'success' && 'passed' || 'failed' }}
 
-      - name: Upload UI trace bundles to dashboard
+      - name: Prepare UI trace bundle
+        id: trace-bundle
         if: success() || failure()
-        env:
-          RD_TOKEN: ${{ secrets.RD_TOKEN }}
-          RUN_ID: ${{ github.run_id }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GIT_REF: ${{ github.ref_name }}
-          GIT_SHA: ${{ github.sha }}
         run: |
           # `finalizedBy("generateTraceIndex")` already wrote the index on the
           # Gradle side; make doubly sure it exists before zipping so the
@@ -195,17 +180,21 @@ jobs:
           ./gradlew generateTraceIndex --quiet || true
           if [ ! -d build/reports/uiTest/traces ] || [ -z "$(ls -A build/reports/uiTest/traces 2>/dev/null)" ]; then
             echo "No trace bundles produced — skipping ui-test-traces upload."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           (cd build/reports/uiTest/traces && zip -r ../../../../ui-test-traces.zip .)
-          STATUS="${{ steps.tests.outcome == 'success' && 'passed' || 'failed' }}"
-          URL="https://reports.artemon.cloud/api/v1/upload?suite=ui-test-traces&run_id=${RUN_ID}&run_url=${RUN_URL}&job_url=${RUN_URL}&git_ref=${GIT_REF}&git_sha=${GIT_SHA}&status=${STATUS}"
-          curl -X POST -4 \
-            --connect-timeout 10 --max-time 180 \
-            --retry 5 --retry-delay 0 --retry-max-time 180 \
-            --retry-all-errors --fail-with-body \
-            -H "Authorization: Bearer ${RD_TOKEN}" \
-            -F "report=@ui-test-traces.zip" "$URL"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: Upload UI trace bundles to dashboard
+        if: (success() || failure()) && steps.trace-bundle.outputs.skip != 'true'
+        continue-on-error: true
+        uses: ./.github/actions/upload-report
+        with:
+          file: ui-test-traces.zip
+          suite: ui-test-traces
+          token: ${{ secrets.RD_TOKEN }}
+          status: ${{ steps.tests.outcome == 'success' && 'passed' || 'failed' }}
 
   playwright-tests:
     name: Playwright Snapshot Saver Tests
@@ -266,24 +255,19 @@ jobs:
           name: playwright-test-raw
           path: packages/playwright-snapshot-saver/test-results/
 
+      - name: Zip Playwright report
+        if: success() || failure()
+        run: cd packages/playwright-snapshot-saver/playwright-report && zip -r ../../../playwright-report.zip . && cd ../../..
+
       - name: Upload Playwright report to dashboard
         if: success() || failure()
-        run: |
-          cd packages/playwright-snapshot-saver/playwright-report && zip -r ../../../playwright-report.zip . && cd ../../..
-          curl -X POST -4 \
-            --connect-timeout 10 --max-time 180 \
-            --retry 5 --retry-delay 0 --retry-max-time 180 \
-            --retry-all-errors --fail-with-body \
-            -H "Authorization: Bearer ${{ secrets.RD_TOKEN }}" \
-            -F "report=@playwright-report.zip" \
-            "https://reports.artemon.cloud/api/v1/upload?\
-          suite=playwright-tests&\
-          run_id=${{ github.run_id }}&\
-          run_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}&\
-          job_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}&\
-          git_ref=${{ github.ref_name }}&\
-          git_sha=${{ github.sha }}&\
-          status=${{ steps.tests.outcome == 'success' && 'passed' || 'failed' }}"
+        continue-on-error: true
+        uses: ./.github/actions/upload-report
+        with:
+          file: playwright-report.zip
+          suite: playwright-tests
+          token: ${{ secrets.RD_TOKEN }}
+          status: ${{ steps.tests.outcome == 'success' && 'passed' || 'failed' }}
 
   # ── Task 14: Claude Inner Loop ──────────────────────────────────────────
   #
@@ -357,21 +341,11 @@ jobs:
             build/reports/claude-summary.md
             build/reports/uiTest/traces/
 
-      # ── MAIN STEP: enables the remote Claude inner loop. ──
-      # Intentionally NO `continue-on-error` and an explicit HTTP-code
-      # check: a non-2xx response turns this job red even when every test
-      # passed. A green test-report job without a dashboard artifact
-      # means remote Claude sessions cannot read CI results, which is the
-      # whole point of the loop. Removing or disabling this step is a
-      # CLAUDE.md redline (see "Test Loop" → Redlines).
-      - name: Upload claude-summary bundle to reports.artemon.cloud
+      # Prepare the claude-summary bundle for upload. Fails fast if the
+      # aggregator did not produce the expected JSON.
+      - name: Prepare claude-summary bundle
+        id: prepare-summary
         if: always()
-        env:
-          RD_TOKEN: ${{ secrets.RD_TOKEN }}
-          RUN_ID: ${{ github.run_id }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GIT_REF: ${{ github.ref_name }}
-          GIT_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
           if [ ! -f build/reports/claude-summary.json ]; then
@@ -384,28 +358,25 @@ jobs:
             cp -r build/reports/uiTest/traces claude-summary-bundle/traces
           fi
           (cd claude-summary-bundle && zip -r ../claude-summary-bundle.zip .)
-          STATUS="${{ steps.aggregate.outcome == 'success' && 'passed' || 'failed' }}"
-          URL="https://reports.artemon.cloud/api/v1/upload?suite=claude-summary&run_id=${RUN_ID}&run_url=${RUN_URL}&job_url=${RUN_URL}&git_ref=${GIT_REF}&git_sha=${GIT_SHA}&status=${STATUS}"
-          # Notes on curl flags (see CLAUDE.md "Test Loop" redlines):
-          # --retry-all-errors retries ANY error (ETIMEDOUT, TLS, DNS),
-          # not just the narrow ECONNREFUSED+5xx set --retry-connrefused
-          # gave us. -4 forces IPv4 to sidestep IPv6 black-holing on GH
-          # Actions runners. --fail-with-body is deliberately NOT used
-          # here because the surrounding bash captures %{http_code} via
-          # -w and does its own 200/201 check; letting curl exit non-
-          # zero would abort the HTTP_CODE=$(...) assignment.
-          HTTP_CODE=$(curl -sS -o /tmp/rd-response.txt -w '%{http_code}' -X POST -4 \
-            --connect-timeout 10 --max-time 180 \
-            --retry 5 --retry-delay 0 --retry-max-time 180 \
-            --retry-all-errors \
-            -H "Authorization: Bearer ${RD_TOKEN}" \
-            -F "report=@claude-summary-bundle.zip" "$URL")
-          echo "Dashboard response: $HTTP_CODE"
-          cat /tmp/rd-response.txt || true
-          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
-            echo "::error::claude-summary dashboard upload failed (HTTP $HTTP_CODE) — the remote Claude loop is broken"
-            exit 1
-          fi
+
+      # ── MAIN STEP: enables the remote Claude inner loop. ──
+      # Intentionally NO `continue-on-error`: a failed upload turns this
+      # job red even when every test passed.  A green test-report job
+      # without a dashboard artifact means remote Claude sessions cannot
+      # read CI results, which is the whole point of the loop.  Removing
+      # or disabling this step is a CLAUDE.md redline (see "Test Loop"
+      # → Redlines).
+      #
+      # The composite action retries with health-check polling and a
+      # 5-minute budget to ride through transient network issues.
+      - name: Upload claude-summary bundle to reports.artemon.cloud
+        if: always() && steps.prepare-summary.outcome == 'success'
+        uses: ./.github/actions/upload-report
+        with:
+          file: claude-summary-bundle.zip
+          suite: claude-summary
+          token: ${{ secrets.RD_TOKEN }}
+          status: ${{ steps.aggregate.outcome == 'success' && 'passed' || 'failed' }}
 
       # Best-effort housekeeping — a failed finalize is a warning, not a
       # build failure, because the dashboard tolerates re-finalizes.
@@ -415,10 +386,9 @@ jobs:
           RD_TOKEN: ${{ secrets.RD_TOKEN }}
           RUN_ID: ${{ github.run_id }}
         run: |
-          curl -sS -X POST -4 \
+          curl -4 -sS -X POST \
             --connect-timeout 10 --max-time 30 \
-            --retry 5 --retry-delay 0 --retry-max-time 60 \
-            --retry-all-errors \
+            --retry 5 --retry-connrefused --retry-delay 5 \
             -H "Authorization: Bearer ${RD_TOKEN}" \
             "https://reports.artemon.cloud/api/v1/executions/${RUN_ID}/finalize" \
             || echo "::warning::finalize call failed — non-fatal"
