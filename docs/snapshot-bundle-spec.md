@@ -19,7 +19,8 @@
   resources/                 # Everything index.html references by relative path
     screenshot.png|webp      # Visual reference (optional)
     <sha1>.css               # Stylesheet sidecars
-    <sha1>.woff2|png|...     # (Future — deferred to Task 15.5)
+    <sha1>.woff2|png|jpg|... # Fonts, images, media, SVG sprites, etc.
+                             # (trace-extracted bundles, Task 15.5)
 ```
 
 The directory name is the snapshot identifier surfaced in the tool
@@ -31,6 +32,10 @@ window dropdown.
   `<img>`, `<script src>`, and CSS `url(...)` reference points either
   (a) at a sidecar under `resources/` (resolved at load time by the
   plugin) or (b) at a valid absolute URL that does not need resolution.
+- **No `<base>` element.** Trace-extracted bundles strip the original
+  `<base href>` after resolving URLs against it. A surviving `<base>`
+  would redirect every `resources/...` reference to the original origin
+  and break the bundle when opened outside its origin.
 - Scripts stripped or neutralized — the plugin renders this in a
   `srcdoc` iframe and does not execute arbitrary JS from snapshots.
 - UTF-8 encoded.

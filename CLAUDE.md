@@ -157,6 +157,19 @@ inlines sidecar CSS on read (since `srcdoc` iframes can't resolve relative
 URLs). v1 bundles are refused with a clear error message — regenerate via
 `npx playwright test` in `packages/test-project/`.
 
+**Task 15.5 (Framework-agnostic trace rendering + resource inlining)** —
+`@pagemirror/snapshot-core` now owns trace rendering behind a
+`TraceBackend` interface (`packages/snapshot-core/src/trace/{types,
+renderer, inline, extract, runtime-script, content-type}.ts`). The
+Playwright package (`packages/playwright-snapshot-saver/src/trace/
+playwright-backend.ts`) reshapes `TraceLoader.storage()` into that
+interface; `extractor.ts` delegates to `extractFromBackend`. Trace
+bundles are fully self-contained — every `<link>`, `<img>`, CSS
+`url(...)`, `@font-face`, and SVG `<use>` reference points at a real
+file under `resources/`, and the `<base>` element is stripped.
+Selenium/Cypress/Appium adapters (Tasks 17, 20) will reuse
+`extractFromBackend` by implementing the same `TraceBackend` surface.
+
 ## Working with the Build
 
 When investigating Gradle plugin APIs or build tooling, prefer reading project docs and running `./gradlew` commands (`help --task`, `dependencies`, `buildEnvironment`, etc.) over exploring files outside the project directory (e.g., `.gradle/caches/`, `.intellijPlatform/`). Stay within the project boundary.

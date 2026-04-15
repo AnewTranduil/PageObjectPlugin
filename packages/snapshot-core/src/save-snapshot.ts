@@ -97,15 +97,11 @@ export async function saveSnapshot(
     resources: writtenResourcePaths,
   };
 
+  // Always write manifest so the schema version stays current.
   const manifestEnabled = options.manifest !== false;
   if (manifestEnabled) {
     const manifest = buildManifest(captured, options.driver);
-    if (htmlChanged) {
-      fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8');
-    } else if (!fs.existsSync(manifestPath)) {
-      // First run with a disabled manifest, now enabled — write it anyway.
-      fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8');
-    }
+    fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8');
     files.manifest = manifestPath;
   }
 

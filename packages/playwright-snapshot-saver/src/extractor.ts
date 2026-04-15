@@ -1,20 +1,15 @@
-import * as fs from 'fs';
-import * as path from 'path';
-import { ExtractOptions, ExtractResult } from './types';
 import {
-  loadTraceMarkers,
-  renderSnapshotAtMarker,
-  findScreencastFrame,
-  TraceSnapshotMarker,
-} from './trace/playwright-adapter';
+  extractFromBackend,
+  type TraceMarker,
+  type ExtractFromBackendResult,
+} from '@pagemirror/snapshot-core';
+import { ExtractOptions, ExtractResult } from './types';
+import { loadTraceMarkers } from './trace/playwright-adapter';
+import { PlaywrightTraceBackend } from './trace/playwright-backend';
 import { createBackendFromZip } from './sources/zip-source';
 import { findTraceZipsInReport, isPlaywrightReportDir } from './sources/directory-source';
 import { downloadTracesFromUrl } from './sources/url-source';
 import { getPlaywrightVersion } from './playwright-version';
-
-// ---------------------------------------------------------------------------
-// Source type detection
-// ---------------------------------------------------------------------------
 
 type SourceType = 'url' | 'zip' | 'directory';
 
@@ -28,16 +23,13 @@ function detectSourceType(source: string): SourceType {
   return 'directory';
 }
 
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
-
 /**
  * Extracts snapshots from Playwright traces.
  *
  * Accepts a report directory, a single trace ZIP, or a hosted report URL.
- * Finds all `snapshot()` markers in the traces, renders each to HTML,
- * and writes the output to `outputDir/page/state/`.
+ * Finds all `snapshot()` markers in the traces, renders each to HTML via
+ * `@pagemirror/snapshot-core`, and writes v2 bundles to
+ * `outputDir/page/state/`.
  */
 export async function extractSnapshots(options: ExtractOptions): Promise<ExtractResult> {
   const outputDir = options.outputDir ?? '.snapshots';
@@ -46,7 +38,6 @@ export async function extractSnapshots(options: ExtractOptions): Promise<Extract
 
   const sourceType = detectSourceType(options.source);
 
-  // Collect trace ZIP paths and an optional cleanup function (for URL sources).
   let zipPaths: string[];
   let sourceCleanup: (() => void) | undefined;
 
@@ -79,21 +70,16 @@ export async function extractSnapshots(options: ExtractOptions): Promise<Extract
   }
 
   try {
-    const result = await processTraceZips(zipPaths, {
+    return await processTraceZips(zipPaths, {
       outputDir,
       screenshotEnabled,
       manifestEnabled,
       filter: options.filter,
     });
-    return result;
   } finally {
     sourceCleanup?.();
   }
 }
-
-// ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
 
 interface ProcessOptions {
   outputDir: string;
@@ -106,13 +92,15 @@ async function processTraceZips(
   zipPaths: string[],
   opts: ProcessOptions,
 ): Promise<ExtractResult> {
-  const seen = new Map<string, number>(); // "page/state" -> index in snapshots
+  const seen = new Map<string, number>();
   const snapshots: ExtractResult['snapshots'] = [];
 
+  const driver = { name: 'playwright', version: getPlaywrightVersion() };
+
   for (const zipPath of zipPaths) {
-    const { backend, cleanup } = createBackendFromZip(zipPath);
+    const { backend: zipBackend, cleanup } = createBackendFromZip(zipPath);
     try {
-      const { markers, loader } = await loadTraceMarkers(backend);
+      const { markers, loader } = await loadTraceMarkers(zipBackend);
 
       if (markers.length === 0) {
         console.warn(
@@ -122,78 +110,59 @@ async function processTraceZips(
         continue;
       }
 
+      const traceMarkers: TraceMarker[] = [];
       for (const marker of markers) {
-        if (!matchesFilter(marker, opts.filter)) continue;
-
-        const key = `${marker.page}/${marker.state}`;
-        if (seen.has(key)) {
+        if (!marker.afterSnapshot) {
           console.warn(
-            `Duplicate snapshot key "${key}" — overwriting previous entry ` +
-            `(from a different trace).`,
+            `Marker ${marker.label} (callId: ${marker.callId}) has no afterSnapshot — ` +
+            `trace may have been recorded without snapshots enabled. Skipping.`,
           );
+          continue;
         }
-
-        const snapshotDir = path.join(opts.outputDir, marker.page, marker.state);
-        fs.mkdirSync(snapshotDir, { recursive: true });
-
-        const rendered = await renderSnapshotAtMarker(loader, marker);
-
-        // Strip Playwright's target highlight attributes so the bootstrap script
-        // doesn't overlay blue on elements that were assertion targets.
-        const cleanHtml = rendered.html.replace(/ __playwright_target__="[^"]*"/g, '');
-
-        const htmlPath = path.join(snapshotDir, 'index.html');
-        const resourcesDir = path.join(snapshotDir, 'resources');
-        const screenshotPath = path.join(resourcesDir, 'screenshot.webp');
-        const manifestPath = path.join(snapshotDir, 'manifest.json');
-        const changed = hasHtmlChanged(htmlPath, cleanHtml);
-
-        const files: ExtractResult['snapshots'][number]['files'] = { html: htmlPath };
-
-        if (changed) {
-          fs.writeFileSync(htmlPath, cleanHtml, 'utf-8');
-
-          if (opts.screenshotEnabled) {
-            const frame = await findScreencastFrame(loader, marker);
-            if (frame) {
-              fs.mkdirSync(resourcesDir, { recursive: true });
-              fs.writeFileSync(screenshotPath, frame);
-              files.screenshot = screenshotPath;
-            }
-          }
-
-          if (opts.manifestEnabled) {
-            const manifest = {
-              // Snapshot bundle schema version. v2 moves screenshot into
-              // resources/ and writes sidecar CSS; see
-              // docs/snapshot-bundle-spec.md. Do not increment per-write
-              // — this is a *schema* version, not a counter.
-              version: 2,
-              url: '',
-              viewport: rendered.viewport,
-              timestamp: new Date(marker.timestamp).toISOString(),
-              playwright: getPlaywrightVersion(),
-            };
-            fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8');
-            files.manifest = manifestPath;
-          }
-        } else {
-          // Content unchanged — preserve existing files, just populate paths
-          if (opts.screenshotEnabled && fs.existsSync(screenshotPath)) {
-            files.screenshot = screenshotPath;
-          }
-          if (opts.manifestEnabled && fs.existsSync(manifestPath)) {
-            files.manifest = manifestPath;
-          }
-        }
-
-        const entry = {
+        traceMarkers.push({
           page: marker.page,
           state: marker.state,
-          outputDir: snapshotDir,
-          files,
-        };
+          pageOrFrameId: marker.pageId,
+          snapshotName: marker.afterSnapshot,
+          timestamp: marker.timestamp,
+          wallTime: marker.timestamp,
+        });
+      }
 
+      const coreBackend = new PlaywrightTraceBackend(loader);
+      const result: ExtractFromBackendResult = await extractFromBackend(
+        coreBackend,
+        traceMarkers,
+        {
+          outputDir: opts.outputDir,
+          screenshot: opts.screenshotEnabled,
+          manifest: opts.manifestEnabled,
+          driver,
+          filter: opts.filter,
+          onSnapshot: (info) => {
+            const key = `${info.page}/${info.state}`;
+            if (seen.has(key)) {
+              console.warn(
+                `Duplicate snapshot key "${key}" — overwriting previous entry ` +
+                `(from a different trace).`,
+              );
+            }
+          },
+        },
+      );
+
+      for (const info of result.snapshots) {
+        const key = `${info.page}/${info.state}`;
+        const entry: ExtractResult['snapshots'][number] = {
+          page: info.page,
+          state: info.state,
+          outputDir: info.outputDir,
+          files: {
+            html: info.files.html,
+            ...(info.files.manifest ? { manifest: info.files.manifest } : {}),
+            ...(info.files.screenshot ? { screenshot: info.files.screenshot } : {}),
+          },
+        };
         const existingIdx = seen.get(key);
         if (existingIdx !== undefined) {
           snapshots[existingIdx] = entry;
@@ -208,22 +177,4 @@ async function processTraceZips(
   }
 
   return { snapshots };
-}
-
-function matchesFilter(
-  marker: TraceSnapshotMarker,
-  filter?: { page?: string; state?: string },
-): boolean {
-  if (!filter) return true;
-  if (filter.page && marker.page !== filter.page) return false;
-  if (filter.state && marker.state !== filter.state) return false;
-  return true;
-}
-
-function hasHtmlChanged(htmlPath: string, newHtml: string): boolean {
-  try {
-    return fs.readFileSync(htmlPath, 'utf-8') !== newHtml;
-  } catch {
-    return true;
-  }
 }

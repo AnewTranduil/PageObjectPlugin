@@ -12,9 +12,14 @@
     "dist/"
   ],
   "scripts": {
+    "prebuild": "tsc --build --clean",
     "build": "tsc",
     "test": "vitest run",
     "test:watch": "vitest"
+  },
+  "dependencies": {
+    "parse5": "^7.1.2",
+    "postcss": "^8.4.47"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
