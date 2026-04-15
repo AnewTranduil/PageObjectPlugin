@@ -6,8 +6,9 @@ var _scale = 1;
 
 function applyScale() {
     var container = document.getElementById('viewport-container');
+    var sizer = document.getElementById('viewport-sizer');
     var wrapper = document.getElementById('viewport-wrapper');
-    if (!container || !wrapper) return;
+    if (!container || !sizer || !wrapper) return;
 
     var containerWidth = container.clientWidth;
     _scale = containerWidth / _viewportWidth;
@@ -15,6 +16,13 @@ function applyScale() {
     wrapper.style.width = _viewportWidth + 'px';
     wrapper.style.height = _viewportHeight + 'px';
     wrapper.style.transform = 'scale(' + _scale + ')';
+
+    // CSS transforms do not shrink the layout box, so we mirror the scaled
+    // dimensions onto the sizer. Without this, #viewport-container treats
+    // the wrapper as its pre-scale 1280x720 layout box and grows scrollbars
+    // into empty space below/right of the visual snapshot.
+    sizer.style.width = (_viewportWidth * _scale) + 'px';
+    sizer.style.height = (_viewportHeight * _scale) + 'px';
 
     container.style.minHeight = '0';
 }
@@ -50,9 +58,18 @@ window.loadSnapshot = function(html) {
                 var hMatch = content.match(/height=(\d+)/);
                 if (wMatch) _viewportWidth = parseInt(wMatch[1], 10);
                 if (hMatch) _viewportHeight = parseInt(hMatch[1], 10);
-                iframe.style.width = _viewportWidth + 'px';
-                iframe.style.height = _viewportHeight + 'px';
             }
+            // Use the full rendered page height so snapshots of pages taller
+            // than the capture viewport aren't truncated. Fall back to the
+            // declared viewport height when the document hasn't laid out yet.
+            var contentHeight = Math.max(
+                doc.body ? doc.body.scrollHeight : 0,
+                doc.documentElement ? doc.documentElement.scrollHeight : 0,
+                _viewportHeight
+            );
+            _viewportHeight = contentHeight;
+            iframe.style.width = _viewportWidth + 'px';
+            iframe.style.height = _viewportHeight + 'px';
         }
         applyScale();
     };

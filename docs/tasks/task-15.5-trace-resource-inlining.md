@@ -1,6 +1,16 @@
 # Task 15.5: Resource Inlining for Trace-Extracted Snapshots
 
-> **Goal:** Make trace-extracted snapshots self-contained by resolving the `/snapshot/<sha1>/...` resource URLs that Playwright's `SnapshotRenderer` embeds, and materializing them into the bundle's `resources/` directory (using the same layout Task 15 establishes for live-capture bundles).
+> **Scope expanded 2026-04-15.** The original plan post-processed Playwright's
+> rendered HTML. The implementation instead owns rendering: `snapshot-core`
+> now ports Playwright's `SnapshotRenderer` behind a framework-agnostic
+> `TraceBackend` interface. Seven-category inlining still applies — only the
+> mechanism changed. See `C:\Users\Artem\.claude\plans\delegated-dancing-valley.md`
+> for the expanded plan that was executed.
+>
+> **Goal:** Make trace-extracted snapshots self-contained by walking the
+> rendered HTML, resolving every external reference through the snapshot's
+> `resourceByUrl` closure, and materializing the bytes into `resources/`
+> (same layout as live-capture bundles from Task 15).
 > **Depends on:** Task 15 (establishes the `resources/` bundle layout and the `Resource[]` concept in `snapshot-core`).
 > **Output:** Trace-extracted bundles render correctly when opened outside the Playwright trace viewer — images, fonts, external CSS, canvas bitmaps, SVG sprites, and media all resolve to files under `resources/`.
 

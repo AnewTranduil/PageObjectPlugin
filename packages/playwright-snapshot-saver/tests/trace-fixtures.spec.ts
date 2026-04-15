@@ -3,7 +3,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 
-import { loadTraceMarkers, renderSnapshotAtMarker } from '../src/trace/playwright-adapter';
+import { renderSnapshot } from '@pagemirror/snapshot-core';
+import { loadTraceMarkers } from '../src/trace/playwright-adapter';
+import { PlaywrightTraceBackend } from '../src/trace/playwright-backend';
 import { createBackendFromZip } from '../src/sources/zip-source';
 import { extractSnapshots } from '../src/extractor';
 
@@ -95,8 +97,9 @@ test.describe('trace fixtures - adapter', () => {
     const { backend, cleanup } = createBackendFromZip(SAMPLE_TRACE);
     try {
       const { markers, loader } = await loadTraceMarkers(backend);
+      const coreBackend = new PlaywrightTraceBackend(loader);
       for (const marker of markers) {
-        const rendered = await renderSnapshotAtMarker(loader, marker);
+        const rendered = renderSnapshot(coreBackend, marker.pageId, marker.afterSnapshot!);
         expect(rendered.html).toBeTruthy();
         expect(rendered.html.length).toBeGreaterThan(100);
         expect(rendered.viewport.width).toBeGreaterThan(0);
@@ -112,8 +115,8 @@ test.describe('trace fixtures - adapter', () => {
     try {
       const { markers, loader } = await loadTraceMarkers(backend);
       const mainMarker = markers.find(m => m.state === 'main')!;
-      const rendered = await renderSnapshotAtMarker(loader, mainMarker);
-      // The login page HTML should contain these elements
+      const coreBackend = new PlaywrightTraceBackend(loader);
+      const rendered = renderSnapshot(coreBackend, mainMarker.pageId, mainMarker.afterSnapshot!);
       expect(rendered.html).toContain('username');
       expect(rendered.html).toContain('password');
     } finally {
@@ -305,6 +308,33 @@ test.describe('trace fixtures - extractor', () => {
 
         // manifest.json must exist (default config)
         expect(fs.existsSync(path.join(expectedDir, 'manifest.json'))).toBe(true);
+      }
+    } finally {
+      cleanup();
+    }
+  });
+
+  test('extracted HTML has no <base> element and every link href resolves to a real file', async () => {
+    const { dir, cleanup } = makeTmpDir();
+    try {
+      const result = await extractSnapshots({
+        source: SAMPLE_TRACE,
+        outputDir: dir,
+      });
+
+      for (const snap of result.snapshots) {
+        const html = fs.readFileSync(snap.files.html, 'utf-8');
+        // <base> removal is a v2 invariant — its presence would break
+        // relative URL resolution in JCEF srcdoc iframes.
+        expect(html).not.toMatch(/<base\b/i);
+
+        // Every href="resources/..." in the HTML must correspond to a
+        // file that was actually written to disk.
+        const hrefs = [...html.matchAll(/(?:href|src)="(resources\/[^"]+)"/g)].map((m) => m[1]);
+        for (const rel of hrefs) {
+          const full = path.join(snap.outputDir, rel.split('#')[0]);
+          expect(fs.existsSync(full), `${rel} referenced but not written`).toBe(true);
+        }
       }
     } finally {
       cleanup();

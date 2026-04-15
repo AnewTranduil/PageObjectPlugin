@@ -2,11 +2,8 @@ import { test, expect } from '@playwright/test';
 import type { TraceLoaderBackend } from 'playwright-core/lib/utils/isomorphic/trace/traceLoader';
 import {
   loadTraceMarkers,
-  renderSnapshotAtMarker,
-  findScreencastFrame,
   TraceLoader,
 } from '../src/trace/playwright-adapter';
-import type { TraceSnapshotMarker } from '../src/trace/playwright-adapter';
 
 /**
  * These tests verify the playwright-adapter module compiles, imports correctly,
@@ -54,8 +51,6 @@ function contextOptionsEvent(overrides: Record<string, unknown> = {}) {
 test.describe('playwright-adapter', () => {
   test('module exports are accessible', () => {
     expect(typeof loadTraceMarkers).toBe('function');
-    expect(typeof renderSnapshotAtMarker).toBe('function');
-    expect(typeof findScreencastFrame).toBe('function');
     expect(TraceLoader).toBeDefined();
   });
 
@@ -246,57 +241,4 @@ test.describe('playwright-adapter', () => {
     expect(markers).toHaveLength(0);
   });
 
-  test('renderSnapshotAtMarker throws when afterSnapshot is missing', async () => {
-    const loader = new TraceLoader();
-    const marker: TraceSnapshotMarker = {
-      callId: 'call-1',
-      label: '[snapshot:login/main]',
-      page: 'login',
-      state: 'main',
-      timestamp: 1000,
-      pageId: 'page-1',
-      afterSnapshot: undefined,
-    };
-
-    await expect(renderSnapshotAtMarker(loader, marker)).rejects.toThrow(
-      'has no afterSnapshot',
-    );
-  });
-
-  test('renderSnapshotAtMarker throws when snapshot not found in storage', async () => {
-    const traceLines = [contextOptionsEvent()].join('\n');
-    const { loader } = await loadTraceMarkers(mockBackend(traceLines));
-
-    const marker: TraceSnapshotMarker = {
-      callId: 'call-1',
-      label: '[snapshot:login/main]',
-      page: 'login',
-      state: 'main',
-      timestamp: 1000,
-      pageId: 'page-1',
-      afterSnapshot: 'after@call-1',
-    };
-
-    await expect(renderSnapshotAtMarker(loader, marker)).rejects.toThrow(
-      'No snapshot found for marker',
-    );
-  });
-
-  test('findScreencastFrame returns undefined when no pages match', async () => {
-    const traceLines = [contextOptionsEvent()].join('\n');
-    const { loader } = await loadTraceMarkers(mockBackend(traceLines));
-
-    const marker: TraceSnapshotMarker = {
-      callId: 'call-1',
-      label: '[snapshot:login/main]',
-      page: 'login',
-      state: 'main',
-      timestamp: 1000,
-      pageId: 'page-1',
-      afterSnapshot: 'after@call-1',
-    };
-
-    const result = await findScreencastFrame(loader, marker);
-    expect(result).toBeUndefined();
-  });
 });

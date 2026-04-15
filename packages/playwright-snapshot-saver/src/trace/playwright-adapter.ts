@@ -77,11 +77,6 @@ export interface TraceSnapshotMarker {
   afterSnapshot: string | undefined;
 }
 
-export interface RenderedSnapshot {
-  html: string;
-  viewport: { width: number; height: number };
-}
-
 // -- Internal types for raw snapshot data ------------------------------------
 
 interface RawSnapshot {
@@ -221,76 +216,6 @@ export async function loadTraceMarkers(backend: TraceLoaderBackend): Promise<{
   }
 
   return { markers, loader };
-}
-
-/**
- * Render a snapshot at the given marker to full HTML.
- *
- * Uses the resolved `afterSnapshot` name to look up the
- * snapshot renderer via `SnapshotStorage.snapshotByName()`.
- */
-export async function renderSnapshotAtMarker(
-  loader: TraceLoaderType,
-  marker: TraceSnapshotMarker,
-): Promise<RenderedSnapshot> {
-  if (!marker.afterSnapshot) {
-    throw new Error(
-      `Marker ${marker.label} (callId: ${marker.callId}) has no afterSnapshot — ` +
-      `trace may have been recorded without snapshots enabled`,
-    );
-  }
-
-  const storage = loader.storage();
-  const renderer = storage.snapshotByName(marker.pageId, marker.afterSnapshot);
-  if (!renderer) {
-    throw new Error(
-      `No snapshot found for marker ${marker.label} ` +
-      `(pageId: ${marker.pageId}, snapshotName: ${marker.afterSnapshot})`,
-    );
-  }
-
-  const rendered = renderer.render();
-  return {
-    html: rendered.html,
-    viewport: renderer.viewport(),
-  };
-}
-
-/**
- * Find the closest screencast frame to a marker's timestamp.
- * Returns the image data as a Buffer, or undefined if no frames exist.
- */
-export async function findScreencastFrame(
-  loader: TraceLoaderType,
-  marker: TraceSnapshotMarker,
-): Promise<Buffer | undefined> {
-  for (const context of loader.contextEntries) {
-    for (const page of context.pages) {
-      if (page.pageId !== marker.pageId) continue;
-
-      const frames = page.screencastFrames;
-      if (!frames || frames.length === 0) continue;
-
-      // Find the frame closest in time to the marker
-      let closest = frames[0];
-      for (const frame of frames) {
-        const useWallTime = frame.frameSwapWallTime !== undefined;
-        const frameTime = useWallTime ? frame.frameSwapWallTime! : frame.timestamp;
-        const closestTime = useWallTime ? (closest.frameSwapWallTime ?? closest.timestamp) : closest.timestamp;
-
-        if (Math.abs(frameTime - marker.timestamp) < Math.abs(closestTime - marker.timestamp)) {
-          closest = frame;
-        }
-      }
-
-      const blob = await loader.resourceForSha1(closest.sha1);
-      if (blob) {
-        const arrayBuffer = await blob.arrayBuffer();
-        return Buffer.from(arrayBuffer);
-      }
-    }
-  }
-  return undefined;
 }
 
 // -- Re-exports ---------------------------------------------------------------

@@ -31,8 +31,13 @@
             overflow: auto;
             display: none;
         }
-        #viewport-wrapper {
+        #viewport-sizer {
             position: relative;
+        }
+        #viewport-wrapper {
+            position: absolute;
+            top: 0;
+            left: 0;
             transform-origin: 0 0;
         }
         #viewport iframe {
@@ -112,9 +117,11 @@
 <body>
     <div id="status">Page Mirror Ready</div>
     <div id="viewport-container">
-        <div id="viewport-wrapper">
-            <div id="viewport"></div>
-            <div id="overlay"></div>
+        <div id="viewport-sizer">
+            <div id="viewport-wrapper">
+                <div id="viewport"></div>
+                <div id="overlay"></div>
+            </div>
         </div>
     </div>
     <div id="empty-state">No snapshot loaded</div>
