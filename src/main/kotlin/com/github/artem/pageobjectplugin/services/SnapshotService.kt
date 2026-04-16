@@ -101,8 +101,13 @@ class SnapshotService(private val project: Project) {
      * [isOutdatedBannerActive] flag both flip identically. Used by
      * `OutdatedBundleBannerUiTest` to exercise the wiring without
      * seeding v1 bundles on disk.
+     *
+     * Public, not `internal`, because the Remote Robot JS bridge calls
+     * this via the JVM symbol name — `internal` would mangle it into
+     * `simulateRejectedBundlesForTesting$production_sources_for_module_<hash>`
+     * and break the bridge lookup.
      */
-    internal fun simulateRejectedBundlesForTesting(declaredVersions: List<Int>) {
+    fun simulateRejectedBundlesForTesting(declaredVersions: List<Int>) {
         val rejected = declaredVersions.mapIndexed { i, v ->
             com.github.artem.pageobjectplugin.listeners.RejectedBundle(
                 dir = java.nio.file.Paths.get(
@@ -120,8 +125,11 @@ class SnapshotService(private val project: Project) {
         )
     }
 
-    /** UI-test seam: simulate a clean scan — hides the banner. */
-    internal fun simulateCleanScanForTesting() {
+    /**
+     * UI-test seam: simulate a clean scan — hides the banner. Public
+     * for the same JS-bridge reason as [simulateRejectedBundlesForTesting].
+     */
+    fun simulateCleanScanForTesting() {
         updateAvailableSnapshots(com.github.artem.pageobjectplugin.listeners.ScanResult.EMPTY)
     }
 
