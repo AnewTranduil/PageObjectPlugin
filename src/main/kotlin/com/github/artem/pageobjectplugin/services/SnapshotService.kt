@@ -94,43 +94,38 @@ class SnapshotService(private val project: Project) {
     }
 
     /**
-     * UI-test seam: simulate a snapshot-directory scan that turned up
-     * `declaredVersions.size` rejected bundles, each declaring the
-     * given version. Routes through the same [updateAvailableSnapshots]
-     * path production code uses, so the banner JS call + the
-     * [isOutdatedBannerActive] flag both flip identically. Used by
-     * `OutdatedBundleBannerUiTest` to exercise the wiring without
-     * seeding v1 bundles on disk.
+     * UI-test seam: drive the outdated-bundle banner directly, without
+     * touching [availableSnapshots] or [currentBundle]. The routing
+     * from `ScanResult.rejected` into this banner state is covered by
+     * `SnapshotServiceTest`; this seam exists only so
+     * `OutdatedBundleBannerUiTest` can exercise the JCEF rendering
+     * path under a real sandboxed IDE without polluting snapshot
+     * state that the next UI-test class's `@BeforeAll` depends on.
      *
-     * Public, not `internal`, because the Remote Robot JS bridge calls
-     * this via the JVM symbol name — `internal` would mangle it into
-     * `simulateRejectedBundlesForTesting$production_sources_for_module_<hash>`
+     * Public, not `internal`, because the Remote Robot JS bridge
+     * looks the method up by its plain JVM name — `internal` would
+     * mangle it into `…ForTesting$production_sources_for_module_<hash>`
      * and break the bridge lookup.
      */
     fun simulateRejectedBundlesForTesting(declaredVersions: List<Int>) {
-        val rejected = declaredVersions.mapIndexed { i, v ->
-            com.github.artem.pageobjectplugin.listeners.RejectedBundle(
-                dir = java.nio.file.Paths.get(
-                    System.getProperty("java.io.tmpdir"),
-                    "pm-ui-banner-fake-v$v-$i",
-                ),
-                declaredVersion = v,
-            )
+        if (declaredVersions.isEmpty()) {
+            jsExecutor("window.hideOutdatedBanner();")
+            isOutdatedBannerActive = false
+            return
         }
-        updateAvailableSnapshots(
-            com.github.artem.pageobjectplugin.listeners.ScanResult(
-                loaded = emptyList(),
-                rejected = rejected,
-            )
-        )
+        val versionsJson = declaredVersions.distinct().sorted().joinToString(",", "[", "]")
+        val count = declaredVersions.size
+        jsExecutor("window.showOutdatedBanner({count:$count,versions:$versionsJson});")
+        isOutdatedBannerActive = true
     }
 
     /**
-     * UI-test seam: simulate a clean scan — hides the banner. Public
-     * for the same JS-bridge reason as [simulateRejectedBundlesForTesting].
+     * UI-test seam: hide the outdated-bundle banner. Public for the
+     * same JS-bridge reason as [simulateRejectedBundlesForTesting].
      */
     fun simulateCleanScanForTesting() {
-        updateAvailableSnapshots(com.github.artem.pageobjectplugin.listeners.ScanResult.EMPTY)
+        jsExecutor("window.hideOutdatedBanner();")
+        isOutdatedBannerActive = false
     }
 
     /**
