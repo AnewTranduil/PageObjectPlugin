@@ -60,14 +60,21 @@ test('login page snapshots', async ({ page }) => {
 });
 `);
 
-    // Run playwright test in the temp project
-    const result = childProcess.spawnSync('npx', ['playwright', 'test'], {
-      cwd: testDir,
-      stdio: 'pipe',
-      encoding: 'utf-8',
-      timeout: 60000,
-      shell: true,
-    });
+    // Run playwright test in the temp project. Pass `-c` explicitly —
+    // Playwright's config auto-discovery walks up from CWD, so without
+    // this flag it finds the saver's own playwright.config.ts instead
+    // of the one we just wrote in the temp project.
+    const configPath = path.join(testDir, 'playwright.config.ts').replace(/\\/g, '/');
+    const result = childProcess.spawnSync(
+      `npx playwright test --config="${configPath}"`,
+      {
+        cwd: testDir,
+        stdio: 'pipe',
+        encoding: 'utf-8',
+        timeout: 60000,
+        shell: true,
+      }
+    );
 
     // Verify snapshots were extracted
     const loginMainHtml = path.join(snapshotsDir, 'login', 'main', 'index.html');
