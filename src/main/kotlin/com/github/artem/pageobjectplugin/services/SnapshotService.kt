@@ -1,5 +1,6 @@
 package com.github.artem.pageobjectplugin.services
 
+import com.github.artem.pageobjectplugin.listeners.ScanResult
 import com.github.artem.pageobjectplugin.locators.PickerResultHandler
 import com.github.artem.pageobjectplugin.model.SnapshotBundle
 import com.github.artem.pageobjectplugin.settings.PageMirrorSettings
@@ -53,6 +54,15 @@ class SnapshotService(private val project: Project) {
 
     var isHighlightAllActive: Boolean = false
 
+    /**
+     * Mirrors the most recent outdated-bundle banner state emitted to
+     * JCEF. Queryable from UI tests via the plugin classloader bridge
+     * the same way `isHighlightAllActive` is — keeps assertions off
+     * the JS side so we don't need a JCEF DOM probe.
+     */
+    var isOutdatedBannerActive: Boolean = false
+        private set
+
     private var jsQuery: JBCefJSQuery? = null
     private val snapshotListeners = mutableListOf<() -> Unit>()
     private var onPageReadyCallback: (() -> Unit)? = null
@@ -80,13 +90,77 @@ class SnapshotService(private val project: Project) {
         availableSnapshots = emptyList()
         snapshotListeners.clear()
         isHighlightAllActive = false
+        isOutdatedBannerActive = false
     }
 
-    fun updateAvailableSnapshots(bundles: List<SnapshotBundle>) {
-        LOG.info("updateAvailableSnapshots: ${bundles.size} bundle(s) found")
+    /**
+     * UI-test seam: simulate a snapshot-directory scan that turned up
+     * `declaredVersions.size` rejected bundles, each declaring the
+     * given version. Routes through the same [updateAvailableSnapshots]
+     * path production code uses, so the banner JS call + the
+     * [isOutdatedBannerActive] flag both flip identically. Used by
+     * `OutdatedBundleBannerUiTest` to exercise the wiring without
+     * seeding v1 bundles on disk.
+     */
+    internal fun simulateRejectedBundlesForTesting(declaredVersions: List<Int>) {
+        val rejected = declaredVersions.mapIndexed { i, v ->
+            com.github.artem.pageobjectplugin.listeners.RejectedBundle(
+                dir = java.nio.file.Paths.get(
+                    System.getProperty("java.io.tmpdir"),
+                    "pm-ui-banner-fake-v$v-$i",
+                ),
+                declaredVersion = v,
+            )
+        }
+        updateAvailableSnapshots(
+            com.github.artem.pageobjectplugin.listeners.ScanResult(
+                loaded = emptyList(),
+                rejected = rejected,
+            )
+        )
+    }
+
+    /** UI-test seam: simulate a clean scan — hides the banner. */
+    internal fun simulateCleanScanForTesting() {
+        updateAvailableSnapshots(com.github.artem.pageobjectplugin.listeners.ScanResult.EMPTY)
+    }
+
+    /**
+     * Canonical entry point used by the discovery listener. Receives
+     * both the loaded bundles and the rejected-bundle records so the
+     * tool window can drive the outdated-bundle banner.
+     */
+    fun updateAvailableSnapshots(result: ScanResult) {
+        val bundles = result.loaded
+        LOG.info(
+            "updateAvailableSnapshots: ${bundles.size} loaded, " +
+                "${result.rejected.size} rejected"
+        )
         bundles.forEach { LOG.info("  bundle: ${it.htmlPath}") }
+        result.rejected.forEach {
+            LOG.info("  rejected: ${it.dir} (declared v${it.declaredVersion})")
+        }
         availableSnapshots = bundles
         snapshotListeners.forEach { it() }
+
+        // Drive the outdated-bundle banner in the tool window. The
+        // banner is a pure function of the latest scan — it appears
+        // when any bundle under the scanned directory declared an
+        // unsupported version, and disappears as soon as the next scan
+        // is clean (e.g. after the user regenerates bundles).
+        if (result.rejected.isNotEmpty()) {
+            val versions = result.rejected
+                .map { it.declaredVersion }
+                .distinct()
+                .sorted()
+                .joinToString(",", "[", "]")
+            val count = result.rejected.size
+            jsExecutor("window.showOutdatedBanner({count:$count,versions:$versions});")
+            isOutdatedBannerActive = true
+        } else {
+            jsExecutor("window.hideOutdatedBanner();")
+            isOutdatedBannerActive = false
+        }
 
         if (bundles.isEmpty()) {
             clearSnapshot()
@@ -94,6 +168,15 @@ class SnapshotService(private val project: Project) {
             LOG.info("No current bundle, auto-loading first: ${bundles.first().htmlPath}")
             loadSnapshot(bundles.first())
         }
+    }
+
+    /**
+     * Backwards-compatible convenience for callers that don't carry
+     * rejection information. Delegates to the [ScanResult] overload
+     * with an empty rejection list.
+     */
+    fun updateAvailableSnapshots(bundles: List<SnapshotBundle>) {
+        updateAvailableSnapshots(ScanResult(bundles, emptyList()))
     }
 
     fun clearSnapshot() {

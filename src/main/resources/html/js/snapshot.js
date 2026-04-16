@@ -94,3 +94,41 @@ window.clearSnapshot = function() {
     status.textContent = 'No snapshot loaded';
     window.clearHighlight();
 };
+
+// Outdated-bundle banner — shown when the snapshot scanner finds
+// bundle directories on disk whose manifest.version != 2 (i.e. v1
+// bundles left over from before the breaking v2 upgrade). The Kotlin
+// side drives visibility via showOutdatedBanner / hideOutdatedBanner;
+// the user can also temporarily dismiss it via the × button.
+(function () {
+    var dismissBtn = document.getElementById('banner-dismiss');
+    if (dismissBtn) {
+        dismissBtn.addEventListener('click', function () {
+            window.hideOutdatedBanner();
+        });
+    }
+})();
+
+window.showOutdatedBanner = function (payload) {
+    var banner = document.getElementById('banner');
+    var text = document.getElementById('banner-text');
+    if (!banner || !text) return;
+
+    var count = (payload && payload.count) || 0;
+    var versions = (payload && payload.versions) || [];
+    var versionList = versions.length
+        ? 'v' + versions.join(', v')
+        : 'an unsupported version';
+    var plural = count === 1 ? '' : 's';
+
+    text.textContent =
+        'Found ' + count + ' outdated snapshot bundle' + plural + ' (' +
+        versionList + '). This plugin requires v2. Regenerate with ' +
+        'playwright-snapshot-saver >= 0.7.0 to refresh them.';
+    banner.classList.remove('hidden');
+};
+
+window.hideOutdatedBanner = function () {
+    var banner = document.getElementById('banner');
+    if (banner) banner.classList.add('hidden');
+};

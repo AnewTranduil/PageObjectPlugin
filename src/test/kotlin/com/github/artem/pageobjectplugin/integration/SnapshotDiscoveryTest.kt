@@ -122,4 +122,107 @@ class SnapshotDiscoveryTest : BasePlatformTestCase() {
             root.toFile().deleteRecursively()
         }
     }
+
+    // --- scanBundles: rejected-bundle propagation ---
+
+    fun `test scanBundles classifies v1 directories as rejected`() {
+        val root = Files.createTempDirectory("pm-scan-rejected-")
+        try {
+            val v1Dir = root.resolve("initial")
+            Files.createDirectories(v1Dir)
+            Files.writeString(v1Dir.resolve("index.html"), "<html/>")
+            Files.writeString(v1Dir.resolve("manifest.json"), """{"version": 1, "url": ""}""")
+
+            val result = SnapshotDiscoveryListener.scanBundles(root, 3)
+
+            assertTrue("no v2 bundles should load", result.loaded.isEmpty())
+            assertEquals(1, result.rejected.size)
+            val rejected = result.rejected.single()
+            assertEquals(v1Dir, rejected.dir)
+            assertEquals(1, rejected.declaredVersion)
+        } finally {
+            root.toFile().deleteRecursively()
+        }
+    }
+
+    fun `test scanBundles returns both loaded and rejected when mixed`() {
+        val root = Files.createTempDirectory("pm-scan-mixed-")
+        try {
+            val v2Dir = root.resolve("initial")
+            Files.createDirectories(v2Dir)
+            Files.writeString(v2Dir.resolve("index.html"), "<html/>")
+            Files.writeString(v2Dir.resolve("manifest.json"), V2_MANIFEST)
+
+            val v1Dir = root.resolve("error-state")
+            Files.createDirectories(v1Dir)
+            Files.writeString(v1Dir.resolve("index.html"), "<html/>")
+            Files.writeString(v1Dir.resolve("manifest.json"), """{"version": 1}""")
+
+            val result = SnapshotDiscoveryListener.scanBundles(root, 3)
+
+            assertEquals(1, result.loaded.size)
+            assertEquals("initial", result.loaded.single().name)
+            assertEquals(1, result.rejected.size)
+            assertEquals(v1Dir, result.rejected.single().dir)
+        } finally {
+            root.toFile().deleteRecursively()
+        }
+    }
+
+    fun `test scanBundles all v2 returns empty rejected list`() {
+        val root = Files.createTempDirectory("pm-scan-v2-only-")
+        try {
+            val dir = root.resolve("initial")
+            Files.createDirectories(dir)
+            Files.writeString(dir.resolve("index.html"), "<html/>")
+            Files.writeString(dir.resolve("manifest.json"), V2_MANIFEST)
+
+            val result = SnapshotDiscoveryListener.scanBundles(root, 3)
+
+            assertEquals(1, result.loaded.size)
+            assertTrue(result.rejected.isEmpty())
+        } finally {
+            root.toFile().deleteRecursively()
+        }
+    }
+
+    fun `test scanBundles on missing dir returns fully empty result`() {
+        val nonExistent = Files.createTempDirectory("pm-scan-missing-")
+            .resolve("does-not-exist")
+
+        val result = SnapshotDiscoveryListener.scanBundles(nonExistent, 3)
+
+        assertTrue(result.loaded.isEmpty())
+        assertTrue(result.rejected.isEmpty())
+    }
+
+    fun `test scanForBundles hides rejected bundles for backwards compatibility`() {
+        val root = Files.createTempDirectory("pm-scan-compat-")
+        try {
+            val v1Dir = root.resolve("initial")
+            Files.createDirectories(v1Dir)
+            Files.writeString(v1Dir.resolve("index.html"), "<html/>")
+            Files.writeString(v1Dir.resolve("manifest.json"), """{"version": 1}""")
+
+            val bundles = SnapshotDiscoveryListener.scanForBundles(root, 3)
+
+            assertTrue(
+                "legacy scanForBundles must keep returning only loaded bundles",
+                bundles.isEmpty(),
+            )
+        } finally {
+            root.toFile().deleteRecursively()
+        }
+    }
+
+    companion object {
+        private val V2_MANIFEST = """
+            {
+              "version": 2,
+              "url": "about:blank",
+              "viewport": { "width": 1280, "height": 720 },
+              "timestamp": "2026-04-16T00:00:00Z"
+            }
+        """.trimIndent()
+    }
 }

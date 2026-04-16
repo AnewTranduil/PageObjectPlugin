@@ -22,15 +22,33 @@ Install the companion npm package in your Playwright project:
 npm install -D playwright-snapshot-saver
 ```
 
-Add a snapshot capture call to your test or global setup:
+The recommended workflow is the marker + reporter. Enable tracing and register the reporter in `playwright.config.ts`:
 
 ```typescript
-import { saveSnapshot } from 'playwright-snapshot-saver';
+import { defineConfig } from '@playwright/test';
 
-await saveSnapshot(page, 'login-page');
+export default defineConfig({
+  use: { trace: 'on' },
+  reporter: [
+    ['html'],
+    ['playwright-snapshot-saver/reporter', { outputDir: '.snapshots' }],
+  ],
+});
 ```
 
-Run your Playwright tests — snapshots are saved to the `.snapshots/` directory.
+Then mark snapshot points inside your tests:
+
+```typescript
+import { test } from '@playwright/test';
+import { snapshot } from 'playwright-snapshot-saver';
+
+test('login page', async ({ page }) => {
+  await page.goto('/login');
+  await snapshot({ page: 'login', state: 'initial' });
+});
+```
+
+Run your Playwright tests — snapshots are extracted from traces into `.snapshots/<page>/<state>/` after the run finishes. See the [package README](packages/playwright-snapshot-saver/README.md) for the direct `saveSnapshot()` API and trace-extraction CLI.
 
 ### 2. Use in the IDE
 
@@ -47,16 +65,18 @@ Open your project in IntelliJ IDEA or WebStorm. The **Page Mirror** tool window 
 
 ## Snapshot Saver (npm package)
 
-The [`playwright-snapshot-saver`](packages/playwright-snapshot-saver/) package captures sanitized HTML snapshots from Playwright pages. It can be used as a programmatic API or as a Playwright reporter.
+The [`playwright-snapshot-saver`](packages/playwright-snapshot-saver/) package captures sanitized HTML snapshots from Playwright pages in the v2 bundle format the plugin consumes. It exposes a Playwright reporter, a direct `saveSnapshot()` API, and an `extract` CLI that pulls snapshots from existing Playwright HTML reports or trace ZIPs.
 
 Key options:
 - `group` — organize snapshots into subdirectories
-- `screenshotFormat` — `png`, `jpeg`, or `webp`
-- `manifest` — include metadata (URL, viewport, timestamp)
+- `screenshot` — `{ format: 'png' | 'webp', fullPage: boolean }` or `false` to disable
+- `manifest` — include metadata (URL, viewport, timestamp, driver version)
 - `extraSelectors` / `excludeSelectors` — control which elements are captured
 - `extraAttributes` — preserve additional HTML attributes in the snapshot
 
-See the [package directory](packages/playwright-snapshot-saver/) for full API documentation.
+The saver is a thin adapter on top of [`@pagemirror/snapshot-core`](packages/snapshot-core/), the framework-agnostic engine that owns HTML assembly, manifest building, and trace rendering. Selenium / Cypress / Appium adapters on the roadmap will reuse it.
+
+See the [saver README](packages/playwright-snapshot-saver/README.md) and [snapshot-core README](packages/snapshot-core/README.md) for full API documentation.
 
 ## Compatibility
 

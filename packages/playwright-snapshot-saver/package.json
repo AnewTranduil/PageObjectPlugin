@@ -13,7 +13,10 @@
   },
   "files": [
     "dist/",
-    "bin/"
+    "bin/",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsc",
