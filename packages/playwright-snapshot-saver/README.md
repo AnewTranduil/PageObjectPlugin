@@ -1,6 +1,8 @@
 # playwright-snapshot-saver
 
-Capture Playwright page snapshots (HTML with inlined CSS, screenshots, metadata) for the [Page Mirror](https://github.com/AnewTranduil/PageObjectPlugin) IntelliJ plugin.
+Capture Playwright page snapshots (sanitized HTML, screenshots, metadata) into the Page Mirror v2 bundle format consumed by the [Page Mirror IntelliJ plugin](https://github.com/AnewTranduil/PageObjectPlugin).
+
+This package is a thin Playwright adapter on top of [`@pagemirror/snapshot-core`](../snapshot-core), which owns the actual HTML assembly, manifest building, and trace rendering. Selenium / Cypress / Appium adapters are planned and will produce the same on-disk format.
 
 ## Installation
 
@@ -10,11 +12,11 @@ npm install playwright-snapshot-saver
 
 ## Usage
 
-There are three ways to capture snapshots, from simplest to most flexible.
+Three ways to capture snapshots, from simplest to most flexible.
 
-### 1. Marker + Reporter (recommended)
+### 1. Marker + reporter (recommended)
 
-Mark snapshot points in your tests with `snapshot()`, then let the reporter extract them automatically from Playwright traces.
+Mark snapshot points in your tests with `snapshot()`, then let the reporter extract them from Playwright traces after the run finishes.
 
 **playwright.config.ts**
 
@@ -23,7 +25,7 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   use: {
-    trace: 'on', // required for snapshot extraction
+    trace: 'on', // required — the reporter reads trace ZIPs
   },
   reporter: [
     ['html'],
@@ -48,26 +50,28 @@ test('login page', async ({ page }) => {
 });
 ```
 
-After `npx playwright test`, the reporter extracts snapshots into:
+After `npx playwright test`, the reporter extracts:
 
 ```
 .snapshots/
   login/
-    initial/  { index.html, screenshot.webp, manifest.json }
-    error/    { index.html, screenshot.webp, manifest.json }
+    initial/  { index.html, manifest.json, resources/… }
+    error/    { index.html, manifest.json, resources/… }
 ```
 
 #### Reporter options
 
-| Option      | Default        | Description                        |
-|-------------|----------------|------------------------------------|
-| `outputDir` | `'.snapshots'` | Base directory for extracted files  |
-| `screenshot`| `true`         | Extract screencast frame as screenshot |
-| `manifest`  | `true`         | Generate `manifest.json`           |
+| Option       | Default        | Description                                         |
+|--------------|----------------|-----------------------------------------------------|
+| `outputDir`  | `'.snapshots'` | Base directory for extracted bundles                 |
+| `screenshot` | `false`        | Extract a screencast frame as `resources/screenshot.webp`. Off by default since trace screencast frames are low-fidelity and frequently blank. |
+| `manifest`   | `true`         | Generate `manifest.json`                            |
+
+> **Changed in 0.6.0:** screenshot extraction is opt-in. Pass `screenshot: true` to re-enable it.
 
 ### 2. Direct API (`saveSnapshot`)
 
-Call `saveSnapshot()` with a live Playwright `Page` to capture a snapshot immediately during test execution.
+Call `saveSnapshot()` with a live Playwright `Page` to capture a snapshot immediately during test execution. This path uses Playwright's real `page.screenshot()`, so screenshots are always sharp.
 
 ```ts
 import { test } from '@playwright/test';
@@ -79,27 +83,33 @@ test('capture snapshot', async ({ page }) => {
   const result = await saveSnapshot(page, {
     outputDir: '.snapshots',
     name: 'initial',
-    group: 'example',          // optional parent directory
-    screenshot: { format: 'png', fullPage: true },
+    group: 'example',                     // optional parent directory
+    screenshot: { fullPage: true },       // or `false` to skip, or omit for defaults
     manifest: true,
   });
 
-  console.log(result.outputDir);  // .snapshots/example/initial
-  console.log(result.files.html); // .snapshots/example/initial/index.html
+  console.log(result.outputDir);         // .snapshots/example/initial
+  console.log(result.files.html);         // .snapshots/example/initial/index.html
+  console.log(result.files.resources);    // [ …/resources/<sha1>.css, …/resources/screenshot.png ]
 });
 ```
 
 #### `SaveSnapshotOptions`
 
-| Option       | Type     | Default  | Description                              |
-|--------------|----------|----------|------------------------------------------|
-| `outputDir`  | `string` | required | Base output directory                    |
-| `name`       | `string` | required | Snapshot name (becomes subdirectory)     |
-| `group`      | `string` | —        | Parent directory (e.g. page name)        |
-| `screenshot.enabled` | `boolean` | `true` | Capture a screenshot               |
-| `screenshot.format`  | `'png' \| 'jpeg'` | `'png'` | Screenshot format        |
-| `screenshot.fullPage`| `boolean` | `false` | Capture the full scrollable page  |
-| `manifest`   | `boolean`| `true`   | Generate `manifest.json`                 |
+| Option              | Type                                 | Default                              | Description                                            |
+|---------------------|--------------------------------------|--------------------------------------|--------------------------------------------------------|
+| `outputDir`         | `string`                             | required                             | Base output directory                                   |
+| `name`              | `string`                             | required                             | Snapshot name — becomes a subdirectory                  |
+| `group`             | `string`                             | —                                    | Parent directory (e.g. page name)                       |
+| `screenshot`        | `Partial<ScreenshotOptions>` \| `false` | `{ format: 'png', fullPage: false }` | Screenshot options. Pass `false` to disable. |
+| `screenshot.format` | `'png'` \| `'webp'`                  | `'png'`                              | Live-capture supports `png` only; `webp` throws. For webp bytes, use the trace-extraction path. |
+| `screenshot.fullPage` | `boolean`                          | `false`                              | Capture the full scrollable page                        |
+| `manifest`          | `boolean`                            | `true`                               | Generate `manifest.json`                                |
+| `extraSelectors`    | `string[]`                           | —                                    | Extra selectors the collector keeps                     |
+| `excludeSelectors`  | `string[]`                           | —                                    | Selectors the collector drops                           |
+| `extraAttributes`   | `string[]`                           | —                                    | Extra attributes the collector preserves                |
+
+`saveSnapshot()` is **skip-write-if-unchanged**: when the assembled HTML matches the existing `index.html`, nothing is rewritten, but the returned `files` still references the existing paths.
 
 ### 3. Extract from existing traces (CLI or API)
 
@@ -123,19 +133,20 @@ npx playwright-snapshot-saver extract \
   --output .snapshots \
   --page login \
   --state initial \
-  --no-screenshot
+  --screenshot
 ```
 
 #### CLI options
 
-| Option            | Description                                      |
-|-------------------|--------------------------------------------------|
-| `--source <path>` | Report directory, trace ZIP, or URL (required)   |
-| `--output <dir>`  | Output directory (default: `.snapshots`)         |
-| `--page <name>`   | Filter by page name                              |
-| `--state <name>`  | Filter by state name                             |
-| `--no-screenshot` | Skip screenshot extraction                       |
-| `--no-manifest`   | Skip manifest generation                         |
+| Option            | Description                                                 |
+|-------------------|-------------------------------------------------------------|
+| `--source <path>` | Report directory, trace ZIP, or URL (required)              |
+| `--output <dir>`  | Output directory (default: `.snapshots`)                    |
+| `--page <name>`   | Filter by page name                                         |
+| `--state <name>`  | Filter by state name                                        |
+| `--screenshot`    | Opt in to `resources/screenshot.webp` extraction (off by default) |
+| `--no-screenshot` | Explicitly disable (accepted for backwards compatibility)    |
+| `--no-manifest`   | Skip `manifest.json` generation                             |
 
 #### `extractSnapshots` API
 
@@ -145,38 +156,55 @@ import { extractSnapshots } from 'playwright-snapshot-saver';
 const result = await extractSnapshots({
   source: 'playwright-report',  // directory, .zip path, or URL
   outputDir: '.snapshots',
-  screenshot: true,
+  screenshot: true,              // default is false since 0.6.0
   manifest: true,
   filter: { page: 'login' },
 });
 
 for (const snap of result.snapshots) {
   console.log(`${snap.page}/${snap.state} -> ${snap.outputDir}`);
+  console.log(snap.files.html);          // always present
+  console.log(snap.files.manifest);       // when manifest: true
+  console.log(snap.files.screenshot);     // when screenshot: true and a frame was available
 }
 ```
 
-## Snapshot bundle format
+Trace-extracted bundles are **fully self-contained**: every `<link>`, `<img>`, CSS `url(...)`, `@font-face`, and SVG `<use>` reference in the source page is rewritten to point at a file under `resources/`, and the original `<base>` element is stripped. Open the bundle anywhere — it renders without network access.
+
+## Snapshot bundle format (v2)
 
 Each snapshot is a directory containing:
 
 ```
 <name>/
-  index.html       # DOM with all CSS inlined
-  screenshot.webp   # Visual reference (optional)
-  manifest.json     # Metadata (optional)
+  index.html                   # Sanitized DOM referencing resources/ (REQUIRED)
+  manifest.json                # Metadata, schema version 2 (REQUIRED)
+  resources/
+    screenshot.png|webp        # Visual reference (optional)
+    <sha1>.css                 # Stylesheet sidecars referenced by <link>
+    <sha1>.woff2|png|jpg|…     # Fonts, images, media (trace-extracted bundles)
 ```
+
+`index.html` references every resource via a relative `resources/<filename>` path. The plugin inlines CSS sidecars before passing the HTML to the JCEF `<iframe srcdoc>` because `srcdoc` iframes cannot resolve relative URLs. Producers ship sidecars — **do not pre-inline CSS.**
 
 ### manifest.json
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "url": "https://example.com/login",
   "viewport": { "width": 1280, "height": 720 },
   "timestamp": "2025-01-15T10:30:00Z",
-  "playwright": "1.48.0"
+  "userAgent": "Mozilla/5.0 …",
+  "playwright": "1.58.0"
 }
 ```
+
+Exactly one driver field (`playwright` / `selenium` / `cypress` / `appium`) is populated per manifest, matching the driver that produced the bundle. The Playwright version is auto-detected from your installed `@playwright/test`.
+
+The v1 format is **not backwards compatible** — the plugin refuses to load v1 bundles with a user-visible error. Regenerate them by re-running your tests.
+
+See [`docs/snapshot-bundle-spec.md`](../../docs/snapshot-bundle-spec.md) for the authoritative spec.
 
 ## Requirements
 

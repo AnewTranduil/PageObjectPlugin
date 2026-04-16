@@ -7,7 +7,7 @@
     "postinstall": "npx playwright install chromium || true"
   },
   "devDependencies": {
-    "@pagemirror/snapshot-core": "file:../snapshot-core",
+    "@pagemirror/snapshot-core": "^0.1.0",
     "@playwright/test": "1.59.0",
     "@types/node": "^24.12.0",
     "playwright-snapshot-saver": "file:../playwright-snapshot-saver",

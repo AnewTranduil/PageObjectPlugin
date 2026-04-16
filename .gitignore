@@ -29,3 +29,4 @@ node_modules/
 /packages/playwright-snapshot-saver/test-results/
 /.claude/settings.local.json
 .env.claude
+/.intellijPlatform/

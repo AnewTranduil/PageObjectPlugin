@@ -25,6 +25,44 @@
             border-bottom: 1px solid #333;
             flex-shrink: 0;
         }
+        #banner {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 12px;
+            font-size: 12px;
+            background: #4a3b12;
+            color: #f6c343;
+            border-bottom: 1px solid #6b5010;
+            flex-shrink: 0;
+        }
+        #banner.hidden {
+            display: none;
+        }
+        #banner-text {
+            flex: 1;
+            line-height: 1.4;
+        }
+        #banner-link {
+            color: #f6c343;
+            text-decoration: underline;
+            white-space: nowrap;
+        }
+        #banner-link:hover {
+            color: #fde68a;
+        }
+        #banner-dismiss {
+            background: transparent;
+            border: none;
+            color: #f6c343;
+            font-size: 18px;
+            line-height: 1;
+            cursor: pointer;
+            padding: 0 4px;
+        }
+        #banner-dismiss:hover {
+            color: #fde68a;
+        }
         #viewport-container {
             flex: 1;
             position: relative;
@@ -112,9 +150,32 @@
         body.theme-light #empty-state {
             color: #999;
         }
+        body.theme-light #banner {
+            background: #fef3c7;
+            color: #78350f;
+            border-bottom-color: #fcd34d;
+        }
+        body.theme-light #banner-link {
+            color: #78350f;
+        }
+        body.theme-light #banner-link:hover {
+            color: #431407;
+        }
+        body.theme-light #banner-dismiss {
+            color: #78350f;
+        }
+        body.theme-light #banner-dismiss:hover {
+            color: #431407;
+        }
     </style>
 </head>
 <body>
+    <div id="banner" class="hidden" role="alert">
+        <span id="banner-text"></span>
+        <a id="banner-link" target="_blank" rel="noopener"
+           href="https://github.com/AnewTranduil/PageObjectPlugin/blob/main/docs/migration-v1-to-v2.md">View migration guide</a>
+        <button id="banner-dismiss" aria-label="Dismiss">&times;</button>
+    </div>
     <div id="status">Page Mirror Ready</div>
     <div id="viewport-container">
         <div id="viewport-sizer">

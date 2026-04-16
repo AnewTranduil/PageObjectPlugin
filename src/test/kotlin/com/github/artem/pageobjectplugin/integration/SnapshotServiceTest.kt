@@ -1,6 +1,8 @@
 package com.github.artem.pageobjectplugin.integration
 
 import com.github.artem.pageobjectplugin.fixtures.SnapshotFixtures
+import com.github.artem.pageobjectplugin.listeners.RejectedBundle
+import com.github.artem.pageobjectplugin.listeners.ScanResult
 import com.github.artem.pageobjectplugin.model.SnapshotBundle
 import com.github.artem.pageobjectplugin.services.SnapshotService
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
@@ -171,5 +173,96 @@ class SnapshotServiceTest : BasePlatformTestCase() {
         val bundle = SnapshotBundle.fromDirectory(dir)
 
         assertNull("v1 bundles must be refused", bundle)
+    }
+
+    // --- Outdated-bundle banner ------------------------------------
+
+    fun `test updateAvailableSnapshots emits showOutdatedBanner when rejections present`() {
+        val v1Dir = Files.createTempDirectory("pm-banner-v1-")
+        val scan = ScanResult(
+            loaded = emptyList(),
+            rejected = listOf(RejectedBundle(v1Dir, 1)),
+        )
+
+        service.updateAvailableSnapshots(scan)
+
+        val bannerCall = capturedJs.lastOrNull { it.startsWith("window.showOutdatedBanner(") }
+        assertNotNull(
+            "expected window.showOutdatedBanner to be emitted, captured: $capturedJs",
+            bannerCall,
+        )
+        assertTrue(
+            "banner payload should include count:1: $bannerCall",
+            bannerCall!!.contains("count:1"),
+        )
+        assertTrue(
+            "banner payload should include versions:[1]: $bannerCall",
+            bannerCall.contains("versions:[1]"),
+        )
+    }
+
+    fun `test updateAvailableSnapshots hides banner when scan is clean`() {
+        val bundle = SnapshotFixtures.createMinimalSnapshotDir()
+        val scan = ScanResult(loaded = listOf(bundle), rejected = emptyList())
+
+        service.updateAvailableSnapshots(scan)
+
+        assertTrue(
+            "expected window.hideOutdatedBanner(); in $capturedJs",
+            capturedJs.any { it.trim() == "window.hideOutdatedBanner();" },
+        )
+    }
+
+    fun `test updateAvailableSnapshots emits both load and banner when mixed`() {
+        val v2Bundle = SnapshotFixtures.createMinimalSnapshotDir()
+        val v1Dir = Files.createTempDirectory("pm-banner-mixed-v1-")
+        val scan = ScanResult(
+            loaded = listOf(v2Bundle),
+            rejected = listOf(RejectedBundle(v1Dir, 1)),
+        )
+
+        service.updateAvailableSnapshots(scan)
+
+        assertTrue(
+            "v2 bundle should auto-load: $capturedJs",
+            capturedJs.any { it.startsWith("window.loadSnapshot(") },
+        )
+        assertTrue(
+            "banner should warn about v1: $capturedJs",
+            capturedJs.any { it.startsWith("window.showOutdatedBanner(") && it.contains("versions:[1]") },
+        )
+    }
+
+    fun `test updateAvailableSnapshots dedupes and sorts declared versions`() {
+        val dirA = Files.createTempDirectory("pm-banner-v3a-")
+        val dirB = Files.createTempDirectory("pm-banner-v3b-")
+        val dirC = Files.createTempDirectory("pm-banner-v1-")
+        val scan = ScanResult(
+            loaded = emptyList(),
+            rejected = listOf(
+                RejectedBundle(dirA, 3),
+                RejectedBundle(dirB, 3),
+                RejectedBundle(dirC, 1),
+            ),
+        )
+
+        service.updateAvailableSnapshots(scan)
+
+        val bannerCall = capturedJs.last { it.startsWith("window.showOutdatedBanner(") }
+        assertTrue(
+            "expected count:3 (total rejected), versions:[1,3] (deduped/sorted): $bannerCall",
+            bannerCall.contains("count:3") && bannerCall.contains("versions:[1,3]"),
+        )
+    }
+
+    fun `test legacy list overload hides banner`() {
+        val bundle = SnapshotFixtures.createMinimalSnapshotDir()
+
+        service.updateAvailableSnapshots(listOf(bundle))
+
+        assertTrue(
+            "list overload should route through ScanResult and hide banner: $capturedJs",
+            capturedJs.any { it.trim() == "window.hideOutdatedBanner();" },
+        )
     }
 }
