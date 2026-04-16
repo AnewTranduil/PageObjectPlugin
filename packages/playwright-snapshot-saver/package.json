@@ -20,7 +20,7 @@
     "test": "playwright test"
   },
   "dependencies": {
-    "@pagemirror/snapshot-core": "file:../snapshot-core",
+    "@pagemirror/snapshot-core": "^0.1.0",
     "playwright-core": "1.58.2"
   },
   "peerDependencies": {
