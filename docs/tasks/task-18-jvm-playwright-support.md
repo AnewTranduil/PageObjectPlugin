@@ -18,7 +18,7 @@ Playwright's Java API is used by a substantial Selenium-migration crowd and shar
 
 ### Saver package
 - New: `packages/playwright-snapshot-saver-jvm/` (own `build.gradle.kts`, included via `settings.gradle.kts`).
-  - Published coordinates: `com.example.pagemirror:snapshot-saver-jvm`
+  - Published coordinates: `com.github.artem.pageobjectplugin:snapshot-saver-jvm`
   - `src/main/kotlin/.../SnapshotSaver.kt` — `SnapshotSaver.save(page, name, options)`
   - `src/main/kotlin/.../HtmlInliner.kt` — Jsoup-based inliner
   - `src/main/kotlin/.../ManifestGenerator.kt`
