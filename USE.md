@@ -99,7 +99,7 @@ await saveSnapshot(page, {
 | `name` | (required) | Snapshot name — becomes the subdirectory |
 | `group` | — | Parent group directory |
 | `screenshot.enabled` | `true` | Capture a screenshot |
-| `screenshot.format` | `png` | `png` or `jpeg` |
+| `screenshot.format` | `png` | `png` or `webp` |
 | `screenshot.fullPage` | `false` | Capture the full scrollable page |
 | `manifest` | `true` | Generate `manifest.json` |
 
@@ -146,33 +146,43 @@ const result = await extractSnapshots({
 
 ## Snapshot Bundle Format
 
-Each snapshot is a directory containing:
+Each snapshot is a directory containing an `index.html`, a `manifest.json`,
+and a `resources/` sidecar directory. The authoritative spec lives in
+[`docs/snapshot-bundle-spec.md`](docs/snapshot-bundle-spec.md).
 
 ```
 .snapshots/
 ├── login/
 │   ├── initial/
-│   │   ├── index.html          # Sanitized DOM with inlined CSS
-│   │   ├── screenshot.webp     # Visual reference
-│   │   └── manifest.json       # Metadata (URL, viewport, timestamp)
+│   │   ├── index.html          # Sanitized DOM referencing resources/
+│   │   ├── manifest.json       # Metadata (URL, viewport, timestamp)
+│   │   └── resources/
+│   │       ├── screenshot.webp # Visual reference
+│   │       └── <sha1>.css      # Stylesheet sidecars
 │   └── error/
 │       ├── index.html
-│       ├── screenshot.webp
-│       └── manifest.json
+│       ├── manifest.json
+│       └── resources/
 ├── dashboard/
 │   └── main/
 │       └── ...
 ```
 
-**`index.html`** — the full page DOM with all external stylesheets inlined as `<style>` tags. This is what the plugin renders.
+**`index.html`** — the sanitized DOM. Every `<link>`, `<img>`, CSS
+`url(...)`, `@font-face`, and SVG `<use>` reference points at a relative
+path under `resources/`. The plugin inlines sidecar CSS into `<style>`
+blocks before handing the HTML to JCEF because `<iframe srcdoc>` has no
+base URL.
 
-**`screenshot.webp`** (or `.png`/`.jpeg`) — a visual reference of the page at capture time.
+**`resources/screenshot.webp`** (or `.png`) — a visual reference of the
+page at capture time.
 
-**`manifest.json`** — metadata about the snapshot:
+**`manifest.json`** — metadata about the snapshot. The plugin reads
+`manifest.version` and refuses to load anything other than version `2`:
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "url": "https://example.com/login",
   "viewport": { "width": 1280, "height": 720 },
   "timestamp": "2025-01-15T10:30:00Z",
