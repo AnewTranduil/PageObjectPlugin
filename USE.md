@@ -99,7 +99,7 @@ await saveSnapshot(page, {
 | `name` | (required) | Snapshot name — becomes the subdirectory |
 | `group` | — | Parent group directory |
 | `screenshot.enabled` | `true` | Capture a screenshot |
-| `screenshot.format` | `png` | `png` or `jpeg` |
+| `screenshot.format` | `png` | Live capture supports `png` only. The trace-extraction path additionally accepts `webp`. |
 | `screenshot.fullPage` | `false` | Capture the full scrollable page |
 | `manifest` | `true` | Generate `manifest.json` |
 
@@ -146,39 +146,52 @@ const result = await extractSnapshots({
 
 ## Snapshot Bundle Format
 
-Each snapshot is a directory containing:
+Each snapshot is a directory in the **v2** bundle layout. Resources
+(stylesheets, screenshots, fonts, images) live under a flat
+`resources/` subdirectory and are referenced from `index.html` by
+relative path:
 
 ```
 .snapshots/
 ├── login/
 │   ├── initial/
-│   │   ├── index.html          # Sanitized DOM with inlined CSS
-│   │   ├── screenshot.webp     # Visual reference
-│   │   └── manifest.json       # Metadata (URL, viewport, timestamp)
+│   │   ├── index.html                  # Sanitized DOM referencing resources/
+│   │   ├── manifest.json               # Metadata (URL, viewport, timestamp)
+│   │   └── resources/
+│   │       ├── screenshot.webp         # Visual reference (or .png)
+│   │       └── <sha1>.css              # CSS sidecars
 │   └── error/
 │       ├── index.html
-│       ├── screenshot.webp
-│       └── manifest.json
+│       ├── manifest.json
+│       └── resources/...
 ├── dashboard/
 │   └── main/
 │       └── ...
 ```
 
-**`index.html`** — the full page DOM with all external stylesheets inlined as `<style>` tags. This is what the plugin renders.
+**`index.html`** — the sanitized page DOM. CSS lives as `resources/<sha1>.css` sidecars referenced by `<link>`; the plugin inlines them on read because `<iframe srcdoc>` cannot resolve relative URLs. This is what the plugin renders.
 
-**`screenshot.webp`** (or `.png`/`.jpeg`) — a visual reference of the page at capture time.
+**`resources/screenshot.webp`** (or `.png`) — a visual reference of the page at capture time.
 
 **`manifest.json`** — metadata about the snapshot:
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "url": "https://example.com/login",
   "viewport": { "width": 1280, "height": 720 },
   "timestamp": "2025-01-15T10:30:00Z",
   "playwright": "1.48.0"
 }
 ```
+
+The plugin refuses to load any bundle whose `manifest.version` is not
+`2` and shows an actionable banner pointing at
+[`docs/migration-v1-to-v2.md`](docs/migration-v1-to-v2.md). Bundles
+captured by `playwright-snapshot-saver` `≥ 0.7.0` are already v2 — for
+older bundles, re-run your tests to regenerate. See
+[`docs/snapshot-bundle-spec.md`](docs/snapshot-bundle-spec.md) for the
+authoritative spec.
 
 ## Stage 2: Load in the IDE
 

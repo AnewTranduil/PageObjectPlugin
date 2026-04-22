@@ -12,7 +12,7 @@ An IntelliJ plugin that renders Playwright page snapshots inside a docked Tool W
 | Language         | Kotlin (no Java)                           |
 | Target IDEs     | IntelliJ Community + Ultimate + WebStorm   |
 | Min Platform    | 2024.3+                                    |
-| Plugin ID       | `com.example.pagemirror`                   |
+| Plugin ID       | `com.github.artem.pageobjectplugin`        |
 | UI Location     | Tool Window, right panel, anchor=right     |
 | JCEF            | Guaranteed available (bundled in 2024.3+)  |
 
@@ -63,12 +63,14 @@ with a user-visible error.
 
 ```
 src/main/
-  kotlin/com/example/pagemirror/
+  kotlin/com/github/artem/pageobjectplugin/
     PageMirrorToolWindowFactory.kt
+    PageObjectBundle.kt
     model/
       SnapshotBundle.kt
     services/
       SnapshotService.kt
+      SnapshotHtmlResolver.kt
     listeners/
       SnapshotDiscoveryListener.kt
       SnapshotWatcher.kt
@@ -78,15 +80,19 @@ src/main/
       PickerResultHandler.kt
     actions/
       LoadSnapshotAction.kt
-      InsertLocatorAction.kt
       ToggleInspectAction.kt
+      HighlightCurrentSelectorAction.kt
     annotators/
       SelectorValidationAnnotator.kt
     settings/
       PageMirrorSettings.kt
       PageMirrorConfigurable.kt
+    widgets/
+      PageMirrorStatusBarWidgetFactory.kt
   resources/
     META-INF/plugin.xml
+    messages/
+      PageObjectBundle.properties
     html/
       page-mirror.html
       js/
@@ -95,20 +101,45 @@ src/main/
         highlight.js
         inspect.js
         theme.js
+    demo-viewer/            # Self-contained trace viewer (Task 19)
+      index.html
+      app.js
+      styles.css
 ```
+
+The `actions/` directory does **not** contain an `InsertLocatorAction` —
+locator insertion is triggered as a side effect of the picker's result
+callback, handled in `locators/PickerResultHandler.kt`. The action
+surface is: `LoadSnapshotAction` (Tools menu), `ToggleInspectAction`
+(`Alt+Shift+I`), and `HighlightCurrentSelectorAction` (`Alt+Shift+H`).
 
 ## Test Project Layout
 
+The Playwright fixture project lives under `packages/` as part of the
+npm workspace and is the source of truth for `.snapshots/` regeneration.
+
 ```
-test-project/
+packages/test-project/
   package.json
   playwright.config.ts
-  page-objects/login.page.ts
-  tests/login.spec.ts
-  utils/save-state.ts
-  .snapshots/login/
-    initial/      {index.html, manifest.json, resources/}
-    error-state/  {index.html, manifest.json, resources/}
+  tsconfig.json
+  page-objects/
+    login.page.ts
+    dashboard.page.ts
+  tests/
+    login.spec.ts
+    dashboard.spec.ts
+  fixtures/                 # Static HTML/CSS served to Playwright
+    app.html
+    login.html
+    styles/{reset,layout,components,theme}.css
+  .snapshots/
+    login/
+      initial/      {index.html, manifest.json}
+      error-state/  {index.html, manifest.json}
+    dashboard/
+      initial/        {index.html, manifest.json, resources/}
+      ticket-filled/  {index.html, manifest.json, resources/}
 ```
 
 ## Task Sequence
@@ -130,11 +161,12 @@ Tasks MUST be completed in order. Each task is in `docs/tasks/`.
 
 ## Current State
 
-**Tasks 0–14 and 19 are complete.** All plugin features ship, the snapshot
-saver npm package is published, the UI test suite runs under a layered
-Page Object structure, CI aggregates test results into a single
-`claude-summary.{json,md}` bundle, and a Playwright-style trace viewer is
-auto-generated on PRs tagged `demo`.
+**Tasks 0–15, 15.5, and 19 are complete.** All plugin features ship,
+the `playwright-snapshot-saver` npm package is published on top of the
+extracted `@pagemirror/snapshot-core` engine, the UI test suite runs
+under a layered Page Object structure, CI aggregates test results into
+a single `claude-summary.{json,md}` bundle, and a Playwright-style
+trace viewer is auto-generated on PRs tagged `demo`.
 
 - **Tasks 0–9:** Plugin shell, snapshot loading, file watcher, highlight
   bridge, element picker, gutter validation, polish, JS refactor,
@@ -149,13 +181,20 @@ auto-generated on PRs tagged `demo`.
 - **Task 14 (CI test reporting):** `build.gradle.kts` registers `aggregateTestReport` (`:219`) and `testReport` (`:261`); `buildSrc/.../buildtools/` contains `ClaudeSummaryGenerator`, `JUnitXmlParser`, `PlaywrightJsonParser`, `MarkdownEmitter`, `TraceJsonAugmenter` with unit tests.
 - **Task 19 (Feature demo trace viewer):** `ui/annotations/Feature.kt`, `FeatureTagListener`, `buildSrc/.../DemoReportRenderer.kt` + `DemoTestSelector.kt`, `src/main/resources/demo-viewer/`, and `.github/workflows/demo.yml` together render a self-contained trace viewer per PR.
 
-**Task 15 (Extract `@pagemirror/snapshot-core`)** is **in progress** on
-branch `claude/check-task-statuses-C7rh9`. This bumps the snapshot bundle
-format to v2: `screenshot.<ext>` moves under `resources/`, CSS is written
-as `resources/<sha1>.css` sidecars referenced by `<link>`, and the plugin
-inlines sidecar CSS on read (since `srcdoc` iframes can't resolve relative
-URLs). v1 bundles are refused with a clear error message — regenerate via
-`npx playwright test` in `packages/test-project/`.
+**Task 15 (Extract `@pagemirror/snapshot-core`)** — landed (PR #30
+merged into main). The framework-agnostic core lives at
+`packages/snapshot-core/` (published as `@pagemirror/snapshot-core`)
+and the Playwright adapter at `packages/playwright-snapshot-saver/`
+now delegates live capture to it. Both packages are wired into the
+root npm workspace (see `package.json`). Task 15 also bumped the
+snapshot bundle format to v2: `screenshot.<ext>` moves under
+`resources/`, CSS is written as `resources/<sha1>.css` sidecars
+referenced by `<link>`, and the plugin inlines sidecar CSS on read
+(since `srcdoc` iframes can't resolve relative URLs). v1 bundles are
+refused with a clear error message — regenerate via `npx playwright
+test` in `packages/test-project/`. See
+[`docs/migration-v1-to-v2.md`](docs/migration-v1-to-v2.md) for the
+user-facing migration guide.
 
 **Task 15.5 (Framework-agnostic trace rendering + resource inlining)** —
 `@pagemirror/snapshot-core` now owns trace rendering behind a
