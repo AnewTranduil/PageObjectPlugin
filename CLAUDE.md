@@ -1,8 +1,13 @@
-# Page Mirror — IntelliJ Plugin for Playwright
+# Page Object Helper — IntelliJ Plugin for Playwright
 
 ## What This Project Is
 
 An IntelliJ plugin that renders Playwright page snapshots inside a docked Tool Window (JCEF browser). When a developer places their cursor on a Playwright locator in their TypeScript code, the corresponding element highlights in the snapshot view. Developers can also click elements in the snapshot to generate locator code.
+
+The plugin is registered as **Page Object Helper** (the `<name>` in
+`plugin.xml`); the docked tool window it provides is labeled **Page
+Mirror**. Both names appear throughout the codebase and refer to the
+same plugin.
 
 ## Project Configuration
 
@@ -12,7 +17,9 @@ An IntelliJ plugin that renders Playwright page snapshots inside a docked Tool W
 | Language         | Kotlin (no Java)                           |
 | Target IDEs     | IntelliJ Community + Ultimate + WebStorm   |
 | Min Platform    | 2024.3+                                    |
-| Plugin ID       | `com.example.pagemirror`                   |
+| Plugin ID       | `com.github.artem.pageobjectplugin`        |
+| Plugin Name     | `Page Object Helper`                       |
+| Tool Window ID  | `Page Mirror`                              |
 | UI Location     | Tool Window, right panel, anchor=right     |
 | JCEF            | Guaranteed available (bundled in 2024.3+)  |
 
@@ -63,12 +70,14 @@ with a user-visible error.
 
 ```
 src/main/
-  kotlin/com/example/pagemirror/
+  kotlin/com/github/artem/pageobjectplugin/
     PageMirrorToolWindowFactory.kt
+    PageObjectBundle.kt
     model/
       SnapshotBundle.kt
     services/
       SnapshotService.kt
+      SnapshotHtmlResolver.kt
     listeners/
       SnapshotDiscoveryListener.kt
       SnapshotWatcher.kt
@@ -78,13 +87,15 @@ src/main/
       PickerResultHandler.kt
     actions/
       LoadSnapshotAction.kt
-      InsertLocatorAction.kt
       ToggleInspectAction.kt
+      HighlightCurrentSelectorAction.kt
     annotators/
       SelectorValidationAnnotator.kt
     settings/
       PageMirrorSettings.kt
       PageMirrorConfigurable.kt
+    widgets/
+      PageMirrorStatusBarWidgetFactory.kt
   resources/
     META-INF/plugin.xml
     html/
@@ -95,6 +106,10 @@ src/main/
         highlight.js
         inspect.js
         theme.js
+    demo-viewer/
+      index.html
+      app.js
+      styles.css
 ```
 
 ## Test Project Layout
@@ -130,11 +145,12 @@ Tasks MUST be completed in order. Each task is in `docs/tasks/`.
 
 ## Current State
 
-**Tasks 0–14 and 19 are complete.** All plugin features ship, the snapshot
-saver npm package is published, the UI test suite runs under a layered
-Page Object structure, CI aggregates test results into a single
-`claude-summary.{json,md}` bundle, and a Playwright-style trace viewer is
-auto-generated on PRs tagged `demo`.
+**Tasks 0–15, 15.5, and 19 are complete.** All plugin features ship, the
+snapshot saver npm package is published, `@pagemirror/snapshot-core` is
+published as a separate npm package and consumed by the saver, the UI
+test suite runs under a layered Page Object structure, CI aggregates
+test results into a single `claude-summary.{json,md}` bundle, and a
+Playwright-style trace viewer is auto-generated on PRs tagged `demo`.
 
 - **Tasks 0–9:** Plugin shell, snapshot loading, file watcher, highlight
   bridge, element picker, gutter validation, polish, JS refactor,
@@ -149,13 +165,15 @@ auto-generated on PRs tagged `demo`.
 - **Task 14 (CI test reporting):** `build.gradle.kts` registers `aggregateTestReport` (`:219`) and `testReport` (`:261`); `buildSrc/.../buildtools/` contains `ClaudeSummaryGenerator`, `JUnitXmlParser`, `PlaywrightJsonParser`, `MarkdownEmitter`, `TraceJsonAugmenter` with unit tests.
 - **Task 19 (Feature demo trace viewer):** `ui/annotations/Feature.kt`, `FeatureTagListener`, `buildSrc/.../DemoReportRenderer.kt` + `DemoTestSelector.kt`, `src/main/resources/demo-viewer/`, and `.github/workflows/demo.yml` together render a self-contained trace viewer per PR.
 
-**Task 15 (Extract `@pagemirror/snapshot-core`)** is **in progress** on
-branch `claude/check-task-statuses-C7rh9`. This bumps the snapshot bundle
-format to v2: `screenshot.<ext>` moves under `resources/`, CSS is written
-as `resources/<sha1>.css` sidecars referenced by `<link>`, and the plugin
-inlines sidecar CSS on read (since `srcdoc` iframes can't resolve relative
-URLs). v1 bundles are refused with a clear error message — regenerate via
-`npx playwright test` in `packages/test-project/`.
+**Task 15 (Extract `@pagemirror/snapshot-core`)** shipped: the package
+lives at `packages/snapshot-core/` (`@pagemirror/snapshot-core`,
+currently `0.1.0`) and is consumed by `playwright-snapshot-saver` via
+semver. The work also bumped the snapshot bundle format to v2:
+`screenshot.<ext>` moved under `resources/`, CSS is written as
+`resources/<sha1>.css` sidecars referenced by `<link>`, and the plugin
+inlines sidecar CSS on read (since `srcdoc` iframes can't resolve
+relative URLs). v1 bundles are refused with a clear error message —
+regenerate via `npx playwright test` in `packages/test-project/`.
 
 **Task 15.5 (Framework-agnostic trace rendering + resource inlining)** —
 `@pagemirror/snapshot-core` now owns trace rendering behind a
@@ -256,7 +274,10 @@ and run against a sandboxed IDE launched by `./gradlew runIdeForUiTests`.
 The layout was overhauled in Task 13 — follow these rules.
 
 - **Layering rule.** Tests call Flows or Pages, never raw fixtures.
-  Flows orchestrate multiple Pages. Pages compose Fixtures and call
+  Flows orchestrate multiple Pages. Pages compose Fixtures (under
+  `ui/fixtures/`, e.g. `PageMirrorToolWindowFixture`,
+  `PageMirrorSettingsFixture`, `SnapshotBrowserFixture`,
+  `StatusBarFixture`, `GutterFixture`) and call
   `StepRecorder.step("...")` for each logical action so the action
   shows up in `trace.json`. Fixtures contain no literal XPath strings —
   every locator comes from `ui/locators/`.
@@ -277,9 +298,8 @@ The layout was overhauled in Task 13 — follow these rules.
   do not hide it.
 - **Reference tests.** `tests/ToolWindowUiTest.kt` is the canonical
   Page/Flow example for active tests. `tests/SettingsUiTest.kt` is the
-  canonical example for tests that compose `SettingsChangeFlow`; it is
-  currently `@Disabled` for unrelated reasons (UI DSL component
-  wrapping) but kept as a structural reference.
+  canonical example for tests that compose `SettingsChangeFlow` and is
+  active (`@Feature("settings")`).
 
 ## Report Dashboard Access
 
