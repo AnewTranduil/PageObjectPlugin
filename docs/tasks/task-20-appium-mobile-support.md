@@ -1,6 +1,6 @@
 # Task 20: Appium Mobile Snapshot Saver
 
-> **Goal:** Ship `appium-snapshot-saver` — a `PageAdapter` over Appium that captures native mobile page source + screenshot into a spec-v1 bundle, extending the manifest `viewport` with platform + device metadata.
+> **Goal:** Ship `appium-snapshot-saver` — a `PageAdapter` over Appium that captures native mobile page source + screenshot into a spec-v2 bundle, extending the manifest `viewport` with platform + device metadata.
 > **Depends on:** Task 15 (`snapshot-core`), Task 17 (pattern for adapter packages).
 > **Output:** New `packages/appium-snapshot-saver/`, decision on HTML-vs-XML rendering fallback tracked as follow-up.
 
