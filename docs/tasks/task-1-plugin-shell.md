@@ -6,7 +6,7 @@
 
 ## Prompt
 
-I have an IntelliJ Platform Plugin project (Gradle Plugin 2.x, Kotlin, min platform 2024.3). The plugin ID is `com.example.pagemirror`.
+I have an IntelliJ Platform Plugin project (Gradle Plugin 2.x, Kotlin, min platform 2024.3). The plugin ID is `com.github.artem.pageobjectplugin`.
 
 Create the plugin shell with these requirements:
 

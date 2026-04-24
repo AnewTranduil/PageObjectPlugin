@@ -26,7 +26,7 @@
 - **Programmatic IDE actions:** Replaced keyboard-shortcut-driven `openFileInEditor()`, `goToLine()`, and `openToolWindow()` with `callJs` that invokes IDE APIs directly (`FileEditorManager`, `ToolWindowManager`, `LogicalPosition`). Keyboard shortcuts failed because the IDE window could be minimized/iconified.
 - **Window focus:** Added `bringIdeToFront()` that de-iconifies the IDE frame and calls `toFront()`/`requestFocus()`.
 - **Plugin classloader isolation:** Remote Robot's Rhino JS engine runs under the robot-server-plugin classloader, which cannot see plugin classes via `Class.forName()`. All service access uses `PluginManagerCore.getPlugin(pluginId).getPluginClassLoader().loadClass(...)`.
-- **Plugin ID:** Actual ID is `com.github.artem.pageobjectplugin` (not `com.example.pagemirror` from CLAUDE.md).
+- **Plugin ID:** Tests load the plugin classloader by its real ID `com.github.artem.pageobjectplugin`.
 
 ### PageMirrorToolWindowFixture
 
