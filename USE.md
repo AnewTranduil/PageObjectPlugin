@@ -146,39 +146,51 @@ const result = await extractSnapshots({
 
 ## Snapshot Bundle Format
 
-Each snapshot is a directory containing:
+Each snapshot is a directory containing (v2 format — see
+[`docs/snapshot-bundle-spec.md`](docs/snapshot-bundle-spec.md) for the
+authoritative spec):
 
 ```
 .snapshots/
 ├── login/
 │   ├── initial/
-│   │   ├── index.html          # Sanitized DOM with inlined CSS
-│   │   ├── screenshot.webp     # Visual reference
-│   │   └── manifest.json       # Metadata (URL, viewport, timestamp)
+│   │   ├── index.html              # Sanitized DOM, references resources/
+│   │   ├── manifest.json           # Metadata, schema version 2
+│   │   └── resources/              # Optional, present when the page references external CSS/images
+│   │       ├── screenshot.webp     # Visual reference
+│   │       └── <sha1>.css          # Stylesheet sidecars
 │   └── error/
 │       ├── index.html
-│       ├── screenshot.webp
-│       └── manifest.json
-├── dashboard/
-│   └── main/
-│       └── ...
+│       ├── manifest.json
+│       └── resources/
+└── dashboard/
+    └── main/
+        └── ...
 ```
 
-**`index.html`** — the full page DOM with all external stylesheets inlined as `<style>` tags. This is what the plugin renders.
+**`index.html`** — the page DOM, with `<link rel="stylesheet">` references
+pointing into `resources/`. The plugin inlines those sidecars on read
+because the `srcdoc` iframe it renders into has no base URL and cannot
+resolve relative paths.
 
-**`screenshot.webp`** (or `.png`/`.jpeg`) — a visual reference of the page at capture time.
+**`resources/screenshot.webp`** (or `.png`) — a visual reference of the
+page at capture time.
 
 **`manifest.json`** — metadata about the snapshot:
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "url": "https://example.com/login",
   "viewport": { "width": 1280, "height": 720 },
   "timestamp": "2025-01-15T10:30:00Z",
   "playwright": "1.48.0"
 }
 ```
+
+The plugin only loads bundles whose `manifest.version` is `2`. If you
+upgrade the plugin and see an "outdated bundle" banner, regenerate your
+snapshots — see [`docs/migration-v1-to-v2.md`](docs/migration-v1-to-v2.md).
 
 ## Stage 2: Load in the IDE
 
