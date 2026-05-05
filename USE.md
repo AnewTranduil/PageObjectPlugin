@@ -146,39 +146,58 @@ const result = await extractSnapshots({
 
 ## Snapshot Bundle Format
 
-Each snapshot is a directory containing:
+Snapshots use the **v2** bundle layout. Each snapshot directory is
+self-contained and references every external resource through a
+`resources/` sidecar:
 
 ```
 .snapshots/
 ├── login/
 │   ├── initial/
-│   │   ├── index.html          # Sanitized DOM with inlined CSS
-│   │   ├── screenshot.webp     # Visual reference
-│   │   └── manifest.json       # Metadata (URL, viewport, timestamp)
+│   │   ├── index.html              # Sanitized DOM, references resources/<file>
+│   │   ├── manifest.json           # Metadata (schema version 2)
+│   │   └── resources/
+│   │       ├── screenshot.webp     # Visual reference
+│   │       └── <sha1>.css          # Stylesheet sidecars referenced by <link>
 │   └── error/
 │       ├── index.html
-│       ├── screenshot.webp
-│       └── manifest.json
-├── dashboard/
-│   └── main/
-│       └── ...
+│       ├── manifest.json
+│       └── resources/
+└── dashboard/
+    └── main/
+        └── ...
 ```
 
-**`index.html`** — the full page DOM with all external stylesheets inlined as `<style>` tags. This is what the plugin renders.
+**`index.html`** — the sanitized page DOM. Stylesheets are kept as
+external `<link rel="stylesheet" href="resources/<sha1>.css">` sidecars
+(or inline `<style>` blocks); the plugin inlines sidecar CSS on the
+Kotlin side before handing the HTML to the JCEF `srcdoc` iframe, since
+`srcdoc` has no base URL and cannot resolve relative paths.
 
-**`screenshot.webp`** (or `.png`/`.jpeg`) — a visual reference of the page at capture time.
+**`resources/screenshot.webp`** (or `.png`) — a visual reference of the
+page at capture time. v1 placed this at the top level; v2 moved it
+under `resources/` so all captured assets live in one flat directory.
 
 **`manifest.json`** — metadata about the snapshot:
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "url": "https://example.com/login",
   "viewport": { "width": 1280, "height": 720 },
   "timestamp": "2025-01-15T10:30:00Z",
-  "playwright": "1.48.0"
+  "playwright": "1.58.2",
+  "userAgent": "Mozilla/5.0 ..."
 }
 ```
+
+`version` is the **schema** version, not a write counter — it's always
+`2` for bundles produced by current savers. The plugin refuses to load
+bundles whose `manifest.version` is anything else, surfacing an
+outdated-bundle banner that links to
+[`docs/migration-v1-to-v2.md`](docs/migration-v1-to-v2.md). See
+[`docs/snapshot-bundle-spec.md`](docs/snapshot-bundle-spec.md) for the
+authoritative spec.
 
 ## Stage 2: Load in the IDE
 
