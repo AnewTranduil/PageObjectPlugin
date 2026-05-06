@@ -2,7 +2,7 @@
 
 ## Context
 
-Tasks 0–14 plus 19 are complete: the plugin works end-to-end for Playwright + TypeScript, the `playwright-snapshot-saver` npm package ships snapshots from real Playwright runs, the settings UI is on Kotlin UI DSL v2, the UI test suite runs under a layered Page Object structure with polling/retry/trace-bundle diagnostics, CI aggregates unit + UI + Playwright results into a single `claude-summary.{json,md}` bundle consumed via `reports.artemon.cloud`, and PRs tagged `demo` auto-render a Playwright-style trace viewer. The current architecture is still tightly coupled to TypeScript (regex-based locator extraction) and Playwright (snapshot saver imports `@playwright/test`). Task 15 below extracts a framework-agnostic `@pagemirror/snapshot-core` package so Selenium / Cypress / Appium / Python / JVM adapters (16–18, 20) can be layered on top without duplicating bundle assembly.
+Tasks 0–15.5 plus 19 are complete: the plugin works end-to-end for Playwright + TypeScript, both `playwright-snapshot-saver` and `@pagemirror/snapshot-core` are published to npm and ship snapshots in the v2 bundle format from real Playwright runs (live capture and trace extraction), the settings UI is on Kotlin UI DSL v2, the UI test suite runs under a layered Page Object structure with polling/retry/trace-bundle diagnostics, CI aggregates unit + UI + Playwright results into a single `claude-summary.{json,md}` bundle consumed via `reports.artemon.cloud`, and PRs tagged `demo` auto-render a Playwright-style trace viewer. The current architecture is still tightly coupled to TypeScript (regex-based locator extraction) on the IDE side. With `@pagemirror/snapshot-core` extracted (Task 15) and trace rendering owned by core (Task 15.5), Selenium / Cypress / Appium / Python / JVM adapters (16–18, 20) can be layered on top by implementing the `PageAdapter` and/or `TraceBackend` interfaces without duplicating bundle assembly.
 
 This roadmap broadens language/framework reach and tightens the inner dev loop so future work scales. It is organized into three tracks (A, B, C) that can progress semi-independently. Each roadmap item corresponds to one or more task docs under `docs/tasks/`.
 
@@ -10,7 +10,7 @@ This roadmap broadens language/framework reach and tightens the inner dev loop s
 
 ## Track A — Language Support
 
-Each language task has **two halves**: (1) IDE-side locator extraction so highlight/gutter work, and (2) a snapshot-saver sibling package in the target language so users can actually produce `.snapshots/` bundles from their non-TS test runs. The existing npm package cannot be consumed from Python/Java/Kotlin, so we ship native packages that reuse the same on-disk bundle format (`index.html` + `screenshot.webp` + `manifest.json`) defined in `CLAUDE.md` and frozen in `docs/snapshot-bundle-spec.md`.
+Each language task has **two halves**: (1) IDE-side locator extraction so highlight/gutter work, and (2) a snapshot-saver sibling package in the target language so users can actually produce `.snapshots/` bundles from their non-TS test runs. The existing npm package cannot be consumed from Python/Java/Kotlin, so we ship native packages that reuse the same v2 on-disk bundle format (`index.html` + `manifest.json` + `resources/`) defined in `CLAUDE.md` and frozen in `docs/snapshot-bundle-spec.md`.
 
 - **A1. Python Playwright support** — `task-16-python-playwright-support.md`
 - **A2. Java/Kotlin Playwright support** — `task-18-jvm-playwright-support.md`
