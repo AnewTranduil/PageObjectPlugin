@@ -65,14 +65,14 @@ npx playwright test
 | Option | Default | Description |
 |--------|---------|-------------|
 | `outputDir` | `.snapshots` | Where to save snapshots |
-| `screenshot` | `true` | Extract screenshot from trace screencast |
+| `screenshot` | `false` | Extract a screencast frame as `resources/screenshot.webp`. Off by default since trace screencast frames are low-fidelity and often blank. |
 | `manifest` | `true` | Generate `manifest.json` with metadata |
 
 ```typescript
 reporter: [
   ['playwright-snapshot-saver/reporter', {
     outputDir: './my-snapshots',
-    screenshot: false,
+    screenshot: true,
   }]
 ]
 ```
@@ -88,7 +88,7 @@ await saveSnapshot(page, {
   outputDir: '.snapshots',
   name: 'login-initial',
   group: 'login',
-  screenshot: { enabled: true, format: 'png', fullPage: false },
+  screenshot: { format: 'png', fullPage: false },  // or `false` to skip
   manifest: true,
 });
 ```
@@ -98,8 +98,8 @@ await saveSnapshot(page, {
 | `outputDir` | (required) | Base output directory |
 | `name` | (required) | Snapshot name — becomes the subdirectory |
 | `group` | — | Parent group directory |
-| `screenshot.enabled` | `true` | Capture a screenshot |
-| `screenshot.format` | `png` | `png` or `jpeg` |
+| `screenshot` | `{ format: 'png', fullPage: false }` | Screenshot options. Pass `false` to skip. |
+| `screenshot.format` | `png` | `png` or `webp`. Live capture supports `png` only — `webp` throws. For webp bytes, use the trace-extraction path. |
 | `screenshot.fullPage` | `false` | Capture the full scrollable page |
 | `manifest` | `true` | Generate `manifest.json` |
 
@@ -139,12 +139,12 @@ const result = await extractSnapshots({
 |--------|---------|-------------|
 | `source` | (required) | Report directory, trace ZIP path, or URL |
 | `outputDir` | `.snapshots` | Where to save snapshots |
-| `screenshot` | `true` | Extract screenshot from trace |
+| `screenshot` | `false` | Extract a screencast frame as `resources/screenshot.webp` (off by default since 0.6.0) |
 | `manifest` | `true` | Generate `manifest.json` |
 | `filter.page` | — | Only extract this page |
 | `filter.state` | — | Only extract this state |
 
-## Snapshot Bundle Format
+## Snapshot Bundle Format (v2)
 
 Each snapshot is a directory containing:
 
@@ -152,33 +152,51 @@ Each snapshot is a directory containing:
 .snapshots/
 ├── login/
 │   ├── initial/
-│   │   ├── index.html          # Sanitized DOM with inlined CSS
-│   │   ├── screenshot.webp     # Visual reference
-│   │   └── manifest.json       # Metadata (URL, viewport, timestamp)
+│   │   ├── index.html              # Sanitized DOM referencing resources/
+│   │   ├── manifest.json           # Metadata, schema version 2
+│   │   └── resources/
+│   │       ├── screenshot.webp     # Visual reference (optional)
+│   │       └── <sha1>.css          # Stylesheet sidecars
 │   └── error/
 │       ├── index.html
-│       ├── screenshot.webp
-│       └── manifest.json
+│       ├── manifest.json
+│       └── resources/
+│           ├── screenshot.webp
+│           └── <sha1>.css
 ├── dashboard/
 │   └── main/
 │       └── ...
 ```
 
-**`index.html`** — the full page DOM with all external stylesheets inlined as `<style>` tags. This is what the plugin renders.
+**`index.html`** — the sanitized page DOM. CSS is referenced as
+`<link rel="stylesheet" href="resources/<sha1>.css">` sidecars rather
+than inlined. The plugin inlines those sidecars into `<style>` blocks
+on read because `<iframe srcdoc>` cannot resolve relative URLs.
 
-**`screenshot.webp`** (or `.png`/`.jpeg`) — a visual reference of the page at capture time.
+**`resources/screenshot.webp`** (or `.png`) — a visual reference of the
+page at capture time.
+
+**`resources/<sha1>.css`** — one file per stylesheet, named by a
+16-hex-char prefix of `sha1(css_source)` so identical stylesheets across
+snapshots de-duplicate naturally.
 
 **`manifest.json`** — metadata about the snapshot:
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "url": "https://example.com/login",
   "viewport": { "width": 1280, "height": 720 },
   "timestamp": "2025-01-15T10:30:00Z",
-  "playwright": "1.48.0"
+  "userAgent": "Mozilla/5.0 ...",
+  "playwright": "1.58.0"
 }
 ```
+
+The plugin refuses to load bundles whose `manifest.version` is anything
+other than `2`. See [`docs/migration-v1-to-v2.md`](docs/migration-v1-to-v2.md)
+for the migration guide and [`docs/snapshot-bundle-spec.md`](docs/snapshot-bundle-spec.md)
+for the authoritative spec.
 
 ## Stage 2: Load in the IDE
 
