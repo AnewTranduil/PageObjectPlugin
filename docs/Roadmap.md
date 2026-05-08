@@ -2,7 +2,23 @@
 
 ## Context
 
-Tasks 0–14 plus 19 are complete: the plugin works end-to-end for Playwright + TypeScript, the `playwright-snapshot-saver` npm package ships snapshots from real Playwright runs, the settings UI is on Kotlin UI DSL v2, the UI test suite runs under a layered Page Object structure with polling/retry/trace-bundle diagnostics, CI aggregates unit + UI + Playwright results into a single `claude-summary.{json,md}` bundle consumed via `reports.artemon.cloud`, and PRs tagged `demo` auto-render a Playwright-style trace viewer. The current architecture is still tightly coupled to TypeScript (regex-based locator extraction) and Playwright (snapshot saver imports `@playwright/test`). Task 15 below extracts a framework-agnostic `@pagemirror/snapshot-core` package so Selenium / Cypress / Appium / Python / JVM adapters (16–18, 20) can be layered on top without duplicating bundle assembly.
+Tasks 0–15, 15.5, and 19 are complete and shipped on `main`: the
+plugin works end-to-end for Playwright + TypeScript, the
+`playwright-snapshot-saver` npm package ships snapshots from real
+Playwright runs in the v2 bundle format, the framework-agnostic
+`@pagemirror/snapshot-core` package owns HTML assembly + manifest
+building + trace rendering (so future Selenium / Cypress / Appium /
+Python / JVM adapters can plug in via `PageAdapter` and `TraceBackend`
+without duplicating bundle logic), the settings UI is on Kotlin UI
+DSL v2, the UI test suite runs under a layered Page Object structure
+with polling / retry / trace-bundle diagnostics, CI aggregates unit +
+UI + Playwright results into a single `claude-summary.{json,md}`
+bundle consumed via `reports.artemon.cloud`, and PRs tagged `demo`
+auto-render a Playwright-style trace viewer. The remaining
+architectural coupling is on the IDE side — locator extraction is
+regex-based and currently scoped to TypeScript, so Tasks 16 (Python),
+17 (Selenium/Cypress), 18 (JVM), and 20 (Appium / mobile) layer
+language- and driver-specific adapters on top of the now-stable core.
 
 This roadmap broadens language/framework reach and tightens the inner dev loop so future work scales. It is organized into three tracks (A, B, C) that can progress semi-independently. Each roadmap item corresponds to one or more task docs under `docs/tasks/`.
 
@@ -21,7 +37,7 @@ Shared prerequisite: freeze `docs/snapshot-bundle-spec.md` before A1/A2 implemen
 
 ## Track B — Snapshot Saver Consolidation & Multi-Framework
 
-- **B1. Extract framework-agnostic core** — `task-15-snapshot-core-extraction.md`
+- **B1. Extract framework-agnostic core** — `task-15-snapshot-core-extraction.md` ✅ shipped (plus Task 15.5: trace rendering + resource inlining moved into `@pagemirror/snapshot-core`).
 - **B2. Selenium + Cypress adapters** — `task-17-selenium-cypress-adapters.md`
 - **B3. Mobile environment support (Appium)** — `task-20-appium-mobile-support.md`
 
@@ -43,25 +59,23 @@ B1 is a pure refactor; B2 and B3 layer new adapters on top of the extracted core
 
 ## Suggested Execution Order
 
-1. **C1a** — unblock UI tests (everything else benefits).
-2. **C1b–d** — reliability, diagnostics, page-object refactor.
-3. **C2** — get the Claude inner loop solid before adding scope.
-4. **B1** — refactor snapshot core (low risk, enables B2/B3).
-5. **A1** — Python Playwright (highest user demand for language expansion).
-6. **B2** — Selenium/Cypress adapters.
-7. **A2** — Java/Kotlin Playwright.
-8. **C3** — demo reporting (depends on C1c trace format + C2 stable).
-9. **B3** — mobile/Appium (largest unknowns).
+C1, C2, B1, and C3 are done and shipped on `main`. The remaining
+language- and driver-adapter tracks can proceed in roughly this order:
+
+1. **A1** — Python Playwright (highest user demand for language expansion).
+2. **B2** — Selenium/Cypress adapters.
+3. **A2** — Java/Kotlin Playwright.
+4. **B3** — mobile/Appium (largest unknowns).
 
 ---
 
 ## High-Level Verification
 
 - **A1/A2**: new unit tests in `src/test/kotlin/.../locators/` pass; open a `.py`/`.java` file with locators and confirm gutter badges and caret-driven highlight in the tool window.
-- **B1**: `npm test` in both `snapshot-core` and `playwright-snapshot-saver` passes; no regression in `test-project/` snapshots.
+- **B1** *(shipped)*: `npm test` in both `snapshot-core` and `playwright-snapshot-saver` passes; no regression in `packages/test-project/` snapshots.
 - **B2/B3**: each new package has its own integration test target green in CI.
-- **C1**: `./gradlew runIdeForUiTests` boots; all 30 existing UI scenarios run; failing tests produce trace bundles; refactored tests contain zero literal XPaths.
-- **C2**: `./gradlew testReport` produces `build/reports/claude-summary.{json,md}`; CI uploads them as artifacts.
-- **C3**: `./gradlew demoReport -PfeatureName=<tag>` produces a self-contained trace viewer; PR with `demo` label auto-comments a link.
+- **C1** *(shipped)*: `./gradlew runIdeForUiTests` boots; existing UI scenarios run; failing tests produce trace bundles; refactored tests contain zero literal XPaths.
+- **C2** *(shipped)*: `./gradlew testReport` produces `build/reports/claude-summary.{json,md}`; CI uploads them as artifacts and to `reports.artemon.cloud`.
+- **C3** *(shipped)*: `./gradlew demoReport -PfeatureName=<tag>` produces a self-contained trace viewer; PR with `demo` label auto-comments a link.
 
 See each task doc for its own detailed verification.

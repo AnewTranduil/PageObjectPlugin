@@ -65,14 +65,14 @@ npx playwright test
 | Option | Default | Description |
 |--------|---------|-------------|
 | `outputDir` | `.snapshots` | Where to save snapshots |
-| `screenshot` | `true` | Extract screenshot from trace screencast |
+| `screenshot` | `false` | Extract a screencast frame as `resources/screenshot.webp`. Off by default since trace screencast frames are low-fidelity and frequently blank. |
 | `manifest` | `true` | Generate `manifest.json` with metadata |
 
 ```typescript
 reporter: [
   ['playwright-snapshot-saver/reporter', {
     outputDir: './my-snapshots',
-    screenshot: false,
+    screenshot: true,
   }]
 ]
 ```
@@ -88,7 +88,7 @@ await saveSnapshot(page, {
   outputDir: '.snapshots',
   name: 'login-initial',
   group: 'login',
-  screenshot: { enabled: true, format: 'png', fullPage: false },
+  screenshot: { format: 'png', fullPage: false },
   manifest: true,
 });
 ```
@@ -98,8 +98,7 @@ await saveSnapshot(page, {
 | `outputDir` | (required) | Base output directory |
 | `name` | (required) | Snapshot name — becomes the subdirectory |
 | `group` | — | Parent group directory |
-| `screenshot.enabled` | `true` | Capture a screenshot |
-| `screenshot.format` | `png` | `png` or `jpeg` |
+| `screenshot` | `{ format: 'png', fullPage: false }` | Object to enable, `false` to skip. The Playwright adapter only supports `format: 'png'`; use the trace-extraction path for `webp`. |
 | `screenshot.fullPage` | `false` | Capture the full scrollable page |
 | `manifest` | `true` | Generate `manifest.json` |
 
@@ -146,39 +145,59 @@ const result = await extractSnapshots({
 
 ## Snapshot Bundle Format
 
-Each snapshot is a directory containing:
+Each snapshot is a directory in the **v2 bundle layout**. Top-level files
+are just `index.html` and `manifest.json`; everything they reference
+(CSS sidecars, screenshots, fonts, images) lives under `resources/`:
 
 ```
 .snapshots/
 ├── login/
 │   ├── initial/
-│   │   ├── index.html          # Sanitized DOM with inlined CSS
-│   │   ├── screenshot.webp     # Visual reference
-│   │   └── manifest.json       # Metadata (URL, viewport, timestamp)
+│   │   ├── index.html          # Sanitized DOM referencing resources/
+│   │   ├── manifest.json       # Schema version 2 — URL, viewport, timestamp, driver
+│   │   └── resources/
+│   │       ├── screenshot.webp # Visual reference (or .png)
+│   │       └── <sha1>.css      # Stylesheet sidecars referenced by <link> tags
 │   └── error/
 │       ├── index.html
-│       ├── screenshot.webp
-│       └── manifest.json
+│       ├── manifest.json
+│       └── resources/
+│           ├── screenshot.webp
+│           └── <sha1>.css
 ├── dashboard/
 │   └── main/
 │       └── ...
 ```
 
-**`index.html`** — the full page DOM with all external stylesheets inlined as `<style>` tags. This is what the plugin renders.
+**`index.html`** — sanitized page DOM. Every `<link rel="stylesheet">`
+points at a `resources/<sha1>.css` sidecar; the plugin inlines those
+sidecars into `<style>` blocks before handing the HTML to the JCEF
+`srcdoc` iframe (the iframe's `about:srcdoc` base URL cannot resolve
+relative filesystem paths). Trace-extracted bundles also reference
+fonts, images, and SVG sprites under `resources/` — every external URL
+is rewritten to a sidecar so the bundle is fully self-contained.
 
-**`screenshot.webp`** (or `.png`/`.jpeg`) — a visual reference of the page at capture time.
+**`resources/screenshot.webp`** (or `.png`) — a visual reference of the
+page at capture time.
 
 **`manifest.json`** — metadata about the snapshot:
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "url": "https://example.com/login",
   "viewport": { "width": 1280, "height": 720 },
   "timestamp": "2025-01-15T10:30:00Z",
-  "playwright": "1.48.0"
+  "playwright": "1.58.0",
+  "userAgent": "Mozilla/5.0 ..."
 }
 ```
+
+`manifest.version` is the **schema** version and is always `2`. The
+plugin refuses to load any bundle with a different version and surfaces
+an outdated-bundle banner inside the tool window pointing at the
+migration guide. See [`docs/snapshot-bundle-spec.md`](docs/snapshot-bundle-spec.md)
+for the authoritative format spec.
 
 ## Stage 2: Load in the IDE
 
