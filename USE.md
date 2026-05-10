@@ -146,39 +146,56 @@ const result = await extractSnapshots({
 
 ## Snapshot Bundle Format
 
-Each snapshot is a directory containing:
+Each snapshot is a directory in the v2 bundle layout. See
+[`docs/snapshot-bundle-spec.md`](docs/snapshot-bundle-spec.md) for the
+authoritative spec.
 
 ```
 .snapshots/
 ├── login/
 │   ├── initial/
-│   │   ├── index.html          # Sanitized DOM with inlined CSS
-│   │   ├── screenshot.webp     # Visual reference
-│   │   └── manifest.json       # Metadata (URL, viewport, timestamp)
+│   │   ├── index.html              # Sanitized DOM referencing resources/
+│   │   ├── manifest.json           # Metadata (schema version 2)
+│   │   └── resources/
+│   │       ├── screenshot.webp     # Visual reference (optional)
+│   │       └── <sha1>.css          # CSS sidecars referenced by <link>
 │   └── error/
 │       ├── index.html
-│       ├── screenshot.webp
-│       └── manifest.json
+│       ├── manifest.json
+│       └── resources/
 ├── dashboard/
 │   └── main/
 │       └── ...
 ```
 
-**`index.html`** — the full page DOM with all external stylesheets inlined as `<style>` tags. This is what the plugin renders.
+**`index.html`** — sanitized DOM. Every `<link>`, `<img>`, and CSS
+`url(...)` reference points at a sidecar under `resources/`. The plugin
+inlines those CSS sidecars into `<style>` blocks before rendering because
+`<iframe srcdoc>` cannot resolve relative filesystem paths.
 
-**`screenshot.webp`** (or `.png`/`.jpeg`) — a visual reference of the page at capture time.
+**`resources/screenshot.webp`** (or `.png`) — visual reference of the page
+at capture time.
+
+**`resources/<sha1>.css`** — stylesheet sidecars; the filename is a
+SHA-1 prefix so identical stylesheets across snapshots de-duplicate.
 
 **`manifest.json`** — metadata about the snapshot:
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "url": "https://example.com/login",
   "viewport": { "width": 1280, "height": 720 },
   "timestamp": "2025-01-15T10:30:00Z",
-  "playwright": "1.48.0"
+  "playwright": "1.58.0"
 }
 ```
+
+The plugin refuses to load bundles whose `manifest.version` is not `2`
+(or absent) and renders an outdated-bundle banner pointing at
+[`docs/migration-v1-to-v2.md`](docs/migration-v1-to-v2.md). Regenerate
+v1 bundles by re-running `npx playwright test` with
+`playwright-snapshot-saver` ≥ 0.7.0.
 
 ## Stage 2: Load in the IDE
 
@@ -224,6 +241,16 @@ The editor gutter shows a badge next to each locator with the number of matching
 - **0** — no match (broken selector)
 - **2+** — multiple matches (ambiguous selector)
 
+### Highlight current selector
+
+Press `Alt+Shift+H` to highlight the locator at the current cursor
+position in the snapshot. This is the explicit, one-shot version of the
+cursor-driven auto-highlight above.
+
 ### Highlight All
 
-Press `Alt+Shift+H` to highlight every locator in the current file on the snapshot at once. Color-coded overlays distinguish different locators. Duplicate and overlapping selectors are flagged with visual badges.
+Click the **Show All** button in the Page Mirror toolbar to highlight
+every locator in the current file on the snapshot at once. Color-coded
+overlays distinguish different locators. Duplicate and overlapping
+selectors are flagged with visual badges. Click the button again to clear
+the overlays.
