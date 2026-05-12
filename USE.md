@@ -146,39 +146,53 @@ const result = await extractSnapshots({
 
 ## Snapshot Bundle Format
 
-Each snapshot is a directory containing:
+Each snapshot is a directory in the **v2** bundle layout:
 
 ```
 .snapshots/
 ├── login/
 │   ├── initial/
-│   │   ├── index.html          # Sanitized DOM with inlined CSS
-│   │   ├── screenshot.webp     # Visual reference
-│   │   └── manifest.json       # Metadata (URL, viewport, timestamp)
+│   │   ├── index.html              # Sanitized DOM referencing resources/
+│   │   ├── manifest.json           # Metadata, "version": 2
+│   │   └── resources/
+│   │       ├── screenshot.webp     # Visual reference (or .png)
+│   │       └── <sha1>.css          # Stylesheet sidecars (one per <link>)
 │   └── error/
 │       ├── index.html
-│       ├── screenshot.webp
-│       └── manifest.json
+│       ├── manifest.json
+│       └── resources/
+│           ├── screenshot.webp
+│           └── <sha1>.css
 ├── dashboard/
 │   └── main/
 │       └── ...
 ```
 
-**`index.html`** — the full page DOM with all external stylesheets inlined as `<style>` tags. This is what the plugin renders.
+**`index.html`** — the sanitized page DOM. External stylesheets are written as
+`resources/<sha1>.css` sidecars referenced by `<link>` tags; the plugin
+inlines them on read because `<iframe srcdoc>` cannot resolve relative URLs.
 
-**`screenshot.webp`** (or `.png`/`.jpeg`) — a visual reference of the page at capture time.
+**`resources/screenshot.webp`** (or `.png`) — a visual reference of the page
+at capture time.
 
 **`manifest.json`** — metadata about the snapshot:
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "url": "https://example.com/login",
   "viewport": { "width": 1280, "height": 720 },
   "timestamp": "2025-01-15T10:30:00Z",
-  "playwright": "1.48.0"
+  "playwright": "1.58.0"
 }
 ```
+
+Bundles produced by `playwright-snapshot-saver` `< 0.7.0` use the v1
+layout (screenshot at top level, CSS inlined directly). The plugin now
+refuses v1 bundles with an outdated-bundle banner — regenerate with the
+latest saver. See [docs/migration-v1-to-v2.md](docs/migration-v1-to-v2.md)
+and [docs/snapshot-bundle-spec.md](docs/snapshot-bundle-spec.md) for
+details.
 
 ## Stage 2: Load in the IDE
 
