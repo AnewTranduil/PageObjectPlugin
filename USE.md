@@ -146,39 +146,53 @@ const result = await extractSnapshots({
 
 ## Snapshot Bundle Format
 
-Each snapshot is a directory containing:
+Each snapshot is a directory containing (v2 layout — see
+[docs/snapshot-bundle-spec.md](docs/snapshot-bundle-spec.md) for the
+authoritative spec):
 
 ```
 .snapshots/
 ├── login/
 │   ├── initial/
-│   │   ├── index.html          # Sanitized DOM with inlined CSS
-│   │   ├── screenshot.webp     # Visual reference
-│   │   └── manifest.json       # Metadata (URL, viewport, timestamp)
+│   │   ├── index.html          # Sanitized DOM referencing resources/
+│   │   ├── manifest.json       # Metadata (URL, viewport, timestamp, version: 2)
+│   │   └── resources/
+│   │       ├── screenshot.webp # Visual reference (or .png)
+│   │       └── <sha1>.css      # Stylesheet sidecars referenced by <link>
 │   └── error/
 │       ├── index.html
-│       ├── screenshot.webp
-│       └── manifest.json
-├── dashboard/
-│   └── main/
-│       └── ...
+│       ├── manifest.json
+│       └── resources/
+└── dashboard/
+    └── main/
+        └── ...
 ```
 
-**`index.html`** — the full page DOM with all external stylesheets inlined as `<style>` tags. This is what the plugin renders.
+**`index.html`** — the full page DOM. External stylesheets are written
+as `resources/<sha1>.css` sidecars referenced via `<link>`. The plugin
+inlines them into `<style>` blocks before rendering because `iframe
+srcdoc` cannot resolve relative paths.
 
-**`screenshot.webp`** (or `.png`/`.jpeg`) — a visual reference of the page at capture time.
+**`resources/screenshot.webp`** (or `.png`/`.jpeg`) — a visual
+reference of the page at capture time.
 
 **`manifest.json`** — metadata about the snapshot:
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "url": "https://example.com/login",
   "viewport": { "width": 1280, "height": 720 },
   "timestamp": "2025-01-15T10:30:00Z",
   "playwright": "1.48.0"
 }
 ```
+
+The plugin refuses to load bundles whose `manifest.version` is not `2`
+and shows an outdated-bundle banner pointing to
+[docs/migration-v1-to-v2.md](docs/migration-v1-to-v2.md). Re-run
+`npx playwright test` after upgrading
+`playwright-snapshot-saver` to `>= 0.7.0` to regenerate v2 bundles.
 
 ## Stage 2: Load in the IDE
 
@@ -226,4 +240,12 @@ The editor gutter shows a badge next to each locator with the number of matching
 
 ### Highlight All
 
-Press `Alt+Shift+H` to highlight every locator in the current file on the snapshot at once. Color-coded overlays distinguish different locators. Duplicate and overlapping selectors are flagged with visual badges.
+Click the **Show All** button in the Page Mirror tool window toolbar to
+highlight every locator in the current file on the snapshot at once.
+Color-coded overlays distinguish different locators. Duplicate and
+overlapping selectors are flagged with visual badges. Click **Show All**
+again to clear.
+
+`Alt+Shift+H` is a separate shortcut that re-highlights just the locator
+on the current line — useful when the caret-driven highlight has gone
+stale (e.g. after editing the locator string).
