@@ -12,7 +12,7 @@ An IntelliJ plugin that renders Playwright page snapshots inside a docked Tool W
 | Language         | Kotlin (no Java)                           |
 | Target IDEs     | IntelliJ Community + Ultimate + WebStorm   |
 | Min Platform    | 2024.3+                                    |
-| Plugin ID       | `com.example.pagemirror`                   |
+| Plugin ID       | `com.github.artem.pageobjectplugin`        |
 | UI Location     | Tool Window, right panel, anchor=right     |
 | JCEF            | Guaranteed available (bundled in 2024.3+)  |
 
@@ -63,12 +63,14 @@ with a user-visible error.
 
 ```
 src/main/
-  kotlin/com/example/pagemirror/
+  kotlin/com/github/artem/pageobjectplugin/
     PageMirrorToolWindowFactory.kt
+    PageObjectBundle.kt
     model/
       SnapshotBundle.kt
     services/
       SnapshotService.kt
+      SnapshotHtmlResolver.kt
     listeners/
       SnapshotDiscoveryListener.kt
       SnapshotWatcher.kt
@@ -78,15 +80,18 @@ src/main/
       PickerResultHandler.kt
     actions/
       LoadSnapshotAction.kt
-      InsertLocatorAction.kt
+      HighlightCurrentSelectorAction.kt
       ToggleInspectAction.kt
     annotators/
       SelectorValidationAnnotator.kt
     settings/
       PageMirrorSettings.kt
       PageMirrorConfigurable.kt
+    widgets/
+      PageMirrorStatusBarWidgetFactory.kt
   resources/
     META-INF/plugin.xml
+    messages/PageObjectBundle.properties
     html/
       page-mirror.html
       js/
@@ -95,21 +100,35 @@ src/main/
         highlight.js
         inspect.js
         theme.js
+    demo-viewer/                # Task 19 trace viewer assets
 ```
 
 ## Test Project Layout
 
 ```
-test-project/
+packages/test-project/
   package.json
   playwright.config.ts
-  page-objects/login.page.ts
-  tests/login.spec.ts
-  utils/save-state.ts
-  .snapshots/login/
-    initial/      {index.html, manifest.json, resources/}
-    error-state/  {index.html, manifest.json, resources/}
+  tsconfig.json
+  page-objects/
+    login.page.ts
+    dashboard.page.ts
+  tests/
+    login.spec.ts
+    dashboard.spec.ts
+  fixtures/                          # Static HTML pages for offline test runs
+  .snapshots/
+    login/
+      initial/      {index.html, manifest.json, resources/}
+      error-state/  {index.html, manifest.json, resources/}
+    dashboard/
+      initial/      {index.html, manifest.json, resources/}
+      ticket-filled/ {index.html, manifest.json, resources/}
 ```
+
+The test-project lives inside the monorepo's `packages/*` workspace
+(see `package.json`), alongside `snapshot-core` and
+`playwright-snapshot-saver`.
 
 ## Task Sequence
 
@@ -130,11 +149,12 @@ Tasks MUST be completed in order. Each task is in `docs/tasks/`.
 
 ## Current State
 
-**Tasks 0–14 and 19 are complete.** All plugin features ship, the snapshot
-saver npm package is published, the UI test suite runs under a layered
-Page Object structure, CI aggregates test results into a single
-`claude-summary.{json,md}` bundle, and a Playwright-style trace viewer is
-auto-generated on PRs tagged `demo`.
+**Tasks 0–15.5 and 19 are complete.** All plugin features ship, the
+snapshot saver npm package is published on a v2 bundle format with a
+framework-agnostic `@pagemirror/snapshot-core` package underneath it, the
+UI test suite runs under a layered Page Object structure, CI aggregates
+test results into a single `claude-summary.{json,md}` bundle, and a
+Playwright-style trace viewer is auto-generated on PRs tagged `demo`.
 
 - **Tasks 0–9:** Plugin shell, snapshot loading, file watcher, highlight
   bridge, element picker, gutter validation, polish, JS refactor,
@@ -149,13 +169,18 @@ auto-generated on PRs tagged `demo`.
 - **Task 14 (CI test reporting):** `build.gradle.kts` registers `aggregateTestReport` (`:219`) and `testReport` (`:261`); `buildSrc/.../buildtools/` contains `ClaudeSummaryGenerator`, `JUnitXmlParser`, `PlaywrightJsonParser`, `MarkdownEmitter`, `TraceJsonAugmenter` with unit tests.
 - **Task 19 (Feature demo trace viewer):** `ui/annotations/Feature.kt`, `FeatureTagListener`, `buildSrc/.../DemoReportRenderer.kt` + `DemoTestSelector.kt`, `src/main/resources/demo-viewer/`, and `.github/workflows/demo.yml` together render a self-contained trace viewer per PR.
 
-**Task 15 (Extract `@pagemirror/snapshot-core`)** is **in progress** on
-branch `claude/check-task-statuses-C7rh9`. This bumps the snapshot bundle
-format to v2: `screenshot.<ext>` moves under `resources/`, CSS is written
-as `resources/<sha1>.css` sidecars referenced by `<link>`, and the plugin
-inlines sidecar CSS on read (since `srcdoc` iframes can't resolve relative
-URLs). v1 bundles are refused with a clear error message — regenerate via
-`npx playwright test` in `packages/test-project/`.
+**Task 15 (Extract `@pagemirror/snapshot-core`)** is **complete** and
+merged to `main`. The snapshot bundle format is now v2:
+`screenshot.<ext>` lives under `resources/`, CSS is written as
+`resources/<sha1>.css` sidecars referenced by `<link>`, and the plugin
+inlines sidecar CSS on read (since `srcdoc` iframes can't resolve
+relative URLs). Bundles whose `manifest.version` is not `2` are refused
+with a user-visible banner that links to
+`docs/migration-v1-to-v2.md` — regenerate via `npx playwright test` in
+`packages/test-project/`. The plugin (`v0.5.0`) and the npm packages
+(`@pagemirror/snapshot-core@0.1.0`, `playwright-snapshot-saver@0.7.0`)
+ship the v2 format end-to-end; the monorepo uses npm workspaces under
+`packages/*` and the saver consumes snapshot-core via semver.
 
 **Task 15.5 (Framework-agnostic trace rendering + resource inlining)** —
 `@pagemirror/snapshot-core` now owns trace rendering behind a

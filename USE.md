@@ -152,33 +152,44 @@ Each snapshot is a directory containing:
 .snapshots/
 ├── login/
 │   ├── initial/
-│   │   ├── index.html          # Sanitized DOM with inlined CSS
-│   │   ├── screenshot.webp     # Visual reference
-│   │   └── manifest.json       # Metadata (URL, viewport, timestamp)
+│   │   ├── index.html          # Sanitized DOM referencing resources/
+│   │   ├── manifest.json       # Metadata (URL, viewport, timestamp), version=2
+│   │   └── resources/          # Stylesheets, screenshot, fonts, images
+│   │       ├── screenshot.webp
+│   │       └── <sha1>.css
 │   └── error/
 │       ├── index.html
-│       ├── screenshot.webp
-│       └── manifest.json
-├── dashboard/
-│   └── main/
-│       └── ...
+│       ├── manifest.json
+│       └── resources/
+└── dashboard/
+    └── main/
+        └── ...
 ```
 
-**`index.html`** — the full page DOM with all external stylesheets inlined as `<style>` tags. This is what the plugin renders.
+**`index.html`** — the sanitized page DOM. External stylesheets are
+shipped as `resources/<sha1>.css` sidecars referenced by `<link>` tags;
+the plugin inlines them into `<style>` blocks at load time because the
+`<iframe srcdoc>` it renders into has no base URL.
 
-**`screenshot.webp`** (or `.png`/`.jpeg`) — a visual reference of the page at capture time.
+**`resources/screenshot.webp`** (or `.png`/`.jpeg`) — a visual reference
+of the page at capture time.
 
 **`manifest.json`** — metadata about the snapshot:
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "url": "https://example.com/login",
   "viewport": { "width": 1280, "height": 720 },
   "timestamp": "2025-01-15T10:30:00Z",
-  "playwright": "1.48.0"
+  "userAgent": "Mozilla/5.0 ...",
+  "playwright": "1.58.0"
 }
 ```
+
+See [`docs/snapshot-bundle-spec.md`](docs/snapshot-bundle-spec.md) for the
+full schema and [`docs/migration-v1-to-v2.md`](docs/migration-v1-to-v2.md)
+if you have stale v1 bundles that no longer load.
 
 ## Stage 2: Load in the IDE
 
