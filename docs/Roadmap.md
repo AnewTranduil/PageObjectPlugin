@@ -10,7 +10,7 @@ This roadmap broadens language/framework reach and tightens the inner dev loop s
 
 ## Track A — Language Support
 
-Each language task has **two halves**: (1) IDE-side locator extraction so highlight/gutter work, and (2) a snapshot-saver sibling package in the target language so users can actually produce `.snapshots/` bundles from their non-TS test runs. The existing npm package cannot be consumed from Python/Java/Kotlin, so we ship native packages that reuse the same on-disk bundle format (`index.html` + `screenshot.webp` + `manifest.json`) defined in `CLAUDE.md` and frozen in `docs/snapshot-bundle-spec.md`.
+Each language task has **two halves**: (1) IDE-side locator extraction so highlight/gutter work, and (2) a snapshot-saver sibling package in the target language so users can actually produce `.snapshots/` bundles from their non-TS test runs. The existing npm package cannot be consumed from Python/Java/Kotlin, so we ship native packages that reuse the same on-disk bundle format (`index.html` + `manifest.json` + `resources/`, see v2 layout in `docs/snapshot-bundle-spec.md` and summarized in `CLAUDE.md`).
 
 - **A1. Python Playwright support** — `task-16-python-playwright-support.md`
 - **A2. Java/Kotlin Playwright support** — `task-18-jvm-playwright-support.md`
