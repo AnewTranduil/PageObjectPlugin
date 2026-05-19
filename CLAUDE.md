@@ -12,7 +12,7 @@ An IntelliJ plugin that renders Playwright page snapshots inside a docked Tool W
 | Language         | Kotlin (no Java)                           |
 | Target IDEs     | IntelliJ Community + Ultimate + WebStorm   |
 | Min Platform    | 2024.3+                                    |
-| Plugin ID       | `com.example.pagemirror`                   |
+| Plugin ID       | `com.github.artem.pageobjectplugin`        |
 | UI Location     | Tool Window, right panel, anchor=right     |
 | JCEF            | Guaranteed available (bundled in 2024.3+)  |
 
@@ -63,12 +63,14 @@ with a user-visible error.
 
 ```
 src/main/
-  kotlin/com/example/pagemirror/
+  kotlin/com/github/artem/pageobjectplugin/
     PageMirrorToolWindowFactory.kt
+    PageObjectBundle.kt
     model/
       SnapshotBundle.kt
     services/
       SnapshotService.kt
+      SnapshotHtmlResolver.kt
     listeners/
       SnapshotDiscoveryListener.kt
       SnapshotWatcher.kt
@@ -78,15 +80,19 @@ src/main/
       PickerResultHandler.kt
     actions/
       LoadSnapshotAction.kt
-      InsertLocatorAction.kt
+      HighlightCurrentSelectorAction.kt
       ToggleInspectAction.kt
     annotators/
       SelectorValidationAnnotator.kt
     settings/
       PageMirrorSettings.kt
       PageMirrorConfigurable.kt
+    widgets/
+      PageMirrorStatusBarWidgetFactory.kt
   resources/
     META-INF/plugin.xml
+    messages/
+    demo-viewer/
     html/
       page-mirror.html
       js/
@@ -100,15 +106,27 @@ src/main/
 ## Test Project Layout
 
 ```
-test-project/
+packages/test-project/
   package.json
   playwright.config.ts
-  page-objects/login.page.ts
-  tests/login.spec.ts
-  utils/save-state.ts
-  .snapshots/login/
-    initial/      {index.html, manifest.json, resources/}
-    error-state/  {index.html, manifest.json, resources/}
+  tsconfig.json
+  fixtures/             # static HTML served to the browser during tests
+    login.html
+    app.html
+    styles/
+  page-objects/
+    login.page.ts
+    dashboard.page.ts
+  tests/
+    login.spec.ts
+    dashboard.spec.ts
+  .snapshots/
+    login/
+      initial/        {index.html, manifest.json, resources/}
+      error-state/    {index.html, manifest.json, resources/}
+    dashboard/
+      initial/        {index.html, manifest.json, resources/}
+      ticket-filled/  {index.html, manifest.json, resources/}
 ```
 
 ## Task Sequence
@@ -130,11 +148,12 @@ Tasks MUST be completed in order. Each task is in `docs/tasks/`.
 
 ## Current State
 
-**Tasks 0–14 and 19 are complete.** All plugin features ship, the snapshot
-saver npm package is published, the UI test suite runs under a layered
-Page Object structure, CI aggregates test results into a single
-`claude-summary.{json,md}` bundle, and a Playwright-style trace viewer is
-auto-generated on PRs tagged `demo`.
+**Tasks 0–15, 15.5, and 19 are complete.** All plugin features ship, the
+snapshot saver npm package is published as a thin adapter on top of the
+framework-agnostic `@pagemirror/snapshot-core` package, the UI test suite
+runs under a layered Page Object structure, CI aggregates test results
+into a single `claude-summary.{json,md}` bundle, and a Playwright-style
+trace viewer is auto-generated on PRs tagged `demo`.
 
 - **Tasks 0–9:** Plugin shell, snapshot loading, file watcher, highlight
   bridge, element picker, gutter validation, polish, JS refactor,
@@ -142,15 +161,17 @@ auto-generated on PRs tagged `demo`.
 - **Task 10 (Trace extraction & reporter):** `packages/playwright-snapshot-saver/src/{extractor.ts, reporter.ts, snapshot-marker.ts, trace/, sources/}` ship the reporter + extractor API.
 - **Task 11 (Manifest fixes):** timestamp, change detection, version increment.
 - **Task 12 (Settings UI DSL v2):** `PageMirrorConfigurable.kt` rewritten on Kotlin UI DSL v2.
-- **Task 13a (UI test unblock):** resolved via the `intellijPlatformTesting.runIde.register("runIdeForUiTests")` DSL at `build.gradle.kts:112-144`, which sidesteps the `splitMode` issue entirely.
+- **Task 13a (UI test unblock):** resolved via the `intellijPlatformTesting.runIde.register("runIdeForUiTests")` DSL at `build.gradle.kts:114-142`, which sidesteps the `splitMode` issue entirely.
 - **Task 13b (UI test reliability):** `ui/support/Wait.kt` and `RetryOnceExtension.kt` provide polling + retry-once. **Gap:** no `@Quarantine` annotation was created (only tracked as a reporting field in `ClaudeSummaryModel.kt`).
 - **Task 13c (UI test diagnostics):** `ui/support/{TraceBundleExtension, TraceBundle, StepRecorder, TraceIndexGenerator, CdpConsoleCollector}.kt` capture full trace bundles on failure.
 - **Task 13d (Page object refactor):** `ui/{locators, pages, flows, tests}/` provide the layered UI test structure; `ui/tests/ToolWindowUiTest.kt` is the reference example.
 - **Task 14 (CI test reporting):** `build.gradle.kts` registers `aggregateTestReport` (`:219`) and `testReport` (`:261`); `buildSrc/.../buildtools/` contains `ClaudeSummaryGenerator`, `JUnitXmlParser`, `PlaywrightJsonParser`, `MarkdownEmitter`, `TraceJsonAugmenter` with unit tests.
 - **Task 19 (Feature demo trace viewer):** `ui/annotations/Feature.kt`, `FeatureTagListener`, `buildSrc/.../DemoReportRenderer.kt` + `DemoTestSelector.kt`, `src/main/resources/demo-viewer/`, and `.github/workflows/demo.yml` together render a self-contained trace viewer per PR.
 
-**Task 15 (Extract `@pagemirror/snapshot-core`)** is **in progress** on
-branch `claude/check-task-statuses-C7rh9`. This bumps the snapshot bundle
+**Task 15 (Extract `@pagemirror/snapshot-core`)** shipped: bundle assembly,
+manifest generation, and HTML post-processing now live in
+`packages/snapshot-core/`, and `packages/playwright-snapshot-saver/`
+consumes it as a thin adapter via semver. This bumped the snapshot bundle
 format to v2: `screenshot.<ext>` moves under `resources/`, CSS is written
 as `resources/<sha1>.css` sidecars referenced by `<link>`, and the plugin
 inlines sidecar CSS on read (since `srcdoc` iframes can't resolve relative
