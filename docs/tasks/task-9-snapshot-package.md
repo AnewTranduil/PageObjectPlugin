@@ -1,8 +1,13 @@
 # Task 9: Snapshot Saver npm Package
 
+> **Note (post-implementation):** The planning name `packages/snapshot-saver/`
+> was renamed to `packages/playwright-snapshot-saver/` during
+> implementation (it is now published as the `playwright-snapshot-saver`
+> npm package). References below use the implemented directory name.
+
 > **Goal:** Extract snapshot-saving logic from `test-project/utils/save-state.ts` into a standalone, publishable npm package with a configurable API.
 > **Depends on:** Task 0
-> **Output:** `packages/snapshot-saver/` — a self-contained npm package consumable by any Playwright project
+> **Output:** `packages/playwright-snapshot-saver/` — a self-contained npm package consumable by any Playwright project
 
 ## Motivation
 
@@ -14,7 +19,7 @@ The snapshot capture logic (HTML inlining, layout generation, manifest creation)
 
 ```
 packages/
-  snapshot-saver/
+  playwright-snapshot-saver/
     src/
       index.ts              # Public API: saveSnapshot()
       html-inliner.ts       # CSS inlining + DOM serialization
@@ -300,7 +305,7 @@ await saveSnapshot(page, {
 ```
 
 - `test-project/utils/save-state.ts` is deleted
-- `test-project/package.json` adds `playwright-snapshot-saver` as a dev dependency (local path: `"file:../packages/snapshot-saver"`)
+- `test-project/package.json` adds `playwright-snapshot-saver` as a dev dependency (local path: `"file:../packages/playwright-snapshot-saver"`)
 
 ---
 
@@ -311,9 +316,9 @@ The project becomes a lightweight monorepo:
 ```
 PageObjectPlugin/
   packages/
-    snapshot-saver/        # npm package (TypeScript)
-  test-project/            # Playwright tests (consumes snapshot-saver)
-  src/                     # IntelliJ plugin (Kotlin)
+    playwright-snapshot-saver/  # npm package (TypeScript)
+    test-project/               # Playwright tests (consumes playwright-snapshot-saver) — relocated under packages/ in Task 15
+  src/                          # IntelliJ plugin (Kotlin)
   build.gradle.kts         # Kotlin plugin build (unchanged)
 ```
 
@@ -325,21 +330,21 @@ No monorepo tooling (nx, turborepo) needed. The test-project references the pack
 
 | File | Change |
 |------|--------|
-| `packages/snapshot-saver/src/index.ts` | **New** — public API, `saveSnapshot()` |
-| `packages/snapshot-saver/src/html-inliner.ts` | **New** — extracted from `save-state.ts` |
-| `packages/snapshot-saver/src/layout-generator.ts` | **New** — extracted from `save-state.ts` |
-| `packages/snapshot-saver/src/manifest-generator.ts` | **New** — extracted from `save-state.ts` |
-| `packages/snapshot-saver/src/types.ts` | **New** — shared interfaces |
-| `packages/snapshot-saver/package.json` | **New** |
-| `packages/snapshot-saver/tsconfig.json` | **New** |
-| `packages/snapshot-saver/tests/save-snapshot.spec.ts` | **New** — integration tests |
+| `packages/playwright-snapshot-saver/src/index.ts` | **New** — public API, `saveSnapshot()` |
+| `packages/playwright-snapshot-saver/src/html-inliner.ts` | **New** — extracted from `save-state.ts` |
+| `packages/playwright-snapshot-saver/src/layout-generator.ts` | **New** — extracted from `save-state.ts` |
+| `packages/playwright-snapshot-saver/src/manifest-generator.ts` | **New** — extracted from `save-state.ts` |
+| `packages/playwright-snapshot-saver/src/types.ts` | **New** — shared interfaces |
+| `packages/playwright-snapshot-saver/package.json` | **New** |
+| `packages/playwright-snapshot-saver/tsconfig.json` | **New** |
+| `packages/playwright-snapshot-saver/tests/save-snapshot.spec.ts` | **New** — integration tests |
 | `test-project/tests/login.spec.ts` | Update imports to use new package |
 | `test-project/package.json` | Add `file:` dependency, remove `save-state` utils |
 | `test-project/utils/save-state.ts` | **Delete** |
 
 ## Acceptance Criteria
 
-- [x] `packages/snapshot-saver/` builds with `npm run build` and produces `dist/`
+- [x] `packages/playwright-snapshot-saver/` builds with `npm run build` and produces `dist/`
 - [x] `saveSnapshot()` generates all 4 snapshot files (html, layout, screenshot, manifest)
 - [x] Output satisfies `SnapshotBundle.fromDirectory()` contract (index.html + layout.json present)
 - [x] Every `selector` in generated layout.json resolves in the generated index.html
