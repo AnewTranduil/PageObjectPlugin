@@ -5,7 +5,8 @@
 The snapshot bundle format was upgraded from v1 to v2 as part of the
 `@pagemirror/snapshot-core` extraction (Task 15). The Page Mirror plugin
 (v2024.3+) **only loads v2 bundles** — bundles with `manifest.version`
-set to any other integer are rejected with a log warning.
+set to any other integer are rejected with a log warning and an
+outdated-bundle banner in the Page Mirror tool window.
 
 If your snapshots stopped loading after an upgrade, this guide explains
 what changed and how to fix it.
@@ -119,5 +120,8 @@ initial/
 
 - Bundle spec: [`docs/snapshot-bundle-spec.md`](snapshot-bundle-spec.md)
 - Core package: [`packages/snapshot-core/`](../packages/snapshot-core/)
-- Plugin loader: `SnapshotBundle.kt` — `isSupportedVersion()` method
-- Manifest builder: `packages/snapshot-core/src/manifest.ts` — `MANIFEST_VERSION` constant
+- Plugin loader: `SnapshotBundle.kt` — `load()` checks the declared
+  version against the `SUPPORTED_BUNDLE_VERSION` constant
+- Manifest builder: `packages/snapshot-core/src/manifest.ts` consumes the
+  `MANIFEST_VERSION` constant, which is defined in
+  `packages/snapshot-core/src/types.ts`

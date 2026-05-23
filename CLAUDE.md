@@ -12,7 +12,7 @@ An IntelliJ plugin that renders Playwright page snapshots inside a docked Tool W
 | Language         | Kotlin (no Java)                           |
 | Target IDEs     | IntelliJ Community + Ultimate + WebStorm   |
 | Min Platform    | 2024.3+                                    |
-| Plugin ID       | `com.example.pagemirror`                   |
+| Plugin ID       | `com.github.artem.pageobjectplugin`        |
 | UI Location     | Tool Window, right panel, anchor=right     |
 | JCEF            | Guaranteed available (bundled in 2024.3+)  |
 
@@ -63,12 +63,14 @@ with a user-visible error.
 
 ```
 src/main/
-  kotlin/com/example/pagemirror/
+  kotlin/com/github/artem/pageobjectplugin/
     PageMirrorToolWindowFactory.kt
+    PageObjectBundle.kt
     model/
       SnapshotBundle.kt
     services/
       SnapshotService.kt
+      SnapshotHtmlResolver.kt
     listeners/
       SnapshotDiscoveryListener.kt
       SnapshotWatcher.kt
@@ -78,15 +80,23 @@ src/main/
       PickerResultHandler.kt
     actions/
       LoadSnapshotAction.kt
-      InsertLocatorAction.kt
       ToggleInspectAction.kt
+      HighlightCurrentSelectorAction.kt
     annotators/
       SelectorValidationAnnotator.kt
+    widgets/
+      PageMirrorStatusBarWidgetFactory.kt
     settings/
       PageMirrorSettings.kt
       PageMirrorConfigurable.kt
   resources/
     META-INF/plugin.xml
+    messages/
+      PageObjectBundle.properties
+    demo-viewer/
+      index.html
+      app.js
+      styles.css
     html/
       page-mirror.html
       js/
@@ -277,9 +287,10 @@ The layout was overhauled in Task 13 — follow these rules.
   do not hide it.
 - **Reference tests.** `tests/ToolWindowUiTest.kt` is the canonical
   Page/Flow example for active tests. `tests/SettingsUiTest.kt` is the
-  canonical example for tests that compose `SettingsChangeFlow`; it is
-  currently `@Disabled` for unrelated reasons (UI DSL component
-  wrapping) but kept as a structural reference.
+  canonical example for tests that compose `SettingsChangeFlow`; it was
+  enabled once `PageMirrorConfigurable` gained explicit accessible names
+  on its testable fields and the settings locators in
+  `ui/locators/PageMirrorLocators` were rewritten to match those names.
 
 ## Report Dashboard Access
 

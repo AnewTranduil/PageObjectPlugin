@@ -29,7 +29,7 @@ A small set of pure functions plus a couple of interfaces. Everything is statele
 
 1. **`TraceBackend`** — the single interface you implement to give core access to your driver's trace data (frame snapshots, resources, screencast frames, resource-by-sha1).
 2. **`renderSnapshot(backend, pageOrFrameId, snapshotName)`** — pure renderer that turns a `FrameSnapshot` plus its resource overrides into HTML.
-3. **`inlineResources(rendered)`** — resolves every `<link>`, `<img>`, CSS `url(...)`, `@font-face`, and SVG `<use>` reference against the backend's sha1 store, emitting files under `resources/` and rewriting the HTML to match. Strips any `<base>` element.
+3. **`inlineResources(rendered, backend)`** — resolves every `<link>`, `<img>`, CSS `url(...)`, `@font-face`, and SVG `<use>` reference against the backend's sha1 store, emitting files under `resources/` and rewriting the HTML to match. Strips any `<base>` element.
 4. **`extractFromBackend(backend, markers, options)`** — orchestrator that takes a list of `TraceMarker`s and writes one v2 bundle per marker.
 
 ## Writing a new driver adapter
@@ -190,7 +190,7 @@ for (const info of result.snapshots) {
   "viewport": { "width": 1280, "height": 720 },
   "timestamp": "2025-01-15T10:30:00Z",
   "userAgent": "Mozilla/5.0 …",
-  "playwright": "1.58.0"
+  "playwright": "1.58.2"
 }
 ```
 
@@ -241,7 +241,7 @@ See [`docs/snapshot-bundle-spec.md`](../../docs/snapshot-bundle-spec.md) in the 
 | `buildManifest(captured, driver?, now?)` | Produces a v2 `ManifestJson`.                                      |
 | `saveSnapshot(adapter, options)` | Full live-capture orchestrator.                                             |
 | `renderSnapshot(backend, pageOrFrameId, snapshotName)` | Renders a single `FrameSnapshot` to HTML.            |
-| `inlineResources(rendered)` | Resolves all resource references, emitting files under `resources/`.            |
+| `inlineResources(rendered, backend)` | Resolves all resource references, emitting files under `resources/`.   |
 | `extractFromBackend(backend, markers, options)` | Full trace-extraction orchestrator.                       |
 | `extensionFromContentType(mimeType)` | Maps a MIME type to a canonical file extension.                      |
 
