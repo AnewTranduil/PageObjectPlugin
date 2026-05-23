@@ -70,7 +70,7 @@ window dropdown.
   "viewport": { "width": 1280, "height": 720 },
   "timestamp": "2025-01-15T10:30:00Z",
   "userAgent": "Mozilla/5.0 ...",
-  "playwright": "1.58.0"
+  "playwright": "1.58.2"
 }
 ```
 

@@ -65,7 +65,7 @@ npx playwright test
 | Option | Default | Description |
 |--------|---------|-------------|
 | `outputDir` | `.snapshots` | Where to save snapshots |
-| `screenshot` | `true` | Extract screenshot from trace screencast |
+| `screenshot` | `false` | Extract a screencast frame as `resources/screenshot.webp`. Off by default (trace screencast frames are low-fidelity and often blank); pass `true` to opt in. |
 | `manifest` | `true` | Generate `manifest.json` with metadata |
 
 ```typescript
@@ -88,7 +88,7 @@ await saveSnapshot(page, {
   outputDir: '.snapshots',
   name: 'login-initial',
   group: 'login',
-  screenshot: { enabled: true, format: 'png', fullPage: false },
+  screenshot: { format: 'png', fullPage: false }, // or `false` to skip
   manifest: true,
 });
 ```
@@ -98,8 +98,8 @@ await saveSnapshot(page, {
 | `outputDir` | (required) | Base output directory |
 | `name` | (required) | Snapshot name — becomes the subdirectory |
 | `group` | — | Parent group directory |
-| `screenshot.enabled` | `true` | Capture a screenshot |
-| `screenshot.format` | `png` | `png` or `jpeg` |
+| `screenshot` | `{ format: 'png', fullPage: false }` | Screenshot options, or `false` to disable |
+| `screenshot.format` | `png` | Live capture supports `png` only (`webp` throws — use the extract path for webp) |
 | `screenshot.fullPage` | `false` | Capture the full scrollable page |
 | `manifest` | `true` | Generate `manifest.json` |
 
@@ -139,44 +139,46 @@ const result = await extractSnapshots({
 |--------|---------|-------------|
 | `source` | (required) | Report directory, trace ZIP path, or URL |
 | `outputDir` | `.snapshots` | Where to save snapshots |
-| `screenshot` | `true` | Extract screenshot from trace |
+| `screenshot` | `false` | Extract a screencast frame as `resources/screenshot.webp` (opt-in) |
 | `manifest` | `true` | Generate `manifest.json` |
 | `filter.page` | — | Only extract this page |
 | `filter.state` | — | Only extract this state |
 
 ## Snapshot Bundle Format
 
-Each snapshot is a directory containing:
+Each snapshot is a directory in the **v2** bundle format:
 
 ```
 .snapshots/
 ├── login/
 │   ├── initial/
-│   │   ├── index.html          # Sanitized DOM with inlined CSS
-│   │   ├── screenshot.webp     # Visual reference
-│   │   └── manifest.json       # Metadata (URL, viewport, timestamp)
+│   │   ├── index.html          # Sanitized DOM referencing resources/
+│   │   ├── manifest.json       # Metadata, schema version 2
+│   │   └── resources/
+│   │       ├── screenshot.webp  # Visual reference (optional)
+│   │       └── <sha1>.css       # Stylesheet sidecars referenced by <link>
 │   └── error/
 │       ├── index.html
-│       ├── screenshot.webp
-│       └── manifest.json
+│       ├── manifest.json
+│       └── resources/
 ├── dashboard/
 │   └── main/
 │       └── ...
 ```
 
-**`index.html`** — the full page DOM with all external stylesheets inlined as `<style>` tags. This is what the plugin renders.
+**`index.html`** — the sanitized page DOM. It references CSS and other assets via relative `resources/<filename>` paths. The plugin inlines those sidecar stylesheets into `<style>` blocks on read (a `srcdoc` iframe can't resolve relative URLs), so producers ship sidecars rather than pre-inlining.
 
-**`screenshot.webp`** (or `.png`/`.jpeg`) — a visual reference of the page at capture time.
+**`resources/screenshot.webp`** (or `.png`) — a visual reference of the page at capture time.
 
-**`manifest.json`** — metadata about the snapshot:
+**`manifest.json`** — metadata about the snapshot. The plugin refuses to load any bundle whose `version` is not `2`:
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "url": "https://example.com/login",
   "viewport": { "width": 1280, "height": 720 },
   "timestamp": "2025-01-15T10:30:00Z",
-  "playwright": "1.48.0"
+  "playwright": "1.58.2"
 }
 ```
 
@@ -224,6 +226,10 @@ The editor gutter shows a badge next to each locator with the number of matching
 - **0** — no match (broken selector)
 - **2+** — multiple matches (ambiguous selector)
 
+### Highlight current selector
+
+Press `Alt+Shift+H` to highlight the locator on the current cursor line in the snapshot. This is handy when auto-highlight-on-caret is off or you want to re-trigger the highlight.
+
 ### Highlight All
 
-Press `Alt+Shift+H` to highlight every locator in the current file on the snapshot at once. Color-coded overlays distinguish different locators. Duplicate and overlapping selectors are flagged with visual badges.
+Click the **Show All** button in the Page Mirror toolbar to highlight every locator in the current file on the snapshot at once. Color-coded overlays distinguish different locators. Duplicate and overlapping selectors are flagged with visual badges. (This action has no default keyboard shortcut.)

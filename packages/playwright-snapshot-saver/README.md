@@ -196,11 +196,11 @@ Each snapshot is a directory containing:
   "viewport": { "width": 1280, "height": 720 },
   "timestamp": "2025-01-15T10:30:00Z",
   "userAgent": "Mozilla/5.0 …",
-  "playwright": "1.58.0"
+  "playwright": "1.58.2"
 }
 ```
 
-Exactly one driver field (`playwright` / `selenium` / `cypress` / `appium`) is populated per manifest, matching the driver that produced the bundle. The Playwright version is auto-detected from your installed `@playwright/test`.
+Exactly one driver field (`playwright` / `selenium` / `cypress` / `appium`) is populated per manifest, matching the driver that produced the bundle. The Playwright version is auto-detected from your installed `playwright-core`.
 
 The v1 format is **not backwards compatible** — the plugin refuses to load v1 bundles with a user-visible error. Regenerate them by re-running your tests.
 
