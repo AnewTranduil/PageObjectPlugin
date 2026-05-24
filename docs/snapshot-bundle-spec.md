@@ -53,9 +53,11 @@ window dropdown.
 
 - **One flat level.** No nested subdirectories under `resources/`.
   Filenames are all that's referenced from `index.html`.
-- **CSS sidecars** are named by a 16-hex-char prefix of the
-  `sha1(css_source)` so identical stylesheets across snapshots
-  de-duplicate naturally.
+- **CSS sidecars** are named by the hex `sha1(css_source)` so identical
+  stylesheets across snapshots de-duplicate naturally. The live-capture
+  path uses a 16-hex-char prefix; the trace-extraction path uses the full
+  40-char digest. Consumers MUST treat the basename as an opaque token and
+  resolve it from the `<link href>` rather than assuming a fixed length.
 - **Screenshots** are named `screenshot.png` or `screenshot.webp`.
   Only one screenshot per bundle is expected.
 - **Path traversal is rejected.** The plugin refuses to load any
