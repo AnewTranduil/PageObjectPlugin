@@ -99,7 +99,7 @@ await saveSnapshot(page, {
 | `name` | (required) | Snapshot name — becomes the subdirectory |
 | `group` | — | Parent group directory |
 | `screenshot.enabled` | `true` | Capture a screenshot |
-| `screenshot.format` | `png` | `png` or `jpeg` |
+| `screenshot.format` | `png` | `png` (the only format supported for live capture) |
 | `screenshot.fullPage` | `false` | Capture the full scrollable page |
 | `manifest` | `true` | Generate `manifest.json` |
 
@@ -152,31 +152,31 @@ Each snapshot is a directory containing:
 .snapshots/
 ├── login/
 │   ├── initial/
-│   │   ├── index.html          # Sanitized DOM with inlined CSS
-│   │   ├── screenshot.webp     # Visual reference
-│   │   └── manifest.json       # Metadata (URL, viewport, timestamp)
-│   └── error/
-│       ├── index.html
-│       ├── screenshot.webp
-│       └── manifest.json
+│   │   ├── index.html          # Sanitized DOM, links resources/<sha1>.css
+│   │   ├── manifest.json       # Metadata (version 2, viewport, timestamp, ...)
+│   │   └── resources/
+│   │       ├── <sha1>.css      # Stylesheet sidecars referenced by <link>
+│   │       └── screenshot.webp # Visual reference (optional)
+│   └── error-state/
+│       └── ...
 ├── dashboard/
-│   └── main/
+│   └── initial/
 │       └── ...
 ```
 
-**`index.html`** — the full page DOM with all external stylesheets inlined as `<style>` tags. This is what the plugin renders.
+**`index.html`** — the full page DOM. External stylesheets are written as `resources/<sha1>.css` sidecars referenced by `<link>` tags; the plugin inlines them into `<style>` blocks when it loads the bundle (a `srcdoc` iframe cannot resolve relative paths). Inline `<style>` blocks may also be present. This is what the plugin renders.
 
-**`screenshot.webp`** (or `.png`/`.jpeg`) — a visual reference of the page at capture time.
+**`resources/`** — sidecar files referenced by `index.html`: CSS sidecars named by a `sha1` of their content, plus an optional `screenshot.webp` (or `.png`) visual reference of the page at capture time.
 
 **`manifest.json`** — metadata about the snapshot:
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "url": "https://example.com/login",
   "viewport": { "width": 1280, "height": 720 },
   "timestamp": "2025-01-15T10:30:00Z",
-  "playwright": "1.48.0"
+  "playwright": "1.58.0"
 }
 ```
 

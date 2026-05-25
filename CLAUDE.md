@@ -11,8 +11,9 @@ An IntelliJ plugin that renders Playwright page snapshots inside a docked Tool W
 | Plugin SDK      | IntelliJ Platform Gradle Plugin 2.x        |
 | Language         | Kotlin (no Java)                           |
 | Target IDEs     | IntelliJ Community + Ultimate + WebStorm   |
-| Min Platform    | 2024.3+                                    |
-| Plugin ID       | `com.example.pagemirror`                   |
+| Min Platform    | 2024.3+ (`sinceBuild = 243`)               |
+| Plugin ID       | `com.github.artem.pageobjectplugin`        |
+| Plugin Name     | "Page Object Helper" (tool window + settings are branded "Page Mirror") |
 | UI Location     | Tool Window, right panel, anchor=right     |
 | JCEF            | Guaranteed available (bundled in 2024.3+)  |
 
@@ -63,12 +64,14 @@ with a user-visible error.
 
 ```
 src/main/
-  kotlin/com/example/pagemirror/
+  kotlin/com/github/artem/pageobjectplugin/
     PageMirrorToolWindowFactory.kt
+    PageObjectBundle.kt          # i18n message bundle (DynamicBundle)
     model/
       SnapshotBundle.kt
     services/
       SnapshotService.kt
+      SnapshotHtmlResolver.kt    # inlines resources/<sha1>.css sidecars on read
     listeners/
       SnapshotDiscoveryListener.kt
       SnapshotWatcher.kt
@@ -78,15 +81,19 @@ src/main/
       PickerResultHandler.kt
     actions/
       LoadSnapshotAction.kt
-      InsertLocatorAction.kt
       ToggleInspectAction.kt
+      HighlightCurrentSelectorAction.kt
     annotators/
       SelectorValidationAnnotator.kt
     settings/
       PageMirrorSettings.kt
       PageMirrorConfigurable.kt
+    widgets/
+      PageMirrorStatusBarWidgetFactory.kt
   resources/
     META-INF/plugin.xml
+    messages/
+      PageObjectBundle.properties
     html/
       page-mirror.html
       js/
@@ -95,20 +102,35 @@ src/main/
         highlight.js
         inspect.js
         theme.js
+    demo-viewer/                 # self-contained trace viewer (Task 19)
+      index.html
+      app.js
+      styles.css
 ```
 
 ## Test Project Layout
 
 ```
-test-project/
+packages/test-project/
   package.json
   playwright.config.ts
-  page-objects/login.page.ts
-  tests/login.spec.ts
-  utils/save-state.ts
-  .snapshots/login/
-    initial/      {index.html, manifest.json, resources/}
-    error-state/  {index.html, manifest.json, resources/}
+  tsconfig.json
+  fixtures/
+    app.html
+    login.html
+  page-objects/
+    login.page.ts
+    dashboard.page.ts
+  tests/
+    login.spec.ts
+    dashboard.spec.ts
+  .snapshots/
+    login/
+      initial/        {index.html, manifest.json, resources/}
+      error-state/    {index.html, manifest.json, resources/}
+    dashboard/
+      initial/        {index.html, manifest.json, resources/}
+      ticket-filled/  {index.html, manifest.json, resources/}
 ```
 
 ## Task Sequence

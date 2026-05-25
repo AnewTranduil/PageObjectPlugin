@@ -36,8 +36,13 @@ window dropdown.
   `<base href>` after resolving URLs against it. A surviving `<base>`
   would redirect every `resources/...` reference to the original origin
   and break the bundle when opened outside its origin.
-- Scripts stripped or neutralized — the plugin renders this in a
-  `srcdoc` iframe and does not execute arbitrary JS from snapshots.
+- Scripts are NOT stripped by the saver or the plugin — any `<script>`
+  the captured page carried is preserved verbatim in `index.html`. The
+  plugin renders the HTML in a `srcdoc` iframe whose sandbox is
+  `sandbox="allow-same-origin allow-scripts"` (see
+  `html/js/snapshot.js`), so snapshot-borne scripts CAN execute inside
+  that iframe. Treat snapshot HTML as untrusted; do not assume it is
+  script-free.
 - UTF-8 encoded.
 - Preserves original element attributes so locators (`data-testid`,
   `role`, `aria-*`, `id`, `name`, classes) resolve identically to the
@@ -53,9 +58,12 @@ window dropdown.
 
 - **One flat level.** No nested subdirectories under `resources/`.
   Filenames are all that's referenced from `index.html`.
-- **CSS sidecars** are named by a 16-hex-char prefix of the
-  `sha1(css_source)` so identical stylesheets across snapshots
-  de-duplicate naturally.
+- **CSS sidecars** are content-addressed by the `sha1` of the
+  stylesheet source so identical stylesheets across snapshots
+  de-duplicate naturally. The live saver (`@pagemirror/snapshot-core`'s
+  `assemble-html`) uses a 16-hex-char prefix of that sha1; trace-extracted
+  bundles reuse Playwright's native full-length sha1 filename. Consumers
+  must treat the filename as an opaque identifier, not a fixed-width hash.
 - **Screenshots** are named `screenshot.png` or `screenshot.webp`.
   Only one screenshot per bundle is expected.
 - **Path traversal is rejected.** The plugin refuses to load any
