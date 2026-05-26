@@ -16,7 +16,8 @@
 <snapshot-name>/
   index.html                 # REQUIRED — sanitized DOM referencing resources/
   manifest.json              # REQUIRED — schema version 2
-  resources/                 # Everything index.html references by relative path
+  resources/                 # OPTIONAL — present only when index.html
+                             # references external assets by relative path
     screenshot.png|webp      # Visual reference (optional)
     <sha1>.css               # Stylesheet sidecars
     <sha1>.woff2|png|jpg|... # Fonts, images, media, SVG sprites, etc.
@@ -56,6 +57,9 @@ window dropdown.
 
 ## `resources/` directory
 
+- **Optional.** A bundle built from a page with only inline `<style>` and
+  no screenshot references no external assets and ships without a
+  `resources/` directory at all (e.g. the test-project `login/*` bundles).
 - **One flat level.** No nested subdirectories under `resources/`.
   Filenames are all that's referenced from `index.html`.
 - **CSS sidecars** are content-addressed by the `sha1` of the
@@ -115,7 +119,7 @@ Differences:
 | Screenshot location | `<bundle>/screenshot.<ext>` (top-level) | `<bundle>/resources/screenshot.<ext>` |
 | CSS | Inlined as `<style>` inside `index.html` by the saver | Written as `resources/<sha1>.css` sidecars referenced by `<link>`; plugin inlines them on read |
 | `manifest.version` | Sometimes a schema version, sometimes a write counter (Task 11 overloaded it) | Strictly the schema version — always `2` |
-| Top-level files | `index.html`, `screenshot.*`, `manifest.json` | `index.html`, `manifest.json`, `resources/` |
+| Top-level files | `index.html`, `screenshot.*`, `manifest.json` | `index.html`, `manifest.json`, and `resources/` when external assets are referenced |
 
 To migrate an existing `.snapshots/` directory:
 

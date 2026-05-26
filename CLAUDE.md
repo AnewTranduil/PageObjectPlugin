@@ -118,6 +118,7 @@ packages/test-project/
   fixtures/
     app.html
     login.html
+    styles/                     # external stylesheets linked by app.html
   page-objects/
     login.page.ts
     dashboard.page.ts
@@ -125,13 +126,17 @@ packages/test-project/
     login.spec.ts
     dashboard.spec.ts
   .snapshots/
-    login/
-      initial/        {index.html, manifest.json, resources/}
-      error-state/    {index.html, manifest.json, resources/}
-    dashboard/
+    login/                      # login.html uses inline CSS — no resources/
+      initial/        {index.html, manifest.json}
+      error-state/    {index.html, manifest.json}
+    dashboard/                  # app.html links external CSS — sidecars emitted
       initial/        {index.html, manifest.json, resources/}
       ticket-filled/  {index.html, manifest.json, resources/}
 ```
+
+`resources/` is optional: it exists only when `index.html` references
+external assets (CSS sidecars or a screenshot). Bundles built from a page
+with only inline `<style>` and no screenshot legitimately omit it.
 
 ## Task Sequence
 
@@ -152,11 +157,12 @@ Tasks MUST be completed in order. Each task is in `docs/tasks/`.
 
 ## Current State
 
-**Tasks 0–14 and 19 are complete.** All plugin features ship, the snapshot
-saver npm package is published, the UI test suite runs under a layered
-Page Object structure, CI aggregates test results into a single
-`claude-summary.{json,md}` bundle, and a Playwright-style trace viewer is
-auto-generated on PRs tagged `demo`.
+**Tasks 0–15.5 and 19 are complete.** All plugin features ship, the snapshot
+saver npm package is published, `@pagemirror/snapshot-core` is extracted and
+consumed via semver, the UI test suite runs under a layered Page Object
+structure, CI aggregates test results into a single `claude-summary.{json,md}`
+bundle, and a Playwright-style trace viewer is auto-generated on PRs tagged
+`demo`.
 
 - **Tasks 0–9:** Plugin shell, snapshot loading, file watcher, highlight
   bridge, element picker, gutter validation, polish, JS refactor,
@@ -171,13 +177,14 @@ auto-generated on PRs tagged `demo`.
 - **Task 14 (CI test reporting):** `build.gradle.kts` registers `aggregateTestReport` (`:219`) and `testReport` (`:261`); `buildSrc/.../buildtools/` contains `ClaudeSummaryGenerator`, `JUnitXmlParser`, `PlaywrightJsonParser`, `MarkdownEmitter`, `TraceJsonAugmenter` with unit tests.
 - **Task 19 (Feature demo trace viewer):** `ui/annotations/Feature.kt`, `FeatureTagListener`, `buildSrc/.../DemoReportRenderer.kt` + `DemoTestSelector.kt`, `src/main/resources/demo-viewer/`, and `.github/workflows/demo.yml` together render a self-contained trace viewer per PR.
 
-**Task 15 (Extract `@pagemirror/snapshot-core`)** is **in progress** on
-branch `claude/check-task-statuses-C7rh9`. This bumps the snapshot bundle
-format to v2: `screenshot.<ext>` moves under `resources/`, CSS is written
-as `resources/<sha1>.css` sidecars referenced by `<link>`, and the plugin
-inlines sidecar CSS on read (since `srcdoc` iframes can't resolve relative
-URLs). v1 bundles are refused with a clear error message — regenerate via
-`npx playwright test` in `packages/test-project/`.
+**Task 15 (Extract `@pagemirror/snapshot-core`)** is **complete** — the
+package ships in `packages/snapshot-core/` and the saver consumes it via
+semver. It bumped the snapshot bundle format to v2: `screenshot.<ext>` moves
+under `resources/`, CSS is written as `resources/<sha1>.css` sidecars
+referenced by `<link>`, and the plugin inlines sidecar CSS on read (since
+`srcdoc` iframes can't resolve relative URLs). v1 bundles are refused with a
+clear error message — regenerate via `npx playwright test` in
+`packages/test-project/`.
 
 **Task 15.5 (Framework-agnostic trace rendering + resource inlining)** —
 `@pagemirror/snapshot-core` now owns trace rendering behind a
