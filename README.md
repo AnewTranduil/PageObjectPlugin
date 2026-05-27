@@ -5,10 +5,10 @@ An IntelliJ plugin that renders Playwright page snapshots inside a docked tool w
 ## Features
 
 - **Page Mirror panel** — displays captured page snapshots in an embedded browser (JCEF), docked to the right side of the IDE.
-- **Code-to-UI highlight** — move your cursor to a Playwright locator and the corresponding element lights up in the snapshot.
+- **Code-to-UI highlight** — move your cursor to a Playwright locator and the corresponding element lights up in the snapshot (or press `Alt+Shift+H` to re-highlight the current line's locator on demand).
 - **Element picker** — click any element in the snapshot to generate a locator and insert it into your code (`Alt+Shift+I`).
 - **Selector validation** — gutter badges show how many elements match each locator, catching ambiguous or broken selectors before you run tests.
-- **Highlight All** — highlight every locator on the page at once with color-coded overlays and duplicate detection (`Alt+Shift+H`).
+- **Highlight All** — the **Show All** button in the tool window highlights every locator in the current file at once with color-coded overlays and duplicate detection.
 - **Auto-discovery** — snapshots reload automatically when files change on disk.
 - **Configurable** — adjust snapshot search depth, highlight color, auto-reload behavior, and code generation style in Settings > Tools > Page Mirror.
 
