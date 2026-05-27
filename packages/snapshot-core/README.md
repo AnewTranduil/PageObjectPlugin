@@ -22,7 +22,7 @@ A small set of pure functions plus a couple of interfaces. Everything is statele
 
 1. **`collectorSource`** / **`collectPage`** — browser-side collector that serializes `document.documentElement`, pulls in every `<link rel="stylesheet">` + `<style>`, and returns a `CollectedPayload`.
 2. **`assembleHtml(captured)`** — rewrites the collected HTML to reference CSS sidecars under `resources/<sha1>.css`.
-3. **`buildManifest(captured, driver?)`** — produces a schema-v2 `manifest.json` object.
+3. **`buildManifest(captured, driver?, now?)`** — produces a schema-v2 `manifest.json` object.
 4. **`saveSnapshot(adapter, options)`** — orchestrator that writes the full bundle to disk. Takes a `PageAdapter` you implement.
 
 ### Trace pipeline (framework-agnostic)
@@ -190,11 +190,11 @@ for (const info of result.snapshots) {
   "viewport": { "width": 1280, "height": 720 },
   "timestamp": "2025-01-15T10:30:00Z",
   "userAgent": "Mozilla/5.0 …",
-  "playwright": "1.58.0"
+  "selenium": "4.18.0"
 }
 ```
 
-Exactly one driver field is populated per manifest, matching `DriverInfo.name`. The v1 format is **not backwards compatible** and is refused by the plugin.
+Exactly one driver field is populated per manifest, and its key is whatever you pass as `DriverInfo.name` (`playwright` / `selenium` / `cypress` / `appium` / …) — this package is framework-agnostic and does not assume Playwright. The v1 format is **not backwards compatible** and is refused by the plugin.
 
 See [`docs/snapshot-bundle-spec.md`](../../docs/snapshot-bundle-spec.md) in the main repo for the authoritative spec.
 
@@ -207,6 +207,7 @@ See [`docs/snapshot-bundle-spec.md`](../../docs/snapshot-bundle-spec.md) in the 
 | `StylesheetData`           | One stylesheet (`href?`, `source`) as produced by the collector                   |
 | `Resource`                 | A file to be written under `resources/` (`filename`, `bytes`)                     |
 | `CapturedPage`             | Output of a `PageAdapter.capture()` call                                         |
+| `CollectedPayload`         | Raw return value of `collectPage` (`html` + `stylesheets`)                        |
 | `CollectorOptions`         | `extraSelectors` / `excludeSelectors` / `extraAttributes`                         |
 | `ScreenshotOptions`        | `{ format: 'png' \| 'webp', fullPage: boolean }`                                  |
 | `CaptureRequest`           | `CollectorOptions & { screenshot?: ScreenshotOptions }`                           |
@@ -214,6 +215,7 @@ See [`docs/snapshot-bundle-spec.md`](../../docs/snapshot-bundle-spec.md) in the 
 | `DriverInfo`               | `{ name, version }` written into the manifest                                    |
 | `SaveSnapshotOptions`      | Options for `saveSnapshot`                                                       |
 | `SnapshotResult`           | `{ outputDir, files: { html, manifest?, resources } }`                           |
+| `AssembleResult`           | Return value of `assembleHtml` (`{ html, cssResources }`)                         |
 | `ManifestJson`             | Schema-v2 manifest shape                                                         |
 | `MANIFEST_VERSION`         | Constant `2`                                                                     |
 
@@ -227,9 +229,14 @@ See [`docs/snapshot-bundle-spec.md`](../../docs/snapshot-bundle-spec.md) in the 
 | `ResourceOverride`         | Per-snapshot URL → sha1 override                                                 |
 | `ScreencastFrame`          | One screencast frame (sha1 + timestamp)                                          |
 | `TraceBackend`             | The trace-data abstraction you implement                                         |
+| `RenderedSnapshot`         | Return value of `renderSnapshot` (HTML + resource references to resolve)          |
+| `RenderedSnapshotInput`    | Input accepted by `inlineResources`                                              |
+| `InlineResult`             | Return value of `inlineResources` (`html` + emitted `resources`)                  |
+| `InlinedResource`          | One file emitted under `resources/` by `inlineResources`                          |
 | `TraceMarker`              | Snapshot marker consumed by `extractFromBackend`                                 |
 | `ExtractFromBackendOptions`| Options for `extractFromBackend`                                                 |
 | `ExtractFromBackendResult` | `{ snapshots: ExtractedSnapshotInfo[] }`                                         |
+| `ExtractedSnapshotInfo`    | One extracted bundle's metadata (`page`, `state`, `outputDir`, `files`)           |
 
 ### Functions
 
