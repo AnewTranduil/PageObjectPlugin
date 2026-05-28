@@ -65,14 +65,14 @@ npx playwright test
 | Option | Default | Description |
 |--------|---------|-------------|
 | `outputDir` | `.snapshots` | Where to save snapshots |
-| `screenshot` | `true` | Extract screenshot from trace screencast |
+| `screenshot` | `false` | Opt in to extracting a screencast frame as `resources/screenshot.webp`. Off by default — trace screencast frames are low-fidelity and frequently blank. |
 | `manifest` | `true` | Generate `manifest.json` with metadata |
 
 ```typescript
 reporter: [
   ['playwright-snapshot-saver/reporter', {
     outputDir: './my-snapshots',
-    screenshot: false,
+    screenshot: true,
   }]
 ]
 ```
@@ -88,7 +88,7 @@ await saveSnapshot(page, {
   outputDir: '.snapshots',
   name: 'login-initial',
   group: 'login',
-  screenshot: { enabled: true, format: 'png', fullPage: false },
+  screenshot: { format: 'png', fullPage: false }, // or `false` to disable
   manifest: true,
 });
 ```
@@ -98,8 +98,8 @@ await saveSnapshot(page, {
 | `outputDir` | (required) | Base output directory |
 | `name` | (required) | Snapshot name — becomes the subdirectory |
 | `group` | — | Parent group directory |
-| `screenshot.enabled` | `true` | Capture a screenshot |
-| `screenshot.format` | `png` | `png` (the only format supported for live capture) |
+| `screenshot` | `{ format: 'png', fullPage: false }` | Screenshot options, or `false` to disable. A screenshot is captured by default on this live-capture path. |
+| `screenshot.format` | `png` | `png` (the only format supported for live capture; `webp` throws) |
 | `screenshot.fullPage` | `false` | Capture the full scrollable page |
 | `manifest` | `true` | Generate `manifest.json` |
 
@@ -119,9 +119,14 @@ npx playwright-snapshot-saver extract --source ./test-results/trace.zip
 # From a hosted report URL
 npx playwright-snapshot-saver extract --source https://example.com/report
 
-# With filters
-npx playwright-snapshot-saver extract --source ./playwright-report --page login --state initial --output ./my-snapshots
+# With filters and screenshot extraction (off by default)
+npx playwright-snapshot-saver extract --source ./playwright-report --page login --state initial --output ./my-snapshots --screenshot
 ```
+
+CLI flags: `--source` (required), `--output` (default `.snapshots`),
+`--page` / `--state` (filters), `--screenshot` (opt in to
+`resources/screenshot.webp`, off by default), `--no-screenshot`
+(explicit disable), and `--no-manifest` (skip `manifest.json`).
 
 **Programmatic:**
 
@@ -139,7 +144,7 @@ const result = await extractSnapshots({
 |--------|---------|-------------|
 | `source` | (required) | Report directory, trace ZIP path, or URL |
 | `outputDir` | `.snapshots` | Where to save snapshots |
-| `screenshot` | `true` | Extract screenshot from trace |
+| `screenshot` | `false` | Opt in to extracting a screencast frame from the trace |
 | `manifest` | `true` | Generate `manifest.json` |
 | `filter.page` | — | Only extract this page |
 | `filter.state` | — | Only extract this state |
