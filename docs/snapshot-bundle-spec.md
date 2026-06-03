@@ -74,11 +74,11 @@ window dropdown.
 ```json
 {
   "version": 2,
-  "url": "https://example.com/login",
   "viewport": { "width": 1280, "height": 720 },
   "timestamp": "2025-01-15T10:30:00Z",
-  "userAgent": "Mozilla/5.0 ...",
-  "playwright": "1.58.0"
+  "playwright": "1.58.0",
+  "url": "https://example.com/login",
+  "userAgent": "Mozilla/5.0 ..."
 }
 ```
 
@@ -86,12 +86,15 @@ Fields:
 - `version` (int, required) — **schema** version. Currently `2`. This
   is NOT a monotonic write counter (v1 briefly used it that way under
   Task 11; v2 restores the schema-only semantics).
-- `url` (string, required) — the page URL at capture time. May be the
-  empty string for trace-extracted snapshots whose trace did not
-  record the URL.
 - `viewport` (object, required) — `{width, height}` in CSS pixels.
   Mobile adapters (Task 20) MAY add `{platform, deviceName}`.
 - `timestamp` (string, required) — ISO-8601 UTC.
+- `url` (string, optional) — the page URL at capture time. Live-capture
+  bundles populate it from `page.url()`. Trace-extracted bundles may
+  omit the field entirely (or carry the empty string) when the source
+  trace did not record a URL — `snapshot-core/src/trace/extract.ts`
+  passes the URL straight through `buildTraceManifest`, and
+  `JSON.stringify` drops it if undefined.
 - `userAgent` (string, optional).
 - Driver version — exactly one of `playwright` / `selenium` / `cypress`
   / `appium` SHOULD be present, matching the driver that produced the
