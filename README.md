@@ -88,8 +88,11 @@ See the [saver README](packages/playwright-snapshot-saver/README.md) and [snapsh
 
 ## Roadmap
 
+- Python Playwright support (locator highlighting + PyPI snapshot saver)
 - Selenium support
 - Cypress support
+- JVM Playwright support (Java/Kotlin locators + JVM snapshot saver)
+- Appium mobile support
 
 ## License
 

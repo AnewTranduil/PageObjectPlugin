@@ -34,7 +34,7 @@ Each snapshot is a directory containing:
   index.html              # Sanitized DOM referencing resources/ (REQUIRED)
   manifest.json           # Metadata, manifest.version = 2 (REQUIRED)
   resources/
-    screenshot.webp       # Visual reference (or .png) (optional)
+    screenshot.webp       # Visual reference (or .png) — optional, opt-in (saver does not produce by default)
     <sha1>.css            # Stylesheet sidecars referenced by <link> tags
 ```
 
@@ -58,7 +58,10 @@ spec and v1 → v2 migration notes.
 ```
 
 The plugin reads `manifest.version` and refuses to load unknown versions
-with a user-visible error.
+with a user-visible error. The example above shows all fields populated;
+in practice `userAgent` is optional and `url` may be the empty string for
+trace-extracted bundles. See `docs/snapshot-bundle-spec.md` for which
+fields are required vs. optional.
 
 ## Plugin Source Layout
 
@@ -118,6 +121,11 @@ packages/test-project/
   fixtures/
     app.html
     login.html
+    styles/
+      components.css
+      layout.css
+      reset.css
+      theme.css
   page-objects/
     login.page.ts
     dashboard.page.ts
@@ -152,8 +160,9 @@ Tasks MUST be completed in order. Each task is in `docs/tasks/`.
 
 ## Current State
 
-**Tasks 0–14 and 19 are complete.** All plugin features ship, the snapshot
-saver npm package is published, the UI test suite runs under a layered
+**Tasks 0–15.5 and 19 are complete.** All plugin features ship, the snapshot
+saver npm package is published on top of an extracted framework-agnostic
+`@pagemirror/snapshot-core`, the UI test suite runs under a layered
 Page Object structure, CI aggregates test results into a single
 `claude-summary.{json,md}` bundle, and a Playwright-style trace viewer is
 auto-generated on PRs tagged `demo`.
@@ -171,26 +180,45 @@ auto-generated on PRs tagged `demo`.
 - **Task 14 (CI test reporting):** `build.gradle.kts` registers `aggregateTestReport` (`:219`) and `testReport` (`:261`); `buildSrc/.../buildtools/` contains `ClaudeSummaryGenerator`, `JUnitXmlParser`, `PlaywrightJsonParser`, `MarkdownEmitter`, `TraceJsonAugmenter` with unit tests.
 - **Task 19 (Feature demo trace viewer):** `ui/annotations/Feature.kt`, `FeatureTagListener`, `buildSrc/.../DemoReportRenderer.kt` + `DemoTestSelector.kt`, `src/main/resources/demo-viewer/`, and `.github/workflows/demo.yml` together render a self-contained trace viewer per PR.
 
-**Task 15 (Extract `@pagemirror/snapshot-core`)** is **in progress** on
-branch `claude/check-task-statuses-C7rh9`. This bumps the snapshot bundle
-format to v2: `screenshot.<ext>` moves under `resources/`, CSS is written
-as `resources/<sha1>.css` sidecars referenced by `<link>`, and the plugin
-inlines sidecar CSS on read (since `srcdoc` iframes can't resolve relative
-URLs). v1 bundles are refused with a clear error message — regenerate via
-`npx playwright test` in `packages/test-project/`.
+- **Task 15 (Extract `@pagemirror/snapshot-core`):** `packages/snapshot-core/`
+  ships the framework-agnostic engine (HTML assembly, manifest builder,
+  `PageAdapter` interface), and `packages/playwright-snapshot-saver/`
+  consumes it. The bundle format is bumped to v2: `screenshot.<ext>` lives
+  under `resources/`, CSS is written as `resources/<sha1>.css` sidecars
+  referenced by `<link>`, and the plugin inlines sidecar CSS on read
+  (since `srcdoc` iframes can't resolve relative URLs). v1 bundles are
+  refused with a clear error message — regenerate via `npx playwright test`
+  in `packages/test-project/`.
+- **Task 15.5 (Framework-agnostic trace rendering + resource inlining):**
+  `@pagemirror/snapshot-core` owns trace rendering behind a
+  `TraceBackend` interface (`packages/snapshot-core/src/trace/{types,
+  renderer, inline, extract, runtime-script, content-type}.ts`). The
+  Playwright package (`packages/playwright-snapshot-saver/src/trace/
+  playwright-backend.ts`) reshapes `TraceLoader.storage()` into that
+  interface; `extractor.ts` delegates to `extractFromBackend`. Trace
+  bundles are fully self-contained — every `<link>`, `<img>`, CSS
+  `url(...)`, `@font-face`, and SVG `<use>` reference points at a real
+  file under `resources/`, and the `<base>` element is stripped.
+  Selenium/Cypress/Appium adapters (Tasks 17, 20) will reuse
+  `extractFromBackend` by implementing the same `TraceBackend` surface.
 
-**Task 15.5 (Framework-agnostic trace rendering + resource inlining)** —
-`@pagemirror/snapshot-core` now owns trace rendering behind a
-`TraceBackend` interface (`packages/snapshot-core/src/trace/{types,
-renderer, inline, extract, runtime-script, content-type}.ts`). The
-Playwright package (`packages/playwright-snapshot-saver/src/trace/
-playwright-backend.ts`) reshapes `TraceLoader.storage()` into that
-interface; `extractor.ts` delegates to `extractFromBackend`. Trace
-bundles are fully self-contained — every `<link>`, `<img>`, CSS
-`url(...)`, `@font-face`, and SVG `<use>` reference points at a real
-file under `resources/`, and the `<base>` element is stripped.
-Selenium/Cypress/Appium adapters (Tasks 17, 20) will reuse
-`extractFromBackend` by implementing the same `TraceBackend` surface.
+### Planned (not started)
+
+- **Task 16 (Python Playwright support):** recognize Python Playwright
+  locators in `.py` files via a new `PythonLocatorExtractor` +
+  `LocatorExtractorRegistry`, plus a sibling `playwright-snapshot-saver-python`
+  PyPI package.
+- **Task 17 (Selenium + Cypress adapters):** two new npm packages
+  (`selenium-snapshot-saver`, `cypress-snapshot-saver`), each a thin
+  `PageAdapter` implementation over `@pagemirror/snapshot-core`.
+- **Task 18 (JVM Playwright support):** recognize Playwright Java API
+  locators in `.java` / `.kt` files, plus a `snapshot-saver-jvm` Gradle
+  artifact that produces spec-conformant bundles from
+  `com.microsoft.playwright.Page`.
+- **Task 20 (Appium mobile support):** `appium-snapshot-saver` —
+  a `PageAdapter` over Appium that captures native mobile page source +
+  screenshot, extending the manifest `viewport` with platform + device
+  metadata.
 
 ## Working with the Build
 
@@ -238,6 +266,11 @@ runs every suite locally and produces the same `claude-summary.{json,md}`
 under `build/reports/`. Use it when iterating on a single suite, but do
 not treat its output as the source of truth — only the CI run for your
 branch is authoritative.
+
+Two other workflows live alongside `ci.yml`: `.github/workflows/demo.yml`
+(renders the per-PR trace viewer for PRs tagged `demo`, see Task 19) and
+`.github/workflows/playwright-compat.yml` (exercises the snapshot saver
+against multiple Playwright versions to catch upstream-breakage early).
 
 **Redlines** (non-negotiable):
 
