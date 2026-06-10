@@ -1,8 +1,18 @@
 # Manifest timestamp shows epoch-zero date
 
 > **Date:** 2026-04-01
-> **Status:** Open
+> **Status:** Resolved (Task 11)
 > **Affects:** `extractSnapshots()`, reporter
+>
+> Fixed in `packages/snapshot-core/src/trace/extract.ts` (`buildTraceManifest`):
+> the manifest timestamp is now derived from `marker.wallTime` (epoch ms
+> reconstructed in
+> `packages/playwright-snapshot-saver/src/trace/playwright-backend.ts`
+> from `context.wallTime + (action.startTime - context.startTime)`) and
+> falls back to `new Date()` only when the trace omits wall-clock data.
+> Verified by the regenerated
+> `packages/test-project/.snapshots/dashboard/initial/manifest.json`
+> carrying real 2026-04 timestamps.
 
 ## Symptom
 

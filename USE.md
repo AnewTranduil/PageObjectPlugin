@@ -88,7 +88,7 @@ await saveSnapshot(page, {
   outputDir: '.snapshots',
   name: 'login-initial',
   group: 'login',
-  screenshot: { enabled: true, format: 'png', fullPage: false },
+  screenshot: { format: 'png', fullPage: false },
   manifest: true,
 });
 ```
@@ -98,9 +98,9 @@ await saveSnapshot(page, {
 | `outputDir` | (required) | Base output directory |
 | `name` | (required) | Snapshot name — becomes the subdirectory |
 | `group` | — | Parent group directory |
-| `screenshot.enabled` | `true` | Capture a screenshot |
-| `screenshot.format` | `png` | `png` (the only format supported for live capture) |
-| `screenshot.fullPage` | `false` | Capture the full scrollable page |
+| `screenshot` | `{ format: 'png', fullPage: false }` | Screenshot options. Pass `false` to disable the screenshot entirely. |
+| `screenshot.format` | `'png'` | `'png'` is the only format supported for live capture (`page.screenshot()` cannot produce webp). Trace-extracted snapshots emit webp from the screencast on their own. |
+| `screenshot.fullPage` | `false` | Capture the full scrollable page instead of just the viewport. |
 | `manifest` | `true` | Generate `manifest.json` |
 
 ### Option C: Extract from Existing Sources (CLI / API)
