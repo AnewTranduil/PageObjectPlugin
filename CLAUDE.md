@@ -299,9 +299,11 @@ The layout was overhauled in Task 13 — follow these rules.
   do not hide it.
 - **Reference tests.** `tests/ToolWindowUiTest.kt` is the canonical
   Page/Flow example for active tests. `tests/SettingsUiTest.kt` is the
-  canonical example for tests that compose `SettingsChangeFlow`; it is
-  currently `@Disabled` for unrelated reasons (UI DSL component
-  wrapping) but kept as a structural reference.
+  canonical example for tests that compose `SettingsChangeFlow` — it
+  was re-enabled once `PageMirrorConfigurable` gained explicit
+  accessible names on its four testable fields and the settings
+  locators in `ui/locators/PageMirrorLocators.kt` were rewritten to
+  target those names directly.
 
 ## Report Dashboard Access
 
