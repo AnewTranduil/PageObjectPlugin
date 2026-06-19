@@ -126,8 +126,8 @@ packages/test-project/
     dashboard.spec.ts
   .snapshots/
     login/
-      initial/        {index.html, manifest.json, resources/}
-      error-state/    {index.html, manifest.json, resources/}
+      initial/        {index.html, manifest.json}
+      error-state/    {index.html, manifest.json}
     dashboard/
       initial/        {index.html, manifest.json, resources/}
       ticket-filled/  {index.html, manifest.json, resources/}
