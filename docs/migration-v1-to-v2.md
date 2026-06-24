@@ -119,5 +119,5 @@ initial/
 
 - Bundle spec: [`docs/snapshot-bundle-spec.md`](snapshot-bundle-spec.md)
 - Core package: [`packages/snapshot-core/`](../packages/snapshot-core/)
-- Plugin loader: `SnapshotBundle.kt` — `isSupportedVersion()` method
+- Plugin loader: `SnapshotBundle.kt` — version is checked against the `SUPPORTED_BUNDLE_VERSION` constant inside `SnapshotBundle.load()`
 - Manifest builder: `packages/snapshot-core/src/manifest.ts` — `MANIFEST_VERSION` constant
