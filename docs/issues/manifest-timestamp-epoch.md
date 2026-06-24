@@ -1,8 +1,9 @@
 # Manifest timestamp shows epoch-zero date
 
 > **Date:** 2026-04-01
-> **Status:** Open
+> **Status:** Resolved
 > **Affects:** `extractSnapshots()`, reporter
+> **Fixed in:** `packages/playwright-snapshot-saver/src/trace/playwright-adapter.ts` — `markerTimestamp` now anchors against `context.wallTime + (action.startTime - context.startTime)`, and `extractFromBackend` (in `packages/snapshot-core/src/trace/extract.ts`) derives `manifest.timestamp` from `marker.wallTime`. The on-disk fixtures in `packages/test-project/.snapshots/` carry real ISO timestamps (e.g. `2026-04-15T21:07:18.357Z`).
 
 ## Symptom
 
