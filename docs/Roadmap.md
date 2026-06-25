@@ -2,7 +2,7 @@
 
 ## Context
 
-Tasks 0–14 plus 19 are complete: the plugin works end-to-end for Playwright + TypeScript, the `playwright-snapshot-saver` npm package ships snapshots from real Playwright runs, the settings UI is on Kotlin UI DSL v2, the UI test suite runs under a layered Page Object structure with polling/retry/trace-bundle diagnostics, CI aggregates unit + UI + Playwright results into a single `claude-summary.{json,md}` bundle consumed via `reports.artemon.cloud`, and PRs tagged `demo` auto-render a Playwright-style trace viewer. The current architecture is still tightly coupled to TypeScript (regex-based locator extraction) and Playwright (snapshot saver imports `@playwright/test`). Task 15 below extracts a framework-agnostic `@pagemirror/snapshot-core` package so Selenium / Cypress / Appium / Python / JVM adapters (16–18, 20) can be layered on top without duplicating bundle assembly.
+Tasks 0–15.5 plus 19 are complete: the plugin works end-to-end for Playwright + TypeScript, the `playwright-snapshot-saver` npm package ships snapshots from real Playwright runs, the framework-agnostic `@pagemirror/snapshot-core` package has been extracted and owns both live-capture assembly and trace rendering behind the `PageAdapter` / `TraceBackend` interfaces, the settings UI is on Kotlin UI DSL v2, the UI test suite runs under a layered Page Object structure with polling/retry/trace-bundle diagnostics, CI aggregates unit + UI + Playwright results into a single `claude-summary.{json,md}` bundle consumed via `reports.artemon.cloud`, and PRs tagged `demo` auto-render a Playwright-style trace viewer. The current architecture is still tightly coupled to TypeScript (regex-based locator extraction). The remaining roadmap layers Selenium / Cypress / Appium / Python / JVM adapters (Tasks 16–18, 20) on top of the extracted core.
 
 This roadmap broadens language/framework reach and tightens the inner dev loop so future work scales. It is organized into three tracks (A, B, C) that can progress semi-independently. Each roadmap item corresponds to one or more task docs under `docs/tasks/`.
 
@@ -10,7 +10,7 @@ This roadmap broadens language/framework reach and tightens the inner dev loop s
 
 ## Track A — Language Support
 
-Each language task has **two halves**: (1) IDE-side locator extraction so highlight/gutter work, and (2) a snapshot-saver sibling package in the target language so users can actually produce `.snapshots/` bundles from their non-TS test runs. The existing npm package cannot be consumed from Python/Java/Kotlin, so we ship native packages that reuse the same on-disk bundle format (`index.html` + `screenshot.webp` + `manifest.json`) defined in `CLAUDE.md` and frozen in `docs/snapshot-bundle-spec.md`.
+Each language task has **two halves**: (1) IDE-side locator extraction so highlight/gutter work, and (2) a snapshot-saver sibling package in the target language so users can actually produce `.snapshots/` bundles from their non-TS test runs. The existing npm package cannot be consumed from Python/Java/Kotlin, so we ship native packages that reuse the same on-disk v2 bundle format (`index.html` + `manifest.json` + `resources/`, with `screenshot.<ext>` and `<sha1>.css` sidecars under `resources/`) defined in `CLAUDE.md` and frozen in `docs/snapshot-bundle-spec.md`.
 
 - **A1. Python Playwright support** — `task-16-python-playwright-support.md`
 - **A2. Java/Kotlin Playwright support** — `task-18-jvm-playwright-support.md`
@@ -21,7 +21,7 @@ Shared prerequisite: freeze `docs/snapshot-bundle-spec.md` before A1/A2 implemen
 
 ## Track B — Snapshot Saver Consolidation & Multi-Framework
 
-- **B1. Extract framework-agnostic core** — `task-15-snapshot-core-extraction.md`
+- **B1. Extract framework-agnostic core** — `task-15-snapshot-core-extraction.md` **(done)** — extended by Task 15.5 (`task-15.5-trace-resource-inlining.md`) which moved trace rendering + resource inlining into the core behind the `TraceBackend` interface.
 - **B2. Selenium + Cypress adapters** — `task-17-selenium-cypress-adapters.md`
 - **B3. Mobile environment support (Appium)** — `task-20-appium-mobile-support.md`
 
@@ -43,14 +43,14 @@ B1 is a pure refactor; B2 and B3 layer new adapters on top of the extracted core
 
 ## Suggested Execution Order
 
-1. **C1a** — unblock UI tests (everything else benefits).
-2. **C1b–d** — reliability, diagnostics, page-object refactor.
-3. **C2** — get the Claude inner loop solid before adding scope.
-4. **B1** — refactor snapshot core (low risk, enables B2/B3).
-5. **A1** — Python Playwright (highest user demand for language expansion).
-6. **B2** — Selenium/Cypress adapters.
-7. **A2** — Java/Kotlin Playwright.
-8. **C3** — demo reporting (depends on C1c trace format + C2 stable).
+1. ~~**C1a** — unblock UI tests (everything else benefits).~~ **done**
+2. ~~**C1b–d** — reliability, diagnostics, page-object refactor.~~ **done**
+3. ~~**C2** — get the Claude inner loop solid before adding scope.~~ **done**
+4. ~~**B1** — refactor snapshot core (low risk, enables B2/B3).~~ **done** (incl. Task 15.5)
+5. ~~**C3** — demo reporting (depends on C1c trace format + C2 stable).~~ **done**
+6. **A1** — Python Playwright (highest user demand for language expansion).
+7. **B2** — Selenium/Cypress adapters.
+8. **A2** — Java/Kotlin Playwright.
 9. **B3** — mobile/Appium (largest unknowns).
 
 ---
