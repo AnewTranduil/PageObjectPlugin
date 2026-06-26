@@ -152,9 +152,11 @@ Tasks MUST be completed in order. Each task is in `docs/tasks/`.
 
 ## Current State
 
-**Tasks 0–14 and 19 are complete.** All plugin features ship, the snapshot
-saver npm package is published, the UI test suite runs under a layered
-Page Object structure, CI aggregates test results into a single
+**Tasks 0–15, 15.5, and 19 are complete.** All plugin features ship, the
+snapshot saver npm package is published, the framework-agnostic
+`@pagemirror/snapshot-core` package is extracted and consumed by the
+Playwright saver, the UI test suite runs under a layered Page Object
+structure, CI aggregates test results into a single
 `claude-summary.{json,md}` bundle, and a Playwright-style trace viewer is
 auto-generated on PRs tagged `demo`.
 
@@ -171,13 +173,16 @@ auto-generated on PRs tagged `demo`.
 - **Task 14 (CI test reporting):** `build.gradle.kts` registers `aggregateTestReport` (`:219`) and `testReport` (`:261`); `buildSrc/.../buildtools/` contains `ClaudeSummaryGenerator`, `JUnitXmlParser`, `PlaywrightJsonParser`, `MarkdownEmitter`, `TraceJsonAugmenter` with unit tests.
 - **Task 19 (Feature demo trace viewer):** `ui/annotations/Feature.kt`, `FeatureTagListener`, `buildSrc/.../DemoReportRenderer.kt` + `DemoTestSelector.kt`, `src/main/resources/demo-viewer/`, and `.github/workflows/demo.yml` together render a self-contained trace viewer per PR.
 
-**Task 15 (Extract `@pagemirror/snapshot-core`)** is **in progress** on
-branch `claude/check-task-statuses-C7rh9`. This bumps the snapshot bundle
-format to v2: `screenshot.<ext>` moves under `resources/`, CSS is written
-as `resources/<sha1>.css` sidecars referenced by `<link>`, and the plugin
-inlines sidecar CSS on read (since `srcdoc` iframes can't resolve relative
-URLs). v1 bundles are refused with a clear error message — regenerate via
-`npx playwright test` in `packages/test-project/`.
+**Task 15 (Extract `@pagemirror/snapshot-core`)** is **complete**. The
+package lives at `packages/snapshot-core/` (published as
+`@pagemirror/snapshot-core`) and `packages/playwright-snapshot-saver/`
+depends on it as a thin Playwright adapter. This task also bumped the
+snapshot bundle format to v2: `screenshot.<ext>` moves under
+`resources/`, CSS is written as `resources/<sha1>.css` sidecars referenced
+by `<link>`, and the plugin inlines sidecar CSS on read (since `srcdoc`
+iframes can't resolve relative URLs). v1 bundles are refused with a clear
+error message — regenerate via `npx playwright test` in
+`packages/test-project/`.
 
 **Task 15.5 (Framework-agnostic trace rendering + resource inlining)** —
 `@pagemirror/snapshot-core` now owns trace rendering behind a
