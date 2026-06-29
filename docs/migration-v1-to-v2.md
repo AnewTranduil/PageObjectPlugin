@@ -120,4 +120,4 @@ initial/
 - Bundle spec: [`docs/snapshot-bundle-spec.md`](snapshot-bundle-spec.md)
 - Core package: [`packages/snapshot-core/`](../packages/snapshot-core/)
 - Plugin loader: `SnapshotBundle.kt` — `isSupportedVersion()` method
-- Manifest builder: `packages/snapshot-core/src/manifest.ts` — `MANIFEST_VERSION` constant
+- Manifest builder: `packages/snapshot-core/src/manifest.ts` (`MANIFEST_VERSION` constant is defined in `packages/snapshot-core/src/types.ts` and re-exported via `index.ts`)

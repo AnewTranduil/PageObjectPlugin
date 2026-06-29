@@ -224,6 +224,10 @@ The editor gutter shows a badge next to each locator with the number of matching
 - **0** — no match (broken selector)
 - **2+** — multiple matches (ambiguous selector)
 
+### Highlight current locator
+
+Press `Alt+Shift+H` to highlight only the locator on the **current cursor line** — useful for confirming what a single selector targets without dismissing the rest of the file.
+
 ### Highlight All
 
-Press `Alt+Shift+H` to highlight every locator in the current file on the snapshot at once. Color-coded overlays distinguish different locators. Duplicate and overlapping selectors are flagged with visual badges.
+Click the **Show All** button in the Page Mirror tool window toolbar to highlight every locator in the current file on the snapshot at once. Color-coded overlays distinguish different locators. Duplicate and overlapping selectors are flagged with visual badges. The button toggles — click again (it now reads **Show All \***) to clear.
