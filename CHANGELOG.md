@@ -61,6 +61,6 @@
 - Previous release.
 
 [Unreleased]: https://github.com/AnewTranduil/PageObjectPlugin/compare/v0.5.0...HEAD
-[0.5.0]: https://github.com/AnewTranduil/PageObjectPlugin/compare/v0.4.0...v0.5.0
-[0.4.0]: https://github.com/AnewTranduil/PageObjectPlugin/compare/v0.3.0...v0.4.0
-[0.3.0]: https://github.com/AnewTranduil/PageObjectPlugin/commits/v0.3.0
+[0.5.0]: https://github.com/AnewTranduil/PageObjectPlugin/compare/0.4.0...v0.5.0
+[0.4.0]: https://github.com/AnewTranduil/PageObjectPlugin/commits/0.4.0
+[0.3.0]: https://github.com/AnewTranduil/PageObjectPlugin/releases
