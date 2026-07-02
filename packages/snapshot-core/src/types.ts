@@ -107,7 +107,7 @@ export interface SaveSnapshotOptions extends CollectorOptions {
   group?: string;
   /**
    * Screenshot options. Pass `false` to disable, omit for default
-   * (`{ format: 'webp', fullPage: false }`), or specify a partial object.
+   * (`{ format: 'png', fullPage: false }`), or specify a partial object.
    */
   screenshot?: Partial<ScreenshotOptions> | false;
   /** Generate `manifest.json`. Default `true`. */
