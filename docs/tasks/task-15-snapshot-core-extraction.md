@@ -1,5 +1,12 @@
 # Task 15: Extract Framework-Agnostic `snapshot-core`
 
+> **Status: shipped.** `packages/snapshot-core/` is published to npm as
+> `@pagemirror/snapshot-core`, `playwright-snapshot-saver` was refactored
+> into a thin adapter on top of it, and the plugin loads the resulting v2
+> bundles. Trace-side extraction was later brought into the core under
+> **Task 15.5**. The document below is preserved as the historical design
+> record for the extraction.
+>
 > **Goal:** Split `playwright-snapshot-saver` into a framework-agnostic `@pagemirror/snapshot-core` package plus a thin Playwright adapter, enabling future Selenium / Cypress / Appium adapters (Tasks 17, 20) without duplicating bundle assembly, manifest generation, and HTML post-processing.
 > **Depends on:** Task 14 (aggregator) — recommended but not required.
 > **Output:** New `packages/snapshot-core/`, refactored `packages/playwright-snapshot-saver/` depending on it.

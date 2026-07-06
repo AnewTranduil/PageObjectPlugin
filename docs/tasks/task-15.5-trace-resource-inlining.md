@@ -1,5 +1,13 @@
 # Task 15.5: Resource Inlining for Trace-Extracted Snapshots
 
+> **Status: shipped.** `@pagemirror/snapshot-core` owns trace rendering
+> behind a framework-agnostic `TraceBackend` interface
+> (`packages/snapshot-core/src/trace/`); the Playwright package's
+> `trace/playwright-backend.ts` implements it against `TraceLoader`, and
+> trace-extracted bundles are fully self-contained under `resources/`.
+> Selenium/Cypress/Appium adapters (Tasks 17, 20) will implement the same
+> `TraceBackend` surface to reuse this pipeline.
+>
 > **Scope expanded 2026-04-15.** The original plan post-processed Playwright's
 > rendered HTML. The implementation instead owns rendering: `snapshot-core`
 > now ports Playwright's `SnapshotRenderer` behind a framework-agnostic
