@@ -1,8 +1,15 @@
 # UI Tests — Run Status
 
+> **Historical snapshot.** This file records the state of the UI test
+> suite on 2026-03-27, when the Task 13 series stabilised the fixtures.
+> The suite has since grown to 11 test classes
+> (added `DashboardV2UiTest`, `DemoSmokeUiTest`, `OutdatedBundleBannerUiTest`).
+> For live pass/fail counts, read the aggregated `claude-summary.md` from
+> `reports.artemon.cloud` (see the Test Loop section of `CLAUDE.md`).
+
 **Date:** 2026-03-27
 **Branch:** `dev`
-**Overall:** 30/30 PASS
+**Overall (as of that date):** 30/30 PASS
 
 ## Summary
 

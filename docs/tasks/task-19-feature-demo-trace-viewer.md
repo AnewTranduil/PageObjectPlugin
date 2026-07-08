@@ -12,9 +12,10 @@ Crucially, this task does **not** build a parallel capture pipeline. It reuses t
 
 ## Key Files
 
-- `src/uiTest/kotlin/com/github/artem/pageobjectplugin/support/TraceBundleExtension.kt` — reuse; extend to record `@Feature` tag in `trace.json`.
-- New: `src/uiTest/kotlin/com/github/artem/pageobjectplugin/annotations/Feature.kt`
-- New: `src/uiTest/kotlin/com/github/artem/pageobjectplugin/support/FeatureTagListener.kt` — JUnit 5 `TestExecutionListener` that writes the tag into the trace.
+- `src/uiTest/kotlin/com/github/artem/pageobjectplugin/ui/support/TraceBundleExtension.kt` — reuse; extend to record `@Feature` tag in `trace.json`.
+- New: `src/uiTest/kotlin/com/github/artem/pageobjectplugin/ui/annotations/Feature.kt`
+- New: `src/uiTest/kotlin/com/github/artem/pageobjectplugin/ui/support/FeatureTagListener.kt` — JUnit 5 `TestExecutionListener` that writes the tag into the trace.
+- (Note: after the Task 13d layered refactor, all UI test infra lives under the `ui/` sub-package. Older versions of this doc referenced the pre-refactor paths.)
 - `build.gradle.kts` — new `demoReport` task.
 - New: `buildSrc/src/main/kotlin/DemoReportRenderer.kt` — reads trace bundles, emits self-contained HTML.
 - New: `src/main/resources/demo-viewer/` — static HTML+JS+CSS template for the viewer (embedded into the rendered output).

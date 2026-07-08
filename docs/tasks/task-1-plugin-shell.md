@@ -1,5 +1,10 @@
 # Task 1: Plugin Shell + Tool Window with JCEF
 
+> **Historical.** The as-shipped plugin ID is
+> `com.github.artem.pageobjectplugin` (not `com.example.pagemirror` as
+> the original prompt states). See `CLAUDE.md` for the current ID and
+> plugin.xml surface.
+
 > **Goal:** Get a Tool Window rendering static HTML via JCEF. No business logic.
 > **Depends on:** Nothing (can run in parallel with Task 0)
 > **Output:** Working plugin with "Page Mirror" docked panel showing static HTML

@@ -4,8 +4,11 @@
 > rendered HTML. The implementation instead owns rendering: `snapshot-core`
 > now ports Playwright's `SnapshotRenderer` behind a framework-agnostic
 > `TraceBackend` interface. Seven-category inlining still applies — only the
-> mechanism changed. See `C:\Users\Artem\.claude\plans\delegated-dancing-valley.md`
-> for the expanded plan that was executed.
+> mechanism changed. As-shipped:
+> `packages/snapshot-core/src/trace/{types,renderer,inline,extract,runtime-script,content-type}.ts`
+> (rendering + inlining live in core) and
+> `packages/playwright-snapshot-saver/src/trace/playwright-backend.ts`
+> (Playwright-specific `TraceBackend` implementation).
 >
 > **Goal:** Make trace-extracted snapshots self-contained by walking the
 > rendered HTML, resolving every external reference through the snapshot's
@@ -34,9 +37,9 @@ Child iframe subframes are a separate, larger problem and are **out of scope** f
 
 ## Key Files
 
-- `packages/playwright-snapshot-saver/src/extractor.ts` — currently strips `__playwright_target__` and writes raw rendered HTML. Refactored to pipe rendered HTML + loader through a new resource resolver before writing.
-- `packages/playwright-snapshot-saver/src/trace/playwright-adapter.ts` — add a helper `resolveTraceResource(loader, sha1): Promise<Buffer>` that wraps `loader.resourceForSha1(sha1)`.
-- New: `packages/playwright-snapshot-saver/src/trace/inline-resources.ts` — walks HTML + CSS, resolves `/snapshot/<sha1>/...` references to `Resource` entries and rewritten HTML.
+- `packages/playwright-snapshot-saver/src/extractor.ts` — delegates to `extractFromBackend` from `@pagemirror/snapshot-core`; no longer writes raw rendered HTML.
+- `packages/playwright-snapshot-saver/src/trace/playwright-backend.ts` — reshapes `TraceLoader.storage()` into the framework-agnostic `TraceBackend` interface. (Was originally planned as `playwright-adapter.ts`.)
+- `packages/snapshot-core/src/trace/inline.ts` — walks HTML + CSS, resolves `/snapshot/<sha1>/...` references to `Resource` entries and rewritten HTML. Lives in core (not in the Playwright package) so other backends reuse it.
 - `docs/snapshot-bundle-spec.md` — document that trace-extracted bundles use the same `resources/` layout as live-capture.
 - `packages/playwright-snapshot-saver/tests/` — integration test against a fixture trace ZIP that is known to contain images and external CSS.
 

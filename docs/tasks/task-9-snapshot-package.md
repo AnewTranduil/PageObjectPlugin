@@ -1,5 +1,12 @@
 # Task 9: Snapshot Saver npm Package
 
+> **Historical.** As-shipped the package is named
+> `playwright-snapshot-saver` (not `snapshot-saver`), lives at
+> `packages/playwright-snapshot-saver/`, and the test project moved to
+> `packages/test-project/`. Task 15 later extracted the shared logic
+> into `@pagemirror/snapshot-core`. See `CLAUDE.md` and Task 15 for the
+> current layout.
+
 > **Goal:** Extract snapshot-saving logic from `test-project/utils/save-state.ts` into a standalone, publishable npm package with a configurable API.
 > **Depends on:** Task 0
 > **Output:** `packages/snapshot-saver/` — a self-contained npm package consumable by any Playwright project

@@ -1,7 +1,11 @@
 # Manifest timestamp shows epoch-zero date
 
 > **Date:** 2026-04-01
-> **Status:** Open
+> **Status:** Resolved (see `docs/tasks/task-11-manifest-fixes.md`;
+> the fix landed as part of Task 11 — `extractor.ts` now uses
+> `marker.wallTime`, and `TraceSnapshotMarker` stores the epoch wall
+> time separately from the monotonic timestamp used for snapshot
+> matching).
 > **Affects:** `extractSnapshots()`, reporter
 
 ## Symptom

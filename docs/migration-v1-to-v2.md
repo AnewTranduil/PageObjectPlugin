@@ -52,24 +52,25 @@ still imports `./manifest-generator` instead of `@pagemirror/snapshot-core`.
 
 ### Option A: Rebuild packages (recommended)
 
-If you use local `file:` dependencies (the default for this monorepo):
+The repo is an npm workspace (`packages/*`). Run everything from the
+repo root:
 
 ```bash
-# 1. Build core (produces dist/ that snapshot-saver depends on)
-cd packages/snapshot-core
+# 1. Install all workspace dependencies once
 npm install
-npm run build
 
-# 2. Rebuild snapshot-saver against the new core
-cd ../playwright-snapshot-saver
-npm install
-npm run build
+# 2. Build snapshot-core, then the saver (order matters — the saver
+#    consumes core's dist/)
+npm run -w @pagemirror/snapshot-core build
+npm run -w playwright-snapshot-saver build
 
-# 3. Reinstall in your test project and regenerate snapshots
-cd ../test-project
-npm install
-npx playwright test
+# 3. Regenerate snapshots from the test project
+npm run -w test-project test
 ```
+
+Local `npm install` inside a single workspace member still works if you
+prefer to iterate on one package, but the root-level workspace commands
+above are the canonical path.
 
 After this, every `manifest.json` will contain `"version": 2`.
 

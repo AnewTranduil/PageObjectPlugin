@@ -24,9 +24,12 @@ The existing fixtures (`PageMirrorToolWindowFixture`, `SnapshotBrowserFixture`, 
   - `src/uiTest/kotlin/com/github/artem/pageobjectplugin/fixtures/StatusBarFixture.kt`
   - `src/uiTest/kotlin/com/github/artem/pageobjectplugin/ToolWindowUiTest.kt`
   - `src/uiTest/kotlin/com/github/artem/pageobjectplugin/SettingsUiTest.kt`
-- New:
+- New (as-shipped: everything lives under the `ui/` sub-package —
+  `.../pageobjectplugin/ui/locators/`, `.../ui/pages/`, `.../ui/flows/`,
+  and the moved `.../ui/tests/{ToolWindowUiTest,SettingsUiTest}.kt`
+  targets):
   ```
-  src/uiTest/kotlin/com/github/artem/pageobjectplugin/
+  src/uiTest/kotlin/com/github/artem/pageobjectplugin/ui/
     locators/
       IntelliJLocators.kt      # IDE chrome XPaths (IdeFrameImpl, IdeStatusBar, ToolWindow headers)
       PageMirrorLocators.kt    # Plugin XPaths (tool window combo, refresh button, settings fields)
