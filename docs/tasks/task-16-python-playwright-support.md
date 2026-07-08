@@ -76,7 +76,7 @@ The pytest plugin (`pytest_plugin.py`) provides auto-capture on test failure whe
 4. Add `.py` to default `fileExtensions` in settings; update `PageMirrorConfigurable` if the default needs to be surfaced.
 5. Scaffold `packages/playwright-snapshot-saver-python/` with modern `pyproject.toml` (PEP 621) and `hatchling` or `poetry` build.
 6. Port `html-inliner.ts` to Python using `beautifulsoup4` + stdlib `urllib` — produce output matching the TS version for the shared fixture page (verified by golden-file test).
-7. Port `manifest-generator.ts` — emit spec-v1 compliant `manifest.json` per `docs/snapshot-bundle-spec.md`.
+7. Port `manifest-generator.ts` — emit spec-v2 compliant `manifest.json` per `docs/snapshot-bundle-spec.md` (fixed schema version `2`, `screenshot.<ext>` under `resources/`, CSS as `resources/<sha1>.css` sidecars).
 8. Implement `save_snapshot` / `save_snapshot_async` for `playwright.sync_api.Page` and `playwright.async_api.Page`.
 9. Implement `pytest_plugin.py` reporter (fixture + hook) analogous to `playwright-snapshot-saver`'s Playwright reporter.
 10. Integration tests: `pytest` suite that launches a headless Chromium, visits a fixture page, calls `save_snapshot`, and asserts bundle layout + manifest contents.

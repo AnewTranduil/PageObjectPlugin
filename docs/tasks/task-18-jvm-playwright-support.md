@@ -1,6 +1,6 @@
 # Task 18: Java/Kotlin Playwright Support
 
-> **Goal:** Recognize Playwright Java API locators in `.java` and `.kt` files (highlight + gutter) AND ship `snapshot-saver-jvm` — a Kotlin JVM library that produces spec-v1 bundles from `com.microsoft.playwright.Page`.
+> **Goal:** Recognize Playwright Java API locators in `.java` and `.kt` files (highlight + gutter) AND ship `snapshot-saver-jvm` — a Kotlin JVM library that produces spec-v2 bundles from `com.microsoft.playwright.Page`.
 > **Depends on:** Task 16 (introduces `LocatorExtractor` interface + registry), `docs/snapshot-bundle-spec.md`.
 > **Output:** `JvmLocatorExtractor.kt`, new Gradle artifact `packages/playwright-snapshot-saver-jvm/`.
 
@@ -57,7 +57,7 @@ SnapshotSaver.save(page, "login/initial", new SaveOptions().setOutputDir(new Fil
 3. Add `.java`, `.kt` to default `fileExtensions` in settings.
 4. Scaffold `packages/playwright-snapshot-saver-jvm/` as a sibling Gradle project, included via root `settings.gradle.kts`. Kotlin JVM, Java 17 target.
 5. Implement `HtmlInliner` in Kotlin using Jsoup (port of TS version, verified against the shared fixture page via golden-file test).
-6. Implement `ManifestGenerator` emitting spec-v1 JSON via `kotlinx.serialization`.
+6. Implement `ManifestGenerator` emitting spec-v2 JSON via `kotlinx.serialization` (fixed schema version `2`, `resources/` layout).
 7. Implement `SnapshotSaver.save()` against `com.microsoft.playwright.Page`. Options class mirrors the TS API.
 8. Implement `SnapshotSaverExtension` as a JUnit 5 `TestWatcher` + `ParameterResolver` — auto-captures on failure when registered.
 9. Integration tests: JUnit 5 suite that launches Playwright Java, visits a fixture page, calls the saver, asserts bundle layout.

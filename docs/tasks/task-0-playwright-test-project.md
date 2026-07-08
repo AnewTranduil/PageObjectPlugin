@@ -1,5 +1,11 @@
 # Task 0: Dummy Playwright Test Project
 
+> **Historical.** Superseded by Task 9 (`test-project/` moved under
+> `packages/test-project/` when the repo became an npm workspace) and
+> Task 15 (bundle format v2 — `layout.json` removed, screenshots and CSS
+> live under `resources/`). This doc records the original scope; the
+> canonical layout is in `CLAUDE.md` and `docs/snapshot-bundle-spec.md`.
+
 > **Goal:** Create a minimal Playwright project that produces real snapshot bundles for testing all IDE features.
 > **Depends on:** Nothing
 > **Output:** `test-project/` with `.snapshots/login/initial/` and `.snapshots/login/error-state/`

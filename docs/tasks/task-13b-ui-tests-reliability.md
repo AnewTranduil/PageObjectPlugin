@@ -12,6 +12,12 @@ We need three things: (1) a single polling primitive used everywhere, (2) a retr
 
 ## Key Files
 
+> **Note:** paths below reflect the pre-Task-13d layout. After the
+> layered refactor (Task 13d), UI test infra lives under the `ui/`
+> sub-package (e.g. `.../ui/BaseUiTest.kt`, `.../ui/fixtures/*`,
+> `.../ui/support/*`). Also: `@Quarantine` was **not** shipped — it is
+> tracked only as a reporting field in `ClaudeSummaryModel.kt`.
+
 - `src/uiTest/kotlin/com/github/artem/pageobjectplugin/BaseUiTest.kt` — main offender; multiple `Thread.sleep` and fixed `waitFor` calls.
 - `src/uiTest/kotlin/com/github/artem/pageobjectplugin/fixtures/PageMirrorToolWindowFixture.kt`
 - `src/uiTest/kotlin/com/github/artem/pageobjectplugin/fixtures/SnapshotBrowserFixture.kt`
@@ -20,7 +26,7 @@ We need three things: (1) a single polling primitive used everywhere, (2) a retr
 - `src/uiTest/kotlin/com/github/artem/pageobjectplugin/fixtures/StatusBarFixture.kt`
 - New: `src/uiTest/kotlin/com/github/artem/pageobjectplugin/support/Wait.kt`
 - New: `src/uiTest/kotlin/com/github/artem/pageobjectplugin/support/RetryOnceExtension.kt`
-- New: `src/uiTest/kotlin/com/github/artem/pageobjectplugin/support/Quarantine.kt`
+- ~~New: `src/uiTest/kotlin/com/github/artem/pageobjectplugin/support/Quarantine.kt`~~ (not shipped)
 
 ## Steps
 

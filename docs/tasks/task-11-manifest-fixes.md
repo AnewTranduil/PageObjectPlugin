@@ -1,5 +1,12 @@
 # Task 11: Manifest Fixes — Timestamp, Change Detection, Version Increment
 
+> **Partially superseded by Task 15.** The timestamp fix and
+> change-detection (no-op writes when content is unchanged) are still
+> in effect. The "auto-incrementing version" behaviour was reverted:
+> `manifest.version` is now the fixed schema version `2` (managed by
+> `MANIFEST_VERSION` in `@pagemirror/snapshot-core`), not a write
+> counter. See `docs/migration-v1-to-v2.md` for the rationale.
+
 > **Goal:** Fix three manifest.json bugs: broken timestamps in extractor path, unconditional file overwrites, and static version field.
 > **Depends on:** Task 10
 > **Output:** Correct wall-clock timestamps, no-op writes when content unchanged, auto-incrementing version on content changes

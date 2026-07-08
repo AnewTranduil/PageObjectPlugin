@@ -4,7 +4,19 @@
 
 ### Added
 
+- Trace-extracted snapshots are now fully self-contained. Every
+  `<link>`, `<img>`, CSS `url(...)`, `@font-face`, and SVG `<use>` in a
+  trace-derived bundle points at a real file under `resources/`, and the
+  `<base>` element is stripped so relative URLs resolve inside the
+  plugin's `srcdoc` iframe.
+
 ### Changed
+
+- Trace rendering is now owned by `@pagemirror/snapshot-core` behind a
+  `TraceBackend` interface; `playwright-snapshot-saver` reshapes
+  Playwright's `TraceLoader.storage()` into that interface via
+  `playwright-backend.ts`. Selenium/Cypress/Appium adapters can reuse
+  `extractFromBackend` by implementing the same surface.
 
 ### Fixed
 

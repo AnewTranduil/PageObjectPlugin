@@ -1,5 +1,11 @@
 # Task 2: Snapshot Loading via CefQueryRouter
 
+> **Historical.** Superseded by Task 15 (bundle format v2). This doc
+> references `layout.json` and a `layoutPath` field on `SnapshotBundle`;
+> neither exists in the current code. The test project also moved to
+> `packages/test-project/`. See `CLAUDE.md` for the current bundle shape
+> and `SnapshotBundle.kt` for the current model.
+
 > **Goal:** Establish the Kotlin-to-JCEF communication bridge. Push snapshot data into the browser and render it.
 > **Depends on:** Task 0 (for test data), Task 1 (for plugin shell)
 > **Output:** Menu action that loads a snapshot folder and renders it in the Tool Window

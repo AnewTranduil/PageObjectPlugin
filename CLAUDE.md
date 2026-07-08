@@ -57,8 +57,11 @@ spec and v1 → v2 migration notes.
 }
 ```
 
-The plugin reads `manifest.version` and refuses to load unknown versions
-with a user-visible error.
+Only `version`, `viewport`, `timestamp`, and `playwright` are guaranteed;
+`url` and `userAgent` are written when the adapter supplies them (the
+Playwright saver omits `userAgent` when undefined, and fixture bundles
+shipped in this repo omit both). The plugin reads `manifest.version` and
+refuses to load unknown versions with a user-visible error.
 
 ## Plugin Source Layout
 
@@ -118,6 +121,7 @@ packages/test-project/
   fixtures/
     app.html
     login.html
+    styles/            *.css shipped alongside the fixture pages
   page-objects/
     login.page.ts
     dashboard.page.ts
@@ -126,12 +130,17 @@ packages/test-project/
     dashboard.spec.ts
   .snapshots/
     login/
-      initial/        {index.html, manifest.json, resources/}
-      error-state/    {index.html, manifest.json, resources/}
+      initial/        {index.html, manifest.json}
+      error-state/    {index.html, manifest.json}
     dashboard/
       initial/        {index.html, manifest.json, resources/}
       ticket-filled/  {index.html, manifest.json, resources/}
 ```
+
+`resources/` is optional per the v2 spec — bundles without external CSS
+or screenshots skip it. No shipped fixture bundle currently includes a
+`resources/screenshot.*` (screenshots are captured but not committed to
+the repo).
 
 ## Task Sequence
 
@@ -152,11 +161,13 @@ Tasks MUST be completed in order. Each task is in `docs/tasks/`.
 
 ## Current State
 
-**Tasks 0–14 and 19 are complete.** All plugin features ship, the snapshot
-saver npm package is published, the UI test suite runs under a layered
-Page Object structure, CI aggregates test results into a single
-`claude-summary.{json,md}` bundle, and a Playwright-style trace viewer is
-auto-generated on PRs tagged `demo`.
+**Tasks 0–15, 15.5, and 19 are complete.** All plugin features ship, the
+snapshot saver npm package is published, `@pagemirror/snapshot-core` is
+extracted and publishable, trace-extracted snapshots inline all
+resources, the UI test suite runs under a layered Page Object structure,
+CI aggregates test results into a single `claude-summary.{json,md}`
+bundle, and a Playwright-style trace viewer is auto-generated on PRs
+tagged `demo`.
 
 - **Tasks 0–9:** Plugin shell, snapshot loading, file watcher, highlight
   bridge, element picker, gutter validation, polish, JS refactor,
@@ -171,13 +182,15 @@ auto-generated on PRs tagged `demo`.
 - **Task 14 (CI test reporting):** `build.gradle.kts` registers `aggregateTestReport` (`:219`) and `testReport` (`:261`); `buildSrc/.../buildtools/` contains `ClaudeSummaryGenerator`, `JUnitXmlParser`, `PlaywrightJsonParser`, `MarkdownEmitter`, `TraceJsonAugmenter` with unit tests.
 - **Task 19 (Feature demo trace viewer):** `ui/annotations/Feature.kt`, `FeatureTagListener`, `buildSrc/.../DemoReportRenderer.kt` + `DemoTestSelector.kt`, `src/main/resources/demo-viewer/`, and `.github/workflows/demo.yml` together render a self-contained trace viewer per PR.
 
-**Task 15 (Extract `@pagemirror/snapshot-core`)** is **in progress** on
-branch `claude/check-task-statuses-C7rh9`. This bumps the snapshot bundle
-format to v2: `screenshot.<ext>` moves under `resources/`, CSS is written
-as `resources/<sha1>.css` sidecars referenced by `<link>`, and the plugin
-inlines sidecar CSS on read (since `srcdoc` iframes can't resolve relative
-URLs). v1 bundles are refused with a clear error message — regenerate via
-`npx playwright test` in `packages/test-project/`.
+**Task 15 (Extract `@pagemirror/snapshot-core`)** is **complete**. The
+snapshot bundle format is bumped to v2: `screenshot.<ext>` lives under
+`resources/`, CSS is written as `resources/<sha1>.css` sidecars
+referenced by `<link>`, and the plugin inlines sidecar CSS on read
+(since `srcdoc` iframes can't resolve relative URLs). v1 bundles are
+refused with a clear error message — regenerate via `npx playwright test`
+in `packages/test-project/`. `@pagemirror/snapshot-core` ships as a
+public npm package (semver-versioned, consumed by
+`playwright-snapshot-saver`).
 
 **Task 15.5 (Framework-agnostic trace rendering + resource inlining)** —
 `@pagemirror/snapshot-core` now owns trace rendering behind a
@@ -299,9 +312,9 @@ The layout was overhauled in Task 13 — follow these rules.
   do not hide it.
 - **Reference tests.** `tests/ToolWindowUiTest.kt` is the canonical
   Page/Flow example for active tests. `tests/SettingsUiTest.kt` is the
-  canonical example for tests that compose `SettingsChangeFlow`; it is
-  currently `@Disabled` for unrelated reasons (UI DSL component
-  wrapping) but kept as a structural reference.
+  canonical example for tests that compose `SettingsChangeFlow` +
+  `PluginSettingsPage` (enabled once `PageMirrorConfigurable` was given
+  explicit accessible names on its testable fields).
 
 ## Report Dashboard Access
 
