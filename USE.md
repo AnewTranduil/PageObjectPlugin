@@ -226,4 +226,6 @@ The editor gutter shows a badge next to each locator with the number of matching
 
 ### Highlight All
 
-Press `Alt+Shift+H` to highlight every locator in the current file on the snapshot at once. Color-coded overlays distinguish different locators. Duplicate and overlapping selectors are flagged with visual badges.
+Click the **Show All** button in the Page Mirror tool window toolbar to highlight every locator in the current file on the snapshot at once. Color-coded overlays distinguish different locators. Duplicate and overlapping selectors are flagged with visual badges. Click **Show All** again to clear the overlays.
+
+The separate `Alt+Shift+H` shortcut (Highlight Current Selector) re-runs the caret-driven highlight for the locator on the current line — useful after switching snapshots or tabs.

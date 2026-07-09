@@ -1,6 +1,6 @@
 # Task 20: Appium Mobile Snapshot Saver
 
-> **Goal:** Ship `appium-snapshot-saver` — a `PageAdapter` over Appium that captures native mobile page source + screenshot into a spec-v1 bundle, extending the manifest `viewport` with platform + device metadata.
+> **Goal:** Ship `appium-snapshot-saver` — a `PageAdapter` over Appium that captures native mobile page source + screenshot into a spec-v2 bundle, extending the manifest `viewport` with platform + device metadata.
 > **Depends on:** Task 15 (`snapshot-core`), Task 17 (pattern for adapter packages).
 > **Output:** New `packages/appium-snapshot-saver/`, decision on HTML-vs-XML rendering fallback tracked as follow-up.
 
@@ -26,7 +26,7 @@ Appium exposes UI tree dumps as XML, not HTML. Supporting it stretches the snaps
 - Manifest extension:
   ```json
   {
-    "version": 1,
+    "version": 2,
     "viewport": {
       "width": 390,
       "height": 844,
@@ -60,7 +60,7 @@ The plugin's tool window iframe is HTML-only. XML page-source cannot render ther
 
 ## Verification
 
-- Bundles produced by `AppiumAdapter` conform to spec v1 with the additive mobile fields.
+- Bundles produced by `AppiumAdapter` conform to spec v2 with the additive mobile fields.
 - Both `index.html` and `index.xml` present for native snapshots; only `index.html` for webview snapshots.
 - `snapshot-core` tests still pass; no regression for Playwright/Selenium/Cypress bundles.
 - The plugin tool window can list and show screenshots for mobile bundles (full XML rendering waits for the follow-up task).
