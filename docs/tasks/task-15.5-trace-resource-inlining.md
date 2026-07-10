@@ -1,5 +1,13 @@
 # Task 15.5: Resource Inlining for Trace-Extracted Snapshots
 
+> **Status:** Complete (commit `7b808a0`). `packages/snapshot-core/src/trace/`
+> owns rendering + inlining behind `TraceBackend`;
+> `packages/playwright-snapshot-saver/src/trace/playwright-backend.ts`
+> implements the interface and `extractor.ts` delegates to
+> `extractFromBackend`. Test fixtures under
+> `packages/test-project/.snapshots/dashboard/` exercise sidecar CSS
+> resource inlining end-to-end.
+>
 > **Scope expanded 2026-04-15.** The original plan post-processed Playwright's
 > rendered HTML. The implementation instead owns rendering: `snapshot-core`
 > now ports Playwright's `SnapshotRenderer` behind a framework-agnostic
