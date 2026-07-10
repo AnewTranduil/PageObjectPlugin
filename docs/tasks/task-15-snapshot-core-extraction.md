@@ -1,5 +1,11 @@
 # Task 15: Extract Framework-Agnostic `snapshot-core`
 
+> **Status:** Complete. `packages/snapshot-core/` ships on `main` with
+> `src/{assemble-html.ts, browser/collector.ts, index.ts, manifest.ts,
+> save-snapshot.ts, trace/, types.ts}`; `packages/playwright-snapshot-saver/`
+> now depends on it. Bundle format v2 is announced in `CHANGELOG.md`
+> v0.5.0 and codified in `docs/snapshot-bundle-spec.md`.
+>
 > **Goal:** Split `playwright-snapshot-saver` into a framework-agnostic `@pagemirror/snapshot-core` package plus a thin Playwright adapter, enabling future Selenium / Cypress / Appium adapters (Tasks 17, 20) without duplicating bundle assembly, manifest generation, and HTML post-processing.
 > **Depends on:** Task 14 (aggregator) — recommended but not required.
 > **Output:** New `packages/snapshot-core/`, refactored `packages/playwright-snapshot-saver/` depending on it.

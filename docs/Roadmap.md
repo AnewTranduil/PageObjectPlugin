@@ -2,7 +2,7 @@
 
 ## Context
 
-Tasks 0–14 plus 19 are complete: the plugin works end-to-end for Playwright + TypeScript, the `playwright-snapshot-saver` npm package ships snapshots from real Playwright runs, the settings UI is on Kotlin UI DSL v2, the UI test suite runs under a layered Page Object structure with polling/retry/trace-bundle diagnostics, CI aggregates unit + UI + Playwright results into a single `claude-summary.{json,md}` bundle consumed via `reports.artemon.cloud`, and PRs tagged `demo` auto-render a Playwright-style trace viewer. The current architecture is still tightly coupled to TypeScript (regex-based locator extraction) and Playwright (snapshot saver imports `@playwright/test`). Task 15 below extracts a framework-agnostic `@pagemirror/snapshot-core` package so Selenium / Cypress / Appium / Python / JVM adapters (16–18, 20) can be layered on top without duplicating bundle assembly.
+Tasks 0–15.5 plus 19 are complete: the plugin works end-to-end for Playwright + TypeScript, the `playwright-snapshot-saver` npm package ships snapshots from real Playwright runs, the framework-agnostic `@pagemirror/snapshot-core` package now owns bundle assembly and trace rendering (Tasks 15 + 15.5) with the Playwright saver reduced to a thin `PageAdapter` + `TraceBackend` implementation, the settings UI is on Kotlin UI DSL v2, the UI test suite runs under a layered Page Object structure with polling/retry/trace-bundle diagnostics, CI aggregates unit + UI + Playwright results into a single `claude-summary.{json,md}` bundle consumed via `reports.artemon.cloud`, and PRs tagged `demo` auto-render a Playwright-style trace viewer. The IDE side is still tightly coupled to TypeScript (regex-based locator extraction); the snapshot saver seam is now framework-agnostic so Selenium / Cypress / Appium / Python / JVM adapters (16–18, 20) can be layered on top without duplicating bundle assembly.
 
 This roadmap broadens language/framework reach and tightens the inner dev loop so future work scales. It is organized into three tracks (A, B, C) that can progress semi-independently. Each roadmap item corresponds to one or more task docs under `docs/tasks/`.
 
@@ -21,11 +21,14 @@ Shared prerequisite: freeze `docs/snapshot-bundle-spec.md` before A1/A2 implemen
 
 ## Track B — Snapshot Saver Consolidation & Multi-Framework
 
-- **B1. Extract framework-agnostic core** — `task-15-snapshot-core-extraction.md`
+- **B1. Extract framework-agnostic core** — `task-15-snapshot-core-extraction.md` **(complete)**
+- **B1.5. Framework-agnostic trace rendering + resource inlining** — `task-15.5-trace-resource-inlining.md` **(complete)**
 - **B2. Selenium + Cypress adapters** — `task-17-selenium-cypress-adapters.md`
 - **B3. Mobile environment support (Appium)** — `task-20-appium-mobile-support.md`
 
-B1 is a pure refactor; B2 and B3 layer new adapters on top of the extracted core.
+B1 was a pure refactor and B1.5 layered framework-agnostic trace
+rendering on top of it; B2 and B3 layer new adapters on top of the
+extracted core.
 
 ---
 

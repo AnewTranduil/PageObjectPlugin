@@ -126,12 +126,19 @@ packages/test-project/
     dashboard.spec.ts
   .snapshots/
     login/
-      initial/        {index.html, manifest.json, resources/}
-      error-state/    {index.html, manifest.json, resources/}
+      initial/        {index.html, manifest.json}
+      error-state/    {index.html, manifest.json}
     dashboard/
       initial/        {index.html, manifest.json, resources/}
       ticket-filled/  {index.html, manifest.json, resources/}
 ```
+
+`resources/` is only present when the captured page references sidecar
+assets. The `login` fixtures use inline `<style>` blocks, so their
+bundles have no `resources/` directory. The `dashboard` fixtures pull
+in an external stylesheet, so their bundles contain `resources/<sha1>.css`
+sidecars. A missing `resources/` directory is valid — the plugin treats
+it as "no sidecar resources to inline."
 
 ## Task Sequence
 
@@ -150,13 +157,21 @@ Tasks MUST be completed in order. Each task is in `docs/tasks/`.
 | 8  | Highlight all + duplicates        | Show All button, overlap detection| 4, 6       |
 | 9  | Snapshot saver npm package        | Standalone `playwright-snapshot-saver`             | 0 |
 
+Tasks 10 onward are each documented in their own file under
+`docs/tasks/` (see `task-10-trace-extraction.md` through
+`task-20-appium-mobile-support.md`). Status per task lives in the
+"Current State" section below and in `docs/Roadmap.md`.
+
 ## Current State
 
-**Tasks 0–14 and 19 are complete.** All plugin features ship, the snapshot
-saver npm package is published, the UI test suite runs under a layered
-Page Object structure, CI aggregates test results into a single
-`claude-summary.{json,md}` bundle, and a Playwright-style trace viewer is
-auto-generated on PRs tagged `demo`.
+**Tasks 0–15.5 and 19 are complete** (Task 15.5 shipped in commit
+`7b808a0`; the bundle format v2 announced in `CHANGELOG.md` v0.5.0 is
+live on `main`). All plugin features ship, the framework-agnostic
+`@pagemirror/snapshot-core` package is extracted and published, the
+Playwright saver is a thin adapter on top of it, the UI test suite runs
+under a layered Page Object structure, CI aggregates test results into
+a single `claude-summary.{json,md}` bundle, and a Playwright-style
+trace viewer is auto-generated on PRs tagged `demo`.
 
 - **Tasks 0–9:** Plugin shell, snapshot loading, file watcher, highlight
   bridge, element picker, gutter validation, polish, JS refactor,
@@ -169,28 +184,14 @@ auto-generated on PRs tagged `demo`.
 - **Task 13c (UI test diagnostics):** `ui/support/{TraceBundleExtension, TraceBundle, StepRecorder, TraceIndexGenerator, CdpConsoleCollector}.kt` capture full trace bundles on failure.
 - **Task 13d (Page object refactor):** `ui/{locators, pages, flows, tests}/` provide the layered UI test structure; `ui/tests/ToolWindowUiTest.kt` is the reference example.
 - **Task 14 (CI test reporting):** `build.gradle.kts` registers `aggregateTestReport` (`:219`) and `testReport` (`:261`); `buildSrc/.../buildtools/` contains `ClaudeSummaryGenerator`, `JUnitXmlParser`, `PlaywrightJsonParser`, `MarkdownEmitter`, `TraceJsonAugmenter` with unit tests.
+- **Task 15 (Extract `@pagemirror/snapshot-core`):** `packages/snapshot-core/src/{assemble-html.ts, browser/collector.ts, index.ts, manifest.ts, save-snapshot.ts, trace/, types.ts}` owns bundle assembly, manifest generation, and the browser-side collector behind a framework-agnostic `PageAdapter` interface. `packages/playwright-snapshot-saver/src/playwright-adapter.ts` is now the Playwright-specific `PageAdapter` implementation. Snapshot bundle format bumped to **v2** — `screenshot.<ext>` moves under `resources/`, CSS is written as `resources/<sha1>.css` sidecars referenced by `<link>`, and the plugin inlines sidecar CSS on read via `services/SnapshotHtmlResolver.kt` (since `srcdoc` iframes can't resolve relative URLs). v1 bundles are refused with a user-visible banner pointing at `docs/migration-v1-to-v2.md` — regenerate via `npx playwright test` in `packages/test-project/`.
+- **Task 15.5 (Framework-agnostic trace rendering + resource inlining):** `@pagemirror/snapshot-core` owns trace rendering behind a `TraceBackend` interface (`packages/snapshot-core/src/trace/{types, renderer, inline, extract, runtime-script, content-type}.ts`). The Playwright package (`packages/playwright-snapshot-saver/src/trace/playwright-backend.ts`) reshapes `TraceLoader.storage()` into that interface; `extractor.ts` delegates to `extractFromBackend`. Trace bundles are fully self-contained — every `<link>`, `<img>`, CSS `url(...)`, `@font-face`, and SVG `<use>` reference points at a real file under `resources/`, and the `<base>` element is stripped. Selenium/Cypress/Appium adapters (Tasks 17, 20) will reuse `extractFromBackend` by implementing the same `TraceBackend` surface.
 - **Task 19 (Feature demo trace viewer):** `ui/annotations/Feature.kt`, `FeatureTagListener`, `buildSrc/.../DemoReportRenderer.kt` + `DemoTestSelector.kt`, `src/main/resources/demo-viewer/`, and `.github/workflows/demo.yml` together render a self-contained trace viewer per PR.
 
-**Task 15 (Extract `@pagemirror/snapshot-core`)** is **in progress** on
-branch `claude/check-task-statuses-C7rh9`. This bumps the snapshot bundle
-format to v2: `screenshot.<ext>` moves under `resources/`, CSS is written
-as `resources/<sha1>.css` sidecars referenced by `<link>`, and the plugin
-inlines sidecar CSS on read (since `srcdoc` iframes can't resolve relative
-URLs). v1 bundles are refused with a clear error message — regenerate via
-`npx playwright test` in `packages/test-project/`.
-
-**Task 15.5 (Framework-agnostic trace rendering + resource inlining)** —
-`@pagemirror/snapshot-core` now owns trace rendering behind a
-`TraceBackend` interface (`packages/snapshot-core/src/trace/{types,
-renderer, inline, extract, runtime-script, content-type}.ts`). The
-Playwright package (`packages/playwright-snapshot-saver/src/trace/
-playwright-backend.ts`) reshapes `TraceLoader.storage()` into that
-interface; `extractor.ts` delegates to `extractFromBackend`. Trace
-bundles are fully self-contained — every `<link>`, `<img>`, CSS
-`url(...)`, `@font-face`, and SVG `<use>` reference points at a real
-file under `resources/`, and the `<base>` element is stripped.
-Selenium/Cypress/Appium adapters (Tasks 17, 20) will reuse
-`extractFromBackend` by implementing the same `TraceBackend` surface.
+Open roadmap items — see `docs/Roadmap.md` and `docs/tasks/`:
+Task 16 (Python Playwright), Task 17 (Selenium/Cypress adapters),
+Task 18 (JVM Playwright), Task 20 (Appium). Task 15.5 delivered the
+`TraceBackend` seam these adapters depend on.
 
 ## Working with the Build
 
