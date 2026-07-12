@@ -1,11 +1,29 @@
 # Task 15.5: Resource Inlining for Trace-Extracted Snapshots
 
+> **Status:** DONE. `snapshot-core` ports Playwright's `SnapshotRenderer`
+> behind a framework-agnostic `TraceBackend` interface; resource
+> inlining lives at
+> `packages/snapshot-core/src/trace/{types,renderer,inline,extract,runtime-script,content-type}.ts`.
+> The Playwright package (`packages/playwright-snapshot-saver/src/trace/playwright-backend.ts`)
+> reshapes `TraceLoader.storage()` into that interface and
+> `packages/playwright-snapshot-saver/src/extractor.ts` delegates to
+> `extractFromBackend`. Every `<link>`, `<img>`, CSS `url(...)`,
+> `@font-face`, and SVG `<use>` reference resolves to a file under
+> `resources/`, and `<base>` is stripped. See CLAUDE.md's "Task 15.5"
+> paragraph.
+>
+> **File-reference note.** Steps below reference the pre-implementation
+> plan — `inline-resources.ts`, `resolveTraceResource`, `renderSnapshotAtMarker`,
+> and the `__playwright_target__` strip at `extractor.ts:142` — none of
+> which shipped in that shape. Read the paragraph above for the shipped
+> file layout; the steps are retained to document what was actually
+> executed against the earlier plan.
+>
 > **Scope expanded 2026-04-15.** The original plan post-processed Playwright's
 > rendered HTML. The implementation instead owns rendering: `snapshot-core`
 > now ports Playwright's `SnapshotRenderer` behind a framework-agnostic
 > `TraceBackend` interface. Seven-category inlining still applies — only the
-> mechanism changed. See `C:\Users\Artem\.claude\plans\delegated-dancing-valley.md`
-> for the expanded plan that was executed.
+> mechanism changed.
 >
 > **Goal:** Make trace-extracted snapshots self-contained by walking the
 > rendered HTML, resolving every external reference through the snapshot's

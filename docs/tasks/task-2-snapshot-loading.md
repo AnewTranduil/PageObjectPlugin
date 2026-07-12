@@ -1,5 +1,17 @@
 # Task 2: Snapshot Loading via CefQueryRouter
 
+> **Status:** DONE — bundle model has since evolved:
+> - `SnapshotBundle` (`src/main/kotlin/.../model/SnapshotBundle.kt`)
+>   drops `layoutPath` and adds `dir` + `resourcesDir`; the shipped
+>   fields are `name`, `dir`, `htmlPath`, `resourcesDir`,
+>   `screenshotPath`, `manifestPath`.
+> - `layout.json` was removed in Task 15 (v2 bundle format); loading
+>   now inlines sidecar CSS via `SnapshotHtmlResolver` rather than
+>   passing a JSON string to JS.
+> - Bundle version validation runs against `SUPPORTED_BUNDLE_VERSION = 2`
+>   (top-level `const val` in `SnapshotBundle.kt`); unknown versions
+>   are refused via `BundleLoadResult`.
+>
 > **Goal:** Establish the Kotlin-to-JCEF communication bridge. Push snapshot data into the browser and render it.
 > **Depends on:** Task 0 (for test data), Task 1 (for plugin shell)
 > **Output:** Menu action that loads a snapshot folder and renders it in the Tool Window

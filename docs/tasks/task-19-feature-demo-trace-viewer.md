@@ -1,5 +1,20 @@
 # Task 19: Feature Demo — Playwright-Style Trace Viewer
 
+> **Status:** DONE. Shipped files (paths adjusted from the plan):
+> - `src/uiTest/kotlin/com/github/artem/pageobjectplugin/ui/annotations/Feature.kt`
+> - `src/uiTest/kotlin/com/github/artem/pageobjectplugin/ui/support/FeatureTagListener.kt`
+>   (a JUnit-Jupiter `BeforeEachCallback`, not a `TestExecutionListener`)
+> - `buildSrc/src/main/kotlin/com/github/artem/pageobjectplugin/buildtools/DemoReportRenderer.kt`
+>   and `DemoTestSelector.kt`
+> - `src/main/resources/demo-viewer/{index.html,app.js,styles.css}`
+> - `.github/workflows/demo.yml`
+>
+> Reviewers receive the demo bundle via the `reports.artemon.cloud`
+> dashboard (see `CLAUDE.md` "Report Dashboard Access"). demo.yml
+> uploads the report zip with `curl` — there is no `actions/upload-artifact`
+> step or PR-comment step. `demoReport` is invoked with `-PfeatureName=all`.
+> Xvfb (`:99`) is installed and started before the IDE launches.
+>
 > **Goal:** Produce a self-contained HTML trace viewer (Playwright-style) per PR that lets reviewers step through every UI test exercising a changed or added feature — timeline, action log, before/after DOM snapshots, screenshots — triggered by adding a `demo` label on a PR.
 > **Depends on:** Task 13c (trace bundle + `trace.json` schema), Task 14 (CI reporting, artifact upload).
 > **Output:** `./gradlew demoReport -PfeatureName=<tag>` Gradle task, `@Feature("name")` annotation, CI workflow triggered by `demo` label, `build/reports/demo/<feature>/index.html` artifact.

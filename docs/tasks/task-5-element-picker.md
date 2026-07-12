@@ -1,5 +1,13 @@
 # Task 5: Element Picker + Code Generation
 
+> **Status:** DONE — implementation collapsed a few files:
+> - No `InsertLocatorAction.kt` or `InsertLocatorPopup` class shipped.
+>   Insertion lives inside
+>   `src/main/kotlin/.../locators/PickerResultHandler.kt` (`insertAtCaret`,
+>   `insertLocatorForTest`).
+> - Element metadata is read from the DOM via JS in the snapshot iframe,
+>   not from `layout.json` (which was removed in Task 15).
+>
 > **Goal:** Click an element in Page Mirror to generate a Playwright locator and insert it into the editor.
 > **Depends on:** Task 4
 > **Output:** Inspect mode → click element → popup offers locator code → inserts at caret

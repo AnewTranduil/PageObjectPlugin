@@ -1,7 +1,9 @@
 # Task 17: Selenium + Cypress Snapshot Saver Adapters
 
+> **Status:** PLANNED — not yet started.
+>
 > **Goal:** Ship two new npm packages, `selenium-snapshot-saver` and `cypress-snapshot-saver`, each a thin `PageAdapter` implementation over `snapshot-core` (Task 15). Enables Selenium/Cypress users to produce identical snapshot bundles.
-> **Depends on:** Task 15 (`snapshot-core` extracted).
+> **Depends on:** Task 15 (`snapshot-core` extracted — done).
 > **Output:** Two new packages under `packages/`, each with integration tests against a fixture page.
 
 ## Motivation
@@ -10,7 +12,7 @@ Task 15 built the `PageAdapter` abstraction specifically so new driver adapters 
 
 ## Key Files
 
-- `packages/snapshot-core/src/page-adapter.ts` — interface to implement.
+- `PageAdapter` interface — defined in `packages/snapshot-core/src/types.ts` (see also the "Writing a new driver adapter" section of `packages/snapshot-core/README.md`). There is no dedicated `page-adapter.ts` file.
 - New: `packages/selenium-snapshot-saver/`
   - `src/index.ts` — `SeleniumAdapter implements PageAdapter`
   - `src/save.ts` — re-export `saveSnapshot` bound to the adapter

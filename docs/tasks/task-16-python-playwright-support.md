@@ -1,5 +1,7 @@
 # Task 16: Python Playwright Support
 
+> **Status:** PLANNED — not yet started.
+>
 > **Goal:** Make the plugin recognize Python Playwright locators in `.py` files (highlight + gutter) AND ship a `playwright-snapshot-saver-python` package so Python users can produce snapshot bundles.
 > **Depends on:** Task 15 (snapshot-core — for the bundle spec contract), `docs/snapshot-bundle-spec.md` frozen.
 > **Output:** `PythonLocatorExtractor.kt`, `LocatorExtractorRegistry`, new PyPI package `packages/playwright-snapshot-saver-python/`.
@@ -75,8 +77,8 @@ The pytest plugin (`pytest_plugin.py`) provides auto-capture on test failure whe
 3. Wire `SelectorValidationAnnotator` to look up the extractor via the registry by file extension.
 4. Add `.py` to default `fileExtensions` in settings; update `PageMirrorConfigurable` if the default needs to be surfaced.
 5. Scaffold `packages/playwright-snapshot-saver-python/` with modern `pyproject.toml` (PEP 621) and `hatchling` or `poetry` build.
-6. Port `html-inliner.ts` to Python using `beautifulsoup4` + stdlib `urllib` — produce output matching the TS version for the shared fixture page (verified by golden-file test).
-7. Port `manifest-generator.ts` — emit spec-v1 compliant `manifest.json` per `docs/snapshot-bundle-spec.md`.
+6. Port `packages/snapshot-core/src/assemble-html.ts` to Python using `beautifulsoup4` + stdlib `urllib` — produce output matching the TS version for the shared fixture page (verified by golden-file test).
+7. Port `packages/snapshot-core/src/manifest.ts` — emit spec-v2 compliant `manifest.json` per `docs/snapshot-bundle-spec.md` (`MANIFEST_VERSION = 2`; source of truth in `packages/snapshot-core/src/types.ts`).
 8. Implement `save_snapshot` / `save_snapshot_async` for `playwright.sync_api.Page` and `playwright.async_api.Page`.
 9. Implement `pytest_plugin.py` reporter (fixture + hook) analogous to `playwright-snapshot-saver`'s Playwright reporter.
 10. Integration tests: `pytest` suite that launches a headless Chromium, visits a fixture page, calls `save_snapshot`, and asserts bundle layout + manifest contents.

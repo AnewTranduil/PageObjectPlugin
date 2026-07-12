@@ -1,8 +1,17 @@
 # Task 13d: UI Tests — Page Object Pattern Refactor
 
+> **Status:** DONE. All fixtures, pages, flows, locators, and tests
+> shipped under the `ui/` subpackage
+> (`src/uiTest/kotlin/com/github/artem/pageobjectplugin/ui/{locators,
+> pages, flows, fixtures, tests}/`). Paths in "Key Files" and "Steps"
+> below reflect the pre-refactor layout — the shipped tree adds a `ui/`
+> segment to every path. `ui/tests/ToolWindowUiTest.kt` is the
+> reference test; `ui/tests/SettingsUiTest.kt` is `@Disabled` for
+> unrelated UI-DSL reasons but kept as a structural reference.
+>
 > **Goal:** Refactor the flat Remote Robot fixture layer into a layered structure (`locators/` + `pages/` + `flows/`) so UI tests read as high-level scenarios, XPaths live in exactly one place, and `BaseUiTest` shrinks to pure lifecycle code.
 > **Depends on:** Task 13a (unblock), Task 13b (polling helpers), Task 13c (trace bundle — `step()` integration)
-> **Output:** New `locators/`, `pages/`, `flows/` packages under `src/uiTest/kotlin/…`; `ToolWindowUiTest` and `SettingsUiTest` rewritten as reference examples; `CLAUDE.md` layering rule documented.
+> **Output:** New `ui/locators/`, `ui/pages/`, `ui/flows/` packages under `src/uiTest/kotlin/…`; `ToolWindowUiTest` and `SettingsUiTest` rewritten as reference examples; `CLAUDE.md` layering rule documented.
 
 ## Motivation
 

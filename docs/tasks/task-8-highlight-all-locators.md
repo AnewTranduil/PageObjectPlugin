@@ -1,5 +1,10 @@
 # Task 8: Highlight All Locators + Duplicate Detection
 
+> **Status:** DONE — no dedicated `actions/HighlightAllAction.kt` file
+> shipped. The "Show All" button, its click handler, and locator
+> collection all live inline inside
+> `src/main/kotlin/.../PageMirrorToolWindowFactory.kt`.
+>
 > **Goal:** A toolbar button that highlights every Playwright locator found in the current editor file on the snapshot, with visual indicators for overlapping or duplicate selectors.
 > **Depends on:** Tasks 4, 6
 > **Output:** "Show All" button -> all locators highlighted simultaneously with overlap/duplicate badges

@@ -1,8 +1,16 @@
 # Task 13b: UI Tests — Reliability (polling, retry, quarantine)
 
+> **Status:** DONE (partial). `ui/support/Wait.kt` (`pollUntil`,
+> `pollUntilTrue`) and `ui/support/RetryOnceExtension.kt` ship. **Gap:**
+> the `@Quarantine` annotation was never created — quarantine remains a
+> field in `ClaudeSummaryModel.kt` only, tracked as follow-up. Paths in
+> "Key Files" and "Steps" below reference the pre-13d layout (before
+> the `ui/` subpackage move); actual files live under
+> `src/uiTest/kotlin/com/github/artem/pageobjectplugin/ui/…`.
+>
 > **Goal:** Eliminate `Thread.sleep`/fixed timeouts, make transient failures retry once with visibility, and allow known-flaky tests to be quarantined without deletion.
 > **Depends on:** Task 13a
-> **Output:** `support/Wait.kt`, a retry-once JUnit 5 extension, a `@Quarantine` annotation + condition, all fixtures migrated off `Thread.sleep`.
+> **Output:** `ui/support/Wait.kt`, a retry-once JUnit 5 extension (`ui/support/RetryOnceExtension.kt`), a `@Quarantine` annotation + condition (never shipped), all fixtures migrated off `Thread.sleep`.
 
 ## Motivation
 

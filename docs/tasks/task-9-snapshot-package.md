@@ -1,8 +1,16 @@
 # Task 9: Snapshot Saver npm Package
 
+> **Status:** DONE — the shipped package is
+> `packages/playwright-snapshot-saver/` (not `packages/snapshot-saver/`),
+> published as `playwright-snapshot-saver` on npm. The test project
+> moved to `packages/test-project/` when npm workspaces were adopted.
+> Task 15 later extracted framework-agnostic pieces into
+> `packages/snapshot-core/` (`@pagemirror/snapshot-core`); Playwright
+> stays in `playwright-snapshot-saver`.
+>
 > **Goal:** Extract snapshot-saving logic from `test-project/utils/save-state.ts` into a standalone, publishable npm package with a configurable API.
 > **Depends on:** Task 0
-> **Output:** `packages/snapshot-saver/` — a self-contained npm package consumable by any Playwright project
+> **Output:** `packages/playwright-snapshot-saver/` — a self-contained npm package consumable by any Playwright project
 
 ## Motivation
 

@@ -1,5 +1,18 @@
 # Trace Extraction & Reporter Implementation Plan
 
+> **Historical — superseded by the Task 15 refactor.** This plan was
+> written against a `packages/snapshot-saver/` layout with
+> `layout.json`, `html-inliner.ts`, and `manifest-generator.ts`. What
+> actually shipped is `packages/playwright-snapshot-saver/` plus a
+> separate `packages/snapshot-core/` (Task 15), with trace rendering
+> owned by `snapshot-core` behind the `TraceBackend` interface (Task
+> 15.5). `manifest.version` is `2` (see `MANIFEST_VERSION` in
+> `packages/snapshot-core/src/types.ts`), the `screenshot` default is
+> `false` (`ExtractOptions` in
+> `packages/playwright-snapshot-saver/src/types.ts`), and none of
+> `layout.json`, `html-inliner.ts`, or `manifest-generator.ts` exist
+> today. Kept as a design record.
+>
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Extend `playwright-snapshot-saver` to extract snapshots from Playwright traces via a reporter and CLI extractor.

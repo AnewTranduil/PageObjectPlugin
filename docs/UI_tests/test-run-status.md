@@ -4,6 +4,14 @@
 **Branch:** `dev`
 **Overall:** 30/30 PASS
 
+> **Historical snapshot** — captured on 2026-03-27 against 8 test classes
+> (UT-01 … UT-30). The suite has since grown to 11 classes with the
+> addition of `DashboardV2UiTest`, `DemoSmokeUiTest`, and
+> `OutdatedBundleBannerUiTest`. For current test results, read
+> `claude-summary.md` from the latest CI run on
+> `reports.artemon.cloud` — see the "Test Loop" section of
+> `CLAUDE.md` for the read commands.
+
 ## Summary
 
 | Test Class | Scenarios | Status |

@@ -3,6 +3,13 @@
 **Date:** 2026-03-25
 **Status:** RESOLVED — all three blockers from `diagnostic-report.md` are fixed
 
+> **Follow-up (post-report):** The `register<RunIdeTask>("runIdeForUiTests")`
+> workaround described below was later replaced with the newer
+> `intellijPlatformTesting.runIde.register("runIdeForUiTests")` DSL,
+> which sidesteps `splitMode` and the config-cache incompatibility
+> entirely. See `build.gradle.kts:112-144` for the current wiring and
+> `docs/tasks/task-13a-ui-tests-unblock.md` for the migration.
+
 ## Fixes Applied
 
 ### Blocker 1 (P0): `splitMode` property not configured
