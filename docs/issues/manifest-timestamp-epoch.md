@@ -1,8 +1,13 @@
 # Manifest timestamp shows epoch-zero date
 
 > **Date:** 2026-04-01
-> **Status:** Open
+> **Status:** Resolved — fix landed in `playwright-snapshot-saver@0.7.0`
 > **Affects:** `extractSnapshots()`, reporter
+> **Fix location:** `packages/playwright-snapshot-saver/src/trace/playwright-adapter.ts:190-192`
+> (falls back to `context.wallTime + (action.startTime - context.startTime)`
+> when `action.wallTime` is missing or below the 1e10 epoch-ms sanity floor).
+> The value flows into `extractor.ts:127-128` as both `timestamp` and
+> `wallTime` on the `TraceSnapshotMarker`.
 
 ## Symptom
 

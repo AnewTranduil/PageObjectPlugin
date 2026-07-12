@@ -1,5 +1,11 @@
 # Task 13a: UI Tests — Unblock Runner
 
+> **Status:** DONE — resolved via the newer
+> `intellijPlatformTesting.runIde.register("runIdeForUiTests")` DSL,
+> which sidesteps the `splitMode` / config-cache issues entirely rather
+> than working around them on a `RunIdeTask` registration. See
+> `build.gradle.kts:112-144` for the current wiring.
+>
 > **Goal:** Restore the ability to run `./gradlew runIdeForUiTests` so the existing 30 UI scenarios execute again.
 > **Depends on:** nothing (prerequisite for 13b–d, 14, 19)
 > **Output:** Updated `build.gradle.kts` and `BaseUiTest.kt`; all existing UI scenarios runnable.
@@ -12,9 +18,11 @@ Until this is fixed, no further UI-test work (13b–d), CI reporting (14), or de
 
 ## Key Files
 
-- `build.gradle.kts:109-156` — `runIdeForUiTests` task registration.
-- `src/uiTest/kotlin/com/github/artem/pageobjectplugin/BaseUiTest.kt:40-104` — `waitForIde()` + 2-minute blind timeout.
-- `docs/UI_tests/diagnostic-report.md` — full symptom trace and proposed fix outline.
+- `build.gradle.kts:112-144` — `runIdeForUiTests` task registration
+  (now via `intellijPlatformTesting.runIde.register("runIdeForUiTests")`).
+- `src/uiTest/kotlin/com/github/artem/pageobjectplugin/ui/BaseUiTest.kt` — `waitForIde()` health check.
+- `docs/UI_tests/diagnostic-report.md` — full symptom trace and original fix outline.
+- `docs/UI_tests/resolution-report.md` — the interim `register<RunIdeTask>` fix that was later replaced by the DSL above.
 
 ## Steps
 

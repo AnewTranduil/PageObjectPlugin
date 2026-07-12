@@ -68,7 +68,11 @@ const cleanHtml = rendered.html.replace(/ __playwright_target__="[^"]*"/g, '');
 
 The `querySelectorAll` reference inside the bootstrap script is left intact — it simply matches nothing since all target attributes are removed.
 
-Applied in `extractor.ts`, which is called by both the `extractSnapshots()` API and the Playwright reporter.
+Applied inside the emulated Playwright bootstrap in
+`packages/snapshot-core/src/trace/runtime-script.ts` (see the block near
+line 95). Task 15.5 moved this from `extractor.ts` into the framework-agnostic
+runtime script so every trace backend gets the same fix. The reporter and
+`extractSnapshots()` inherit it via `extractFromBackend`.
 
 ---
 

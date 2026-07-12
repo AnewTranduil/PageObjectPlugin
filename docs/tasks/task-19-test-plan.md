@@ -1,5 +1,26 @@
 # Task 19 — Test Plan: Demo Report & CI Integration
 
+> **Historical planning doc.** The shipped `demo.yml`
+> (`.github/workflows/demo.yml`) diverges from what Check 2 describes:
+> - Trigger is `pull_request: types: [labeled]` with a job-level
+>   `if: github.event.label.name == 'demo'` — no `[demo:tag]` PR-title
+>   parsing.
+> - The workflow always runs `./gradlew demoReport -PfeatureName=all`
+>   (no per-label feature routing).
+> - Reports are uploaded via `curl` to `reports.artemon.cloud`
+>   (`/api/v1/upload?suite=demo&...`) rather than
+>   `actions/upload-artifact` + a PR comment.
+> - Xvfb + display packages *are* installed before the IDE launches
+>   (see steps "Install Xvfb and display dependencies" / "Start Xvfb");
+>   the "Known risk: demo.yml missing Xvfb" callout below is stale.
+> - `build.gradle.kts` line ranges cited in Check 1 have drifted by a
+>   few lines as `demoReport` and related tasks were edited — treat
+>   them as approximate.
+>
+> Kept for reference on the pass criteria (Check 1's `test -f` / `grep`
+> assertions on the produced `index.html`) and for Check 3's CI test-loop
+> workflow.
+
 Three verification checks that together prove the feature-demo pipeline works
 end-to-end in CI.
 

@@ -1,5 +1,13 @@
 # Task 10 — Trace Extraction & Reporter Integration
 
+> **Status:** DONE — the package path referenced below
+> (`packages/snapshot-saver/`) is stale; the shipped package is
+> `packages/playwright-snapshot-saver/`. `html-inliner.ts` and
+> `manifest-generator.ts` were extracted into
+> `packages/snapshot-core/src/{assemble-html.ts,manifest.ts}` in
+> Task 15; the trace pipeline moved behind a framework-agnostic
+> `TraceBackend` interface in Task 15.5.
+
 ## Overview
 
 Extend `playwright-snapshot-saver` to extract snapshots from Playwright traces. Two new capabilities:

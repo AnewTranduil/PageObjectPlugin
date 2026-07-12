@@ -1,8 +1,19 @@
 # Task 13c: UI Tests — Per-Test Diagnostics Trace Bundle
 
+> **Status:** DONE — `ui/support/TraceBundleExtension.kt`,
+> `TraceBundle.kt`, `StepRecorder.kt`, `TraceIndexGenerator.kt`, and
+> `CdpConsoleCollector.kt` capture per-test bundles. `trace.json` is
+> emitted on failure (and on success when `-PcaptureAllTraces=true`).
+> The planned `ScreenshotOnFailureExtension` was never checked in — the
+> replacement shipped without a preceding version, so the "delete
+> `ScreenshotOnFailureExtension`" step below never had a file to delete.
+> Paths in "Key Files" and "Steps" below reference the pre-13d layout;
+> actual files live under
+> `src/uiTest/kotlin/com/github/artem/pageobjectplugin/ui/…`.
+>
 > **Goal:** On UI test failure, capture a structured bundle of artifacts (IDE log, tool-window DOM, JCEF console, screenshot timeline, thread dump) with a machine-readable `trace.json` manifest. This bundle is the direct input to the Task 19 (C3) Playwright-style trace viewer.
 > **Depends on:** Task 13a (unblock), Task 13b (polling — for step recording)
-> **Output:** `TraceBundleExtension` replacing `ScreenshotOnFailureExtension`; one bundle per failing test under `build/reports/uiTest/traces/<test>/`.
+> **Output:** `TraceBundleExtension` — one bundle per failing test under `build/reports/uiTest/traces/<test>/`.
 
 ## Motivation
 

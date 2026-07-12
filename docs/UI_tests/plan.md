@@ -1,5 +1,28 @@
 # Page Mirror — UI Test Development Plan
 
+> **Historical planning doc — captured before implementation.** The UI
+> test suite has shipped (Tasks 13a–13d, 19). Some low-level details
+> here have drifted from the shipped code:
+> - `runIdeForUiTests` is registered via the
+>   `intellijPlatformTesting.runIde.register("runIdeForUiTests")` DSL,
+>   **not** a `tasks.register<RunIdeTask>` block. See
+>   [`build.gradle.kts:112-144`](../../build.gradle.kts) for the current
+>   wiring.
+> - The `layout.json` sidecar was removed in Task 15 (v2 bundle format);
+>   bundles now contain `index.html + manifest.json + resources/`. Tests
+>   no longer read a layout file.
+> - The `tests/` directory has grown to 11 classes — the file checklist
+>   below covers the original 8; `DashboardV2UiTest`, `DemoSmokeUiTest`,
+>   and `OutdatedBundleBannerUiTest` were added later.
+> - Layered Page Object structure (`ui/{fixtures,locators,pages,flows,tests}/`)
+>   is authoritative — see `docs/tasks/task-13d-ui-tests-page-object-refactor.md`
+>   and `CLAUDE.md` "UI Test Conventions".
+>
+> Retained here for the scenario numbering (UT-01 … UT-30) that other
+> docs reference. Please refresh section 2 (Build Integration) and
+> section 8 (File Checklist) against the current tree before treating
+> them as authoritative.
+
 ## Overview
 
 This document defines the plan for developing UI (end-to-end) tests for the Page Mirror plugin using the JetBrains **intellij-ui-test-robot** framework (Remote Robot). These tests drive a real IDE instance, unlike the existing `BasePlatformTestCase` integration tests which run headlessly without a visible UI.

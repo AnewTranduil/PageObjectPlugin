@@ -1,7 +1,12 @@
 # Task 20: Appium Mobile Snapshot Saver
 
-> **Goal:** Ship `appium-snapshot-saver` — a `PageAdapter` over Appium that captures native mobile page source + screenshot into a spec-v1 bundle, extending the manifest `viewport` with platform + device metadata.
-> **Depends on:** Task 15 (`snapshot-core`), Task 17 (pattern for adapter packages).
+> **Status:** PLANNED — not yet started. The bundle spec is already v2
+> (`MANIFEST_VERSION = 2`); the "spec-v1" wording and the
+> `"version": 1` manifest example below are stale and must be rebased
+> onto v2 before starting.
+>
+> **Goal:** Ship `appium-snapshot-saver` — a `PageAdapter` over Appium that captures native mobile page source + screenshot into a spec-v2 bundle, extending the manifest `viewport` with platform + device metadata.
+> **Depends on:** Task 15 (`snapshot-core` — done), Task 17 (pattern for adapter packages — planned).
 > **Output:** New `packages/appium-snapshot-saver/`, decision on HTML-vs-XML rendering fallback tracked as follow-up.
 
 ## Motivation
@@ -10,7 +15,7 @@ Appium exposes UI tree dumps as XML, not HTML. Supporting it stretches the snaps
 
 ## Key Files
 
-- `packages/snapshot-core/src/page-adapter.ts` — may need a `sourceFormat: "html" | "xml"` field on the adapter result.
+- `PageAdapter` interface — defined in `packages/snapshot-core/src/types.ts`. May need a `sourceFormat: "html" | "xml"` field on the adapter result.
 - New: `packages/appium-snapshot-saver/`
   - `src/index.ts` — `AppiumAdapter implements PageAdapter`
   - `tests/` — integration test against Appium's demo app or a stubbed driver
@@ -26,7 +31,7 @@ Appium exposes UI tree dumps as XML, not HTML. Supporting it stretches the snaps
 - Manifest extension:
   ```json
   {
-    "version": 1,
+    "version": 2,
     "viewport": {
       "width": 390,
       "height": 844,
@@ -37,7 +42,7 @@ Appium exposes UI tree dumps as XML, not HTML. Supporting it stretches the snaps
     "appium": "2.5.4"
   }
   ```
-  This is an **additive** manifest change — does not bump `spec.version`.
+  This is an **additive** manifest change against the v2 schema — does not bump `manifest.version`.
 
 ## Open Question: Plugin-side Rendering of XML
 
@@ -60,7 +65,7 @@ The plugin's tool window iframe is HTML-only. XML page-source cannot render ther
 
 ## Verification
 
-- Bundles produced by `AppiumAdapter` conform to spec v1 with the additive mobile fields.
+- Bundles produced by `AppiumAdapter` conform to spec v2 with the additive mobile fields.
 - Both `index.html` and `index.xml` present for native snapshots; only `index.html` for webview snapshots.
 - `snapshot-core` tests still pass; no regression for Playwright/Selenium/Cypress bundles.
 - The plugin tool window can list and show screenshots for mobile bundles (full XML rendering waits for the follow-up task).

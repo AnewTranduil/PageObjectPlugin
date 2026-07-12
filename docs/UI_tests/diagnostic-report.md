@@ -1,7 +1,12 @@
 # UI Tests Diagnostic Report
 
 **Date:** 2025-03-25
-**Status:** BLOCKED — tests cannot run
+**Status:** RESOLVED — see `docs/UI_tests/resolution-report.md` and
+`docs/tasks/task-13a-ui-tests-unblock.md`. UI tests run in CI today via
+the `intellijPlatformTesting.runIde.register("runIdeForUiTests")` DSL
+at `build.gradle.kts:112-144`; retained for historical reference.
+
+**Original status:** BLOCKED — tests cannot run
 
 ## Overview
 

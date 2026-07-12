@@ -1,8 +1,18 @@
 # Task 0: Dummy Playwright Test Project
 
+> **Status:** DONE — the test project shipped and has since moved and
+> changed shape:
+> - Location is `packages/test-project/` (moved under npm workspaces in
+>   Task 9), not `test-project/` at the repo root.
+> - Snapshot bundles now use the v2 layout (`index.html + manifest.json + resources/`);
+>   the `layout.json` sidecar referenced below was removed in Task 15.
+> - The `utils/save-state.ts` helper was superseded by the
+>   `playwright-snapshot-saver` npm package (Task 9) and its reporter
+>   (Task 10).
+>
 > **Goal:** Create a minimal Playwright project that produces real snapshot bundles for testing all IDE features.
 > **Depends on:** Nothing
-> **Output:** `test-project/` with `.snapshots/login/initial/` and `.snapshots/login/error-state/`
+> **Output:** `packages/test-project/` with `.snapshots/login/initial/` and `.snapshots/login/error-state/`
 
 ## Prompt
 

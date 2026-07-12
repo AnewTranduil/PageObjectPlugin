@@ -4,6 +4,16 @@
 **Date:** 2026-04-09
 **Shape:** Three sequential PRs.
 
+> **Historical execution design.** The three-PR plumbing shipped; the
+> file paths quoted below drop the `ui/` subpackage that the layout
+> ultimately used. Shipped locations:
+> `src/uiTest/kotlin/com/github/artem/pageobjectplugin/ui/annotations/Feature.kt`,
+> `.../ui/support/FeatureTagListener.kt`,
+> `.../ui/support/TraceBundleExtension.kt`. CI wiring also diverged:
+> `demo.yml` triggers on the `demo` label alone (no `[demo:tag]` PR-title
+> prefix) and uploads to `reports.artemon.cloud` instead of using
+> `actions/upload-artifact` + a PR comment.
+
 ## Goal
 
 Ship the `@Feature` → `demoReport` → CI-on-`demo`-label pipeline in three reviewable PRs, reusing Task 13c trace bundles. Reviewers click an artifact link on a labeled PR and walk every UI scenario covering the feature.

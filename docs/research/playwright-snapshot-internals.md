@@ -2,6 +2,20 @@
 
 > **Date:** 2026-03-30
 > **Purpose:** Understand how Playwright captures DOM snapshots in traces, evaluate reuse potential for `playwright-snapshot-saver`.
+>
+> **Historical snapshot.** Captured pre-Task 15/15.5. Some references
+> are now out of date:
+> - `save-state.ts` (referenced under "Comparison with
+>   `playwright-snapshot-saver`") no longer exists; its logic was folded
+>   into `packages/snapshot-core/src/{assemble-html.ts,save-snapshot.ts}`
+>   during Task 15.
+> - The `layout.json` output was removed in Task 15 — bundles now ship
+>   `index.html + manifest.json + resources/` (v2 layout).
+> - Trace rendering + resource inlining live behind the framework-agnostic
+>   `TraceBackend` interface in `packages/snapshot-core/src/trace/` (Task 15.5).
+>
+> Retained for the internals write-up — trace-capture mechanics and the
+> Playwright client-side rendering pipeline are still accurate.
 
 ---
 
