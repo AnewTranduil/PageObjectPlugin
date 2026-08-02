@@ -65,7 +65,7 @@ npx playwright test
 | Option | Default | Description |
 |--------|---------|-------------|
 | `outputDir` | `.snapshots` | Where to save snapshots |
-| `screenshot` | `true` | Extract screenshot from trace screencast |
+| `screenshot` | `false` | Extract a screencast frame from the trace as `resources/screenshot.webp`. Off by default since screencast frames are low-fidelity; pass `true` to opt in. |
 | `manifest` | `true` | Generate `manifest.json` with metadata |
 
 ```typescript
@@ -88,7 +88,7 @@ await saveSnapshot(page, {
   outputDir: '.snapshots',
   name: 'login-initial',
   group: 'login',
-  screenshot: { enabled: true, format: 'png', fullPage: false },
+  screenshot: { format: 'webp', fullPage: false },
   manifest: true,
 });
 ```
@@ -98,8 +98,8 @@ await saveSnapshot(page, {
 | `outputDir` | (required) | Base output directory |
 | `name` | (required) | Snapshot name — becomes the subdirectory |
 | `group` | — | Parent group directory |
-| `screenshot.enabled` | `true` | Capture a screenshot |
-| `screenshot.format` | `png` | `png` (the only format supported for live capture) |
+| `screenshot` | `{ format: 'webp', fullPage: false }` | Screenshot options object; pass `false` to disable, omit for the default, or override individual fields |
+| `screenshot.format` | `webp` | `webp` or `png` |
 | `screenshot.fullPage` | `false` | Capture the full scrollable page |
 | `manifest` | `true` | Generate `manifest.json` |
 
@@ -139,7 +139,7 @@ const result = await extractSnapshots({
 |--------|---------|-------------|
 | `source` | (required) | Report directory, trace ZIP path, or URL |
 | `outputDir` | `.snapshots` | Where to save snapshots |
-| `screenshot` | `true` | Extract screenshot from trace |
+| `screenshot` | `false` | Extract a screencast frame from the trace as `resources/screenshot.webp`. Off by default since screencast frames are low-fidelity; pass `true` to opt in. |
 | `manifest` | `true` | Generate `manifest.json` |
 | `filter.page` | — | Only extract this page |
 | `filter.state` | — | Only extract this state |
@@ -224,6 +224,10 @@ The editor gutter shows a badge next to each locator with the number of matching
 - **0** — no match (broken selector)
 - **2+** — multiple matches (ambiguous selector)
 
+### Highlight current selector
+
+Press `Alt+Shift+H` to highlight the locator on the current editor line in the snapshot without moving the caret.
+
 ### Highlight All
 
-Press `Alt+Shift+H` to highlight every locator in the current file on the snapshot at once. Color-coded overlays distinguish different locators. Duplicate and overlapping selectors are flagged with visual badges.
+Click the **Show All** button on the Page Mirror toolbar to highlight every locator in the current file on the snapshot at once. Color-coded overlays distinguish different locators. Duplicate and overlapping selectors are flagged with visual badges. Click again to clear.

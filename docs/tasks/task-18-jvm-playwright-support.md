@@ -1,6 +1,6 @@
 # Task 18: Java/Kotlin Playwright Support
 
-> **Goal:** Recognize Playwright Java API locators in `.java` and `.kt` files (highlight + gutter) AND ship `snapshot-saver-jvm` — a Kotlin JVM library that produces spec-v1 bundles from `com.microsoft.playwright.Page`.
+> **Goal:** Recognize Playwright Java API locators in `.java` and `.kt` files (highlight + gutter) AND ship `snapshot-saver-jvm` — a Kotlin JVM library that produces spec-v2 bundles from `com.microsoft.playwright.Page`.
 > **Depends on:** Task 16 (introduces `LocatorExtractor` interface + registry), `docs/snapshot-bundle-spec.md`.
 > **Output:** `JvmLocatorExtractor.kt`, new Gradle artifact `packages/playwright-snapshot-saver-jvm/`.
 
