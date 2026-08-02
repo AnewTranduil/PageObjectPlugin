@@ -2,7 +2,9 @@
 
 > **Goal:** Fix three manifest.json bugs: broken timestamps in extractor path, unconditional file overwrites, and static version field.
 > **Depends on:** Task 10
-> **Output:** Correct wall-clock timestamps, no-op writes when content unchanged, auto-incrementing version on content changes
+> **Output:** Correct wall-clock timestamps, no-op writes when content unchanged, auto-incrementing version on content changes.
+>
+> **Status update (post-Task 15):** the auto-incrementing `version` counter has been reverted. `manifest.version` is now the **schema** version (currently `2`) — see `packages/snapshot-core/src/manifest.ts` and `docs/snapshot-bundle-spec.md`. The timestamp and no-op-write fixes are still in place.
 
 ## Motivation
 

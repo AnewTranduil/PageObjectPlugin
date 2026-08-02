@@ -19,7 +19,9 @@ is available.
 ## Preconditions
 
 - You are on `main` with no uncommitted changes.
-- `CHANGELOG.md` (plugin) and `packages/*/CHANGELOG.md` have the new
+- `CHANGELOG.md` (plugin) and every `packages/<name>/CHANGELOG.md` that
+  exists (today: only `packages/playwright-snapshot-saver/CHANGELOG.md`
+  — `snapshot-core` does not yet ship its own changelog) have the new
   version section at the top, with `### ⚠️ Breaking changes` at the
   top of each new section if applicable.
 - All `version` fields in `gradle.properties` / `package.json` match

@@ -86,9 +86,9 @@ Fields:
 - `version` (int, required) — **schema** version. Currently `2`. This
   is NOT a monotonic write counter (v1 briefly used it that way under
   Task 11; v2 restores the schema-only semantics).
-- `url` (string, required) — the page URL at capture time. May be the
-  empty string for trace-extracted snapshots whose trace did not
-  record the URL.
+- `url` (string, optional) — the page URL at capture time. Absent for
+  trace-extracted snapshots whose trace did not record the URL; readers
+  MUST treat a missing `url` the same as an empty string.
 - `viewport` (object, required) — `{width, height}` in CSS pixels.
   Mobile adapters (Task 20) MAY add `{platform, deviceName}`.
 - `timestamp` (string, required) — ISO-8601 UTC.
