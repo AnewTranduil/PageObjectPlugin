@@ -126,12 +126,16 @@ packages/test-project/
     dashboard.spec.ts
   .snapshots/
     login/
-      initial/        {index.html, manifest.json, resources/}
-      error-state/    {index.html, manifest.json, resources/}
+      initial/        {index.html, manifest.json[, resources/]}
+      error-state/    {index.html, manifest.json[, resources/]}
     dashboard/
-      initial/        {index.html, manifest.json, resources/}
-      ticket-filled/  {index.html, manifest.json, resources/}
+      initial/        {index.html, manifest.json[, resources/]}
+      ticket-filled/  {index.html, manifest.json[, resources/]}
 ```
+
+`resources/` is present whenever the page has external CSS, images, fonts,
+or a captured screenshot; a snapshot of a page with no external assets is
+just `index.html + manifest.json`.
 
 ## Task Sequence
 
@@ -165,16 +169,18 @@ auto-generated on PRs tagged `demo`.
 - **Task 11 (Manifest fixes):** timestamp, change detection, version increment.
 - **Task 12 (Settings UI DSL v2):** `PageMirrorConfigurable.kt` rewritten on Kotlin UI DSL v2.
 - **Task 13a (UI test unblock):** resolved via the `intellijPlatformTesting.runIde.register("runIdeForUiTests")` DSL at `build.gradle.kts:112-144`, which sidesteps the `splitMode` issue entirely.
-- **Task 13b (UI test reliability):** `ui/support/Wait.kt` and `RetryOnceExtension.kt` provide polling + retry-once. **Gap:** no `@Quarantine` annotation was created (only tracked as a reporting field in `ClaudeSummaryModel.kt`).
+- **Task 13b (UI test reliability):** `ui/support/Wait.kt` and `RetryOnceExtension.kt` provide polling + retry-once. **Gap:** no `@Quarantine` annotation was created — the field was deliberately omitted from the Task 14 `claude-summary.json` schema too (see the header comment on `buildSrc/.../buildtools/ClaudeSummaryModel.kt`), so nothing perpetually-empty ships downstream.
 - **Task 13c (UI test diagnostics):** `ui/support/{TraceBundleExtension, TraceBundle, StepRecorder, TraceIndexGenerator, CdpConsoleCollector}.kt` capture full trace bundles on failure.
 - **Task 13d (Page object refactor):** `ui/{locators, pages, flows, tests}/` provide the layered UI test structure; `ui/tests/ToolWindowUiTest.kt` is the reference example.
-- **Task 14 (CI test reporting):** `build.gradle.kts` registers `aggregateTestReport` (`:219`) and `testReport` (`:261`); `buildSrc/.../buildtools/` contains `ClaudeSummaryGenerator`, `JUnitXmlParser`, `PlaywrightJsonParser`, `MarkdownEmitter`, `TraceJsonAugmenter` with unit tests.
+- **Task 14 (CI test reporting):** `build.gradle.kts` registers `aggregateTestReport` (`:219`) and `testReport` (`:261`); `buildSrc/.../buildtools/` contains `ClaudeSummaryGenerator`, `JUnitXmlParser`, `PlaywrightJsonParser`, `MarkdownEmitter`, `TraceJsonAugmenter` with unit-test coverage for the parsers and the aggregator.
 - **Task 19 (Feature demo trace viewer):** `ui/annotations/Feature.kt`, `FeatureTagListener`, `buildSrc/.../DemoReportRenderer.kt` + `DemoTestSelector.kt`, `src/main/resources/demo-viewer/`, and `.github/workflows/demo.yml` together render a self-contained trace viewer per PR.
 
-**Task 15 (Extract `@pagemirror/snapshot-core`)** is **in progress** on
-branch `claude/check-task-statuses-C7rh9`. This bumps the snapshot bundle
-format to v2: `screenshot.<ext>` moves under `resources/`, CSS is written
-as `resources/<sha1>.css` sidecars referenced by `<link>`, and the plugin
+**Task 15 (Extract `@pagemirror/snapshot-core`)** has landed. The extracted
+package (`packages/snapshot-core/`) owns HTML assembly, manifest building,
+and screenshot handling; `playwright-snapshot-saver` is now a thin
+Playwright adapter on top of it. This bumped the snapshot bundle format to
+v2: `screenshot.<ext>` moved under `resources/`, CSS is written as
+`resources/<sha1>.css` sidecars referenced by `<link>`, and the plugin
 inlines sidecar CSS on read (since `srcdoc` iframes can't resolve relative
 URLs). v1 bundles are refused with a clear error message — regenerate via
 `npx playwright test` in `packages/test-project/`.
@@ -299,9 +305,11 @@ The layout was overhauled in Task 13 — follow these rules.
   do not hide it.
 - **Reference tests.** `tests/ToolWindowUiTest.kt` is the canonical
   Page/Flow example for active tests. `tests/SettingsUiTest.kt` is the
-  canonical example for tests that compose `SettingsChangeFlow`; it is
-  currently `@Disabled` for unrelated reasons (UI DSL component
-  wrapping) but kept as a structural reference.
+  canonical example for tests that compose `SettingsChangeFlow` — the
+  suite went live once `PageMirrorConfigurable` was given explicit
+  accessible names on its four testable fields and the settings locators
+  in `ui/locators/PageMirrorLocators.kt` were rewritten to target those
+  accessible names instead of UI DSL class-name quirks.
 
 ## Report Dashboard Access
 

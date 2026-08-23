@@ -65,7 +65,7 @@ npx playwright test
 | Option | Default | Description |
 |--------|---------|-------------|
 | `outputDir` | `.snapshots` | Where to save snapshots |
-| `screenshot` | `true` | Extract screenshot from trace screencast |
+| `screenshot` | `false` | Extract a screencast frame as `resources/screenshot.webp`. Opt-in since 0.6.0 — trace screencast frames are low-fidelity and frequently blank. |
 | `manifest` | `true` | Generate `manifest.json` with metadata |
 
 ```typescript
@@ -88,7 +88,7 @@ await saveSnapshot(page, {
   outputDir: '.snapshots',
   name: 'login-initial',
   group: 'login',
-  screenshot: { enabled: true, format: 'png', fullPage: false },
+  screenshot: { format: 'png', fullPage: false },  // or `false` to skip, omit for defaults
   manifest: true,
 });
 ```
@@ -98,8 +98,8 @@ await saveSnapshot(page, {
 | `outputDir` | (required) | Base output directory |
 | `name` | (required) | Snapshot name — becomes the subdirectory |
 | `group` | — | Parent group directory |
-| `screenshot.enabled` | `true` | Capture a screenshot |
-| `screenshot.format` | `png` | `png` (the only format supported for live capture) |
+| `screenshot` | `{ format: 'png', fullPage: false }` | `Partial<ScreenshotOptions> \| false`. Pass `false` to skip. |
+| `screenshot.format` | `png` | `png` is the only format supported for live capture; `webp` throws. For webp bytes, use the trace-extraction path. |
 | `screenshot.fullPage` | `false` | Capture the full scrollable page |
 | `manifest` | `true` | Generate `manifest.json` |
 
@@ -139,7 +139,7 @@ const result = await extractSnapshots({
 |--------|---------|-------------|
 | `source` | (required) | Report directory, trace ZIP path, or URL |
 | `outputDir` | `.snapshots` | Where to save snapshots |
-| `screenshot` | `true` | Extract screenshot from trace |
+| `screenshot` | `false` | Extract a screencast frame from the trace as `resources/screenshot.webp`. Opt-in since 0.6.0. |
 | `manifest` | `true` | Generate `manifest.json` |
 | `filter.page` | — | Only extract this page |
 | `filter.state` | — | Only extract this state |
