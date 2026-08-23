@@ -23,14 +23,14 @@ We also need guardrails: when Claude encounters a failing test, the temptation t
 {
   "version": 1,
   "generatedAt": "2026-04-07T12:00:00Z",
-  "totals": { "passed": 123, "failed": 4, "skipped": 2, "flaky": 1, "quarantined": 3, "durationMs": 456789 },
+  "totals": { "passed": 123, "failed": 4, "skipped": 2, "flaky": 1, "durationMs": 456789 },
   "suites": [
     {
       "suite": "unit | uiTest | npm:playwright-snapshot-saver | npm:snapshot-core",
       "tests": [
         {
           "name": "ClassName.testName",
-          "status": "passed | failed | skipped | flaky | quarantined",
+          "status": "passed | failed | skipped | flaky",
           "durationMs": 123,
           "file": "src/test/.../Foo.kt",
           "line": 42,
@@ -39,17 +39,23 @@ We also need guardrails: when Claude encounters a failing test, the temptation t
         }
       ]
     }
-  ],
-  "quarantined": [{ "name": "...", "reason": "...", "ticket": "..." }]
+  ]
 }
 ```
+
+> **Note on `quarantined`:** the original plan included `totals.quarantined`,
+> a `"quarantined"` status enum value, and a top-level `quarantined: [...]`
+> list. None of that shipped — Task 13b never landed the `@Quarantine`
+> annotation, so the field was deliberately dropped from the schema rather
+> than carrying a perpetually-empty placeholder. See the header comment on
+> `buildSrc/.../buildtools/ClaudeSummaryModel.kt`.
 
 ## `claude-summary.md` Layout
 
 ```
 # Test Summary — <commit sha>
 
-Totals: 123 passed, 4 failed, 2 skipped, 1 flaky, 3 quarantined (7m 36s)
+Totals: 123 passed, 4 failed, 2 skipped, 1 flaky (7m 36s)
 
 ## Failures (4)
 1. `com.example.FooTest.bar` — NullPointerException at Foo.kt:42
@@ -58,9 +64,6 @@ Totals: 123 passed, 4 failed, 2 skipped, 1 flaky, 3 quarantined (7m 36s)
 
 ## Flaky (retried once) (1)
 - `com.example.BazTest.qux` — passed on retry
-
-## Quarantined (3)
-- `com.example.XyzTest.old` — reason: "CEF race", ticket: ISSUE-123
 ```
 
 ## Steps

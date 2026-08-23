@@ -12,12 +12,12 @@ Crucially, this task does **not** build a parallel capture pipeline. It reuses t
 
 ## Key Files
 
-- `src/uiTest/kotlin/com/github/artem/pageobjectplugin/support/TraceBundleExtension.kt` — reuse; extend to record `@Feature` tag in `trace.json`.
-- New: `src/uiTest/kotlin/com/github/artem/pageobjectplugin/annotations/Feature.kt`
-- New: `src/uiTest/kotlin/com/github/artem/pageobjectplugin/support/FeatureTagListener.kt` — JUnit 5 `TestExecutionListener` that writes the tag into the trace.
-- `build.gradle.kts` — new `demoReport` task.
-- New: `buildSrc/src/main/kotlin/DemoReportRenderer.kt` — reads trace bundles, emits self-contained HTML.
-- New: `src/main/resources/demo-viewer/` — static HTML+JS+CSS template for the viewer (embedded into the rendered output).
+- `src/uiTest/kotlin/com/github/artem/pageobjectplugin/ui/support/TraceBundleExtension.kt` — reuse; extended to record `@Feature` tag in `trace.json`.
+- `src/uiTest/kotlin/com/github/artem/pageobjectplugin/ui/annotations/Feature.kt`
+- `src/uiTest/kotlin/com/github/artem/pageobjectplugin/ui/support/FeatureTagListener.kt` — JUnit 5 `TestExecutionListener` that writes the tag into the trace.
+- `build.gradle.kts` — `demoReport` task.
+- `buildSrc/src/main/kotlin/com/github/artem/pageobjectplugin/buildtools/DemoReportRenderer.kt` — reads trace bundles, emits self-contained HTML. Test selection lives alongside in `DemoTestSelector.kt`.
+- `src/main/resources/demo-viewer/` — static HTML+JS+CSS template for the viewer (embedded into the rendered output).
 - `.github/workflows/demo.yml` — triggered by `pull_request` with `demo` label.
 
 ## `@Feature` Annotation

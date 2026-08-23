@@ -5,7 +5,10 @@
 The snapshot bundle format was upgraded from v1 to v2 as part of the
 `@pagemirror/snapshot-core` extraction (Task 15). The Page Mirror plugin
 (v2024.3+) **only loads v2 bundles** — bundles with `manifest.version`
-set to any other integer are rejected with a log warning.
+set to any other integer are rejected with a log warning. A bundle whose
+`manifest.json` has no `version` field at all is loaded permissively
+("unknown, render anyway"), so absent-version manifests are not the same
+as an explicit `"version": 1`.
 
 If your snapshots stopped loading after an upgrade, this guide explains
 what changed and how to fix it.
