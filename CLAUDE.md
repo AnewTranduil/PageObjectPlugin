@@ -152,11 +152,12 @@ Tasks MUST be completed in order. Each task is in `docs/tasks/`.
 
 ## Current State
 
-**Tasks 0–14 and 19 are complete.** All plugin features ship, the snapshot
-saver npm package is published, the UI test suite runs under a layered
-Page Object structure, CI aggregates test results into a single
-`claude-summary.{json,md}` bundle, and a Playwright-style trace viewer is
-auto-generated on PRs tagged `demo`.
+**Tasks 0–15, 15.5, and 19 are complete.** All plugin features ship, the
+snapshot saver npm package is published on top of the extracted
+framework-agnostic `@pagemirror/snapshot-core`, the UI test suite runs
+under a layered Page Object structure, CI aggregates test results into
+a single `claude-summary.{json,md}` bundle, and a Playwright-style trace
+viewer is auto-generated on PRs tagged `demo`.
 
 - **Tasks 0–9:** Plugin shell, snapshot loading, file watcher, highlight
   bridge, element picker, gutter validation, polish, JS refactor,
@@ -165,32 +166,35 @@ auto-generated on PRs tagged `demo`.
 - **Task 11 (Manifest fixes):** timestamp, change detection, version increment.
 - **Task 12 (Settings UI DSL v2):** `PageMirrorConfigurable.kt` rewritten on Kotlin UI DSL v2.
 - **Task 13a (UI test unblock):** resolved via the `intellijPlatformTesting.runIde.register("runIdeForUiTests")` DSL at `build.gradle.kts:112-144`, which sidesteps the `splitMode` issue entirely.
-- **Task 13b (UI test reliability):** `ui/support/Wait.kt` and `RetryOnceExtension.kt` provide polling + retry-once. **Gap:** no `@Quarantine` annotation was created (only tracked as a reporting field in `ClaudeSummaryModel.kt`).
+- **Task 13b (UI test reliability):** `ui/support/Wait.kt` and `RetryOnceExtension.kt` provide polling + retry-once. **Gap:** no `@Quarantine` annotation was created; `ClaudeSummaryModel.kt` deliberately does NOT carry a `quarantined` field (see the `No quarantined field` comment in that file).
 - **Task 13c (UI test diagnostics):** `ui/support/{TraceBundleExtension, TraceBundle, StepRecorder, TraceIndexGenerator, CdpConsoleCollector}.kt` capture full trace bundles on failure.
 - **Task 13d (Page object refactor):** `ui/{locators, pages, flows, tests}/` provide the layered UI test structure; `ui/tests/ToolWindowUiTest.kt` is the reference example.
 - **Task 14 (CI test reporting):** `build.gradle.kts` registers `aggregateTestReport` (`:219`) and `testReport` (`:261`); `buildSrc/.../buildtools/` contains `ClaudeSummaryGenerator`, `JUnitXmlParser`, `PlaywrightJsonParser`, `MarkdownEmitter`, `TraceJsonAugmenter` with unit tests.
+- **Task 15 (Extract `@pagemirror/snapshot-core`):** shipped. The
+  extracted `packages/snapshot-core/` package owns HTML assembly,
+  manifest building, and save orchestration; `playwright-snapshot-saver`
+  is now a thin driver adapter on top. This ships the snapshot bundle
+  v2 format: `screenshot.<ext>` moves under `resources/`, CSS is
+  written as `resources/<sha1>.css` sidecars referenced by `<link>`,
+  and the plugin inlines sidecar CSS on read (since `srcdoc` iframes
+  can't resolve relative URLs). v1 bundles are refused with a clear
+  error message and an in-tool-window banner — regenerate via
+  `npx playwright test` in `packages/test-project/`. See
+  `docs/migration-v1-to-v2.md` for the migration guide.
+- **Task 15.5 (Framework-agnostic trace rendering + resource inlining):**
+  shipped. `@pagemirror/snapshot-core` now owns trace rendering behind
+  a `TraceBackend` interface
+  (`packages/snapshot-core/src/trace/{types, renderer, inline, extract,
+  runtime-script, content-type}.ts`). The Playwright package
+  (`packages/playwright-snapshot-saver/src/trace/playwright-backend.ts`)
+  reshapes `TraceLoader.storage()` into that interface; `extractor.ts`
+  delegates to `extractFromBackend`. Trace bundles are fully
+  self-contained — every `<link>`, `<img>`, CSS `url(...)`,
+  `@font-face`, and SVG `<use>` reference points at a real file under
+  `resources/`, and the `<base>` element is stripped.
+  Selenium/Cypress/Appium adapters (Tasks 17, 20) will reuse
+  `extractFromBackend` by implementing the same `TraceBackend` surface.
 - **Task 19 (Feature demo trace viewer):** `ui/annotations/Feature.kt`, `FeatureTagListener`, `buildSrc/.../DemoReportRenderer.kt` + `DemoTestSelector.kt`, `src/main/resources/demo-viewer/`, and `.github/workflows/demo.yml` together render a self-contained trace viewer per PR.
-
-**Task 15 (Extract `@pagemirror/snapshot-core`)** is **in progress** on
-branch `claude/check-task-statuses-C7rh9`. This bumps the snapshot bundle
-format to v2: `screenshot.<ext>` moves under `resources/`, CSS is written
-as `resources/<sha1>.css` sidecars referenced by `<link>`, and the plugin
-inlines sidecar CSS on read (since `srcdoc` iframes can't resolve relative
-URLs). v1 bundles are refused with a clear error message — regenerate via
-`npx playwright test` in `packages/test-project/`.
-
-**Task 15.5 (Framework-agnostic trace rendering + resource inlining)** —
-`@pagemirror/snapshot-core` now owns trace rendering behind a
-`TraceBackend` interface (`packages/snapshot-core/src/trace/{types,
-renderer, inline, extract, runtime-script, content-type}.ts`). The
-Playwright package (`packages/playwright-snapshot-saver/src/trace/
-playwright-backend.ts`) reshapes `TraceLoader.storage()` into that
-interface; `extractor.ts` delegates to `extractFromBackend`. Trace
-bundles are fully self-contained — every `<link>`, `<img>`, CSS
-`url(...)`, `@font-face`, and SVG `<use>` reference points at a real
-file under `resources/`, and the `<base>` element is stripped.
-Selenium/Cypress/Appium adapters (Tasks 17, 20) will reuse
-`extractFromBackend` by implementing the same `TraceBackend` surface.
 
 ## Working with the Build
 
