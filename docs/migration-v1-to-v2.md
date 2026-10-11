@@ -119,5 +119,5 @@ initial/
 
 - Bundle spec: [`docs/snapshot-bundle-spec.md`](snapshot-bundle-spec.md)
 - Core package: [`packages/snapshot-core/`](../packages/snapshot-core/)
-- Plugin loader: `SnapshotBundle.kt` — `isSupportedVersion()` method
+- Plugin loader: `src/main/kotlin/com/github/artem/pageobjectplugin/model/SnapshotBundle.kt` — `SUPPORTED_BUNDLE_VERSION` constant plus `SnapshotBundle.load(dir): BundleLoadResult` (`Loaded` / `UnsupportedVersion` / `Empty`)
 - Manifest builder: `packages/snapshot-core/src/manifest.ts` — `MANIFEST_VERSION` constant
